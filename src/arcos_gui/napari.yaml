@@ -1,0 +1,46 @@
+name: arcos-gui
+display_name: napari ARCOS
+contributions:
+  commands:
+    - id: arcos-gui.export_data
+      python_name: arcos_gui._arcos_widgets:export_data
+      title: Gui to export_data
+    - id: arcos-gui.add_timestamp
+      python_name: arcos_gui._arcos_widgets:add_timestamp
+      title: Gui to add a timestamp
+    - id: arcos-gui.filepicker
+      python_name: arcos_gui._arcos_widgets:filepicker
+      title: Opens filedialog to import csv
+    - id: arcos-gui.filter_widget
+      python_name: arcos_gui._arcos_widgets:filter_widget
+      title: Filters Input Data
+    - id: arcos-gui.arcos_widget
+      python_name: arcos_gui._arcos_widgets:arcos_widget
+      title: Run ARCOS 
+    - id: arcos-gui.change_cell_colors
+      python_name: arcos_gui._arcos_widgets:change_cell_colors
+      title: Changes Cell LUT
+    - id: arcos-gui.CollevPlotter
+      python_name: arcos_gui._arcos_widgets:CollevPlotter
+      title: Plots Collective Events
+    - id: arcos-gui.TimeSeriesPlots
+      python_name: arcos_gui._arcos_widgets:TimeSeriesPlots
+      title: Timeseries plots
+  widgets:
+    - command: arcos-gui.export_data
+      display_name: Data Export
+    - command: arcos-gui.add_timestamp
+      display_name: Timestamp
+    - command: arcos-gui.filepicker
+      display_name: Filepicker
+    - command: arcos-gui.filter_widget
+      display_name: Filter Widget
+    - command: arcos-gui.arcos_widget
+      display_name: ARCOS parameters
+    - command: arcos-gui.change_cell_colors
+      display_name: Change Cell LUT
+    - command: arcos-gui.CollevPlotter
+      display_name: Collective Events Plot 
+    - command: arcos-gui.TimeSeriesPlots
+      display_name: Timeseries plots
+

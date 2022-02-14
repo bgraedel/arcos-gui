@@ -1,0 +1,11 @@
+site_name: arcos-gui
+site_description: Arcos gui is a napari plugin to analyse collective events in timeseries data of tracked cells. It relies on the R package ARCOS.
+site_author: Benjamin Grädel
+
+theme: readthedocs
+
+
+repo_url: https://github.com/githubuser/arcos-gui
+
+pages:
+- Home: Documentation.md
