@@ -171,7 +171,10 @@ class process_input:
         """
         self.df.loc[:,self.columns['measurment']].update(rescale_factor*self.df.loc[:,self.columns['measurment']])
         if return_dataframe: return self.df
-
+    
+    def frame_interval(self, factor):
+        self.df.loc[:,self.columns['frame']].update(self.df.loc[:,self.columns['frame']]/factor)
+        
     def return_pd_df(self):
         return self.df
 
