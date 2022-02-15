@@ -1,10 +1,7 @@
-import subprocess
-import os
 from magicgui import magicgui
 from magicgui.tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
-import glob
 
 
 def resize_napari(final_shape, viewer):
@@ -25,7 +22,6 @@ def resize_napari(final_shape, viewer):
     viewer.camera.zoom = 2
     viewer.camera.center = (final_shape[0]/2,final_shape[1]/2)
     screenshot = viewer.screenshot()
-    print(screenshot.shape)
 
 @magicgui(call_button=False, label={"widget_type": "Label"}, Abort={"widget_type": "PushButton"}, labels=False)
 def iterate_over_frames(viewer, temp_dir, label = "Exporting Frames",Abort = False):
@@ -39,9 +35,6 @@ def iterate_over_frames(viewer, temp_dir, label = "Exporting Frames",Abort = Fal
         ax.imshow(screenshot)
         ax.axis('off')
         plt.savefig(str(temp_dir) + "_%03d.png" % frame, bbox_inches='tight', pad_inches=0)
-        if frame == 1:
-            plt.show()
-        plt.close()
 
 @iterate_over_frames.Abort.changed.connect
 def abort_export():

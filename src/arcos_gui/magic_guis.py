@@ -1,5 +1,4 @@
 from magicgui import magicgui
-from pathlib import Path
 
 @magicgui(call_button="Set Options", position = {"choices": ['upper_right', 'upper_left', 'lower_right', 'lower_left', 'center']}, size = {"min": 0, "max": 1000}, x_shift = {"min": -1000, "max": 1000}, y_shift = {"min": -1000, "max": 1000}) 
 def timestamp_options(start_time=0, step_time=1, prefix='T = ', suffix=' frame', position='upper_left', size=12, x_shift=0, y_shift=0):

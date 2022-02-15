@@ -775,13 +775,12 @@ class TimeSeriesPlots(QWidget):
 
 #callback function to export csv to specified path
 
-def export_csv():
+def export_csv(arcos_data):
     """
     function to export the arcos data sotred in the
     stored_varaibles object and save it to the 
     filepath set with the filepicker widget
     """
-    arcos_data = stored_variables.data_merged
     if arcos_data is None:
         show_info("No data to export, run arcos first")
     else:
@@ -789,6 +788,7 @@ def export_csv():
         path = str(output_csv_folder.filename.value)
         output_path = f"{path}{sep}{output_csv_folder.Name.value}.csv"
         arcos_data.to_csv(output_path)
+        show_info(f"wrote csv file to {output_path}")
 
 # export movie
 def movie_export(viewer, automatic_viewer_size):
@@ -800,7 +800,7 @@ def movie_export(viewer, automatic_viewer_size):
     # closes magicgui filepicker
     output_movie_folder.close()
     # if no layers are present, dont export data
-    if len(stored_variables.layer_names) == 0:
+    if len(viewer.layers) == 0:
         show_info("No data to export, run arcos first")
     else:
         # hides dock widgets, sets path, gets viwer dimensions
@@ -832,9 +832,9 @@ def show_output_movie_folder():
 
 """FileDialog with magicgui for writing movie file"""
 @magicgui(call_button="Ok", filename={"label": "Choose Folder:", "mode": "d"})
-def output_csv_folder(filename=Path(), Name = "arcos_data"):
-    output_movie_folder.close()
-    export_csv()
+def output_csv_folder(filename=Path(), Name = "arcos_data", arcos_data = stored_variables.data_merged):
+    output_csv_folder.close()
+    export_csv(arcos_data)
 
 # callback to show folder selector for csv epxort
 def show_output_csv_folder():
