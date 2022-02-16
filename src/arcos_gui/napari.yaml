@@ -16,7 +16,7 @@ contributions:
       title: Filters Input Data
     - id: arcos-gui.arcos_widget
       python_name: arcos_gui._arcos_widgets:arcos_widget
-      title: Run ARCOS 
+      title: Run ARCOS
     - id: arcos-gui.change_cell_colors
       python_name: arcos_gui._arcos_widgets:change_cell_colors
       title: Changes Cell LUT
@@ -40,7 +40,6 @@ contributions:
     - command: arcos-gui.change_cell_colors
       display_name: Change Cell LUT
     - command: arcos-gui.CollevPlotter
-      display_name: Collective Events Plot 
+      display_name: Collective Events Plot
     - command: arcos-gui.TimeSeriesPlots
       display_name: Timeseries plots
-

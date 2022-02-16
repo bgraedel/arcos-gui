@@ -1,33 +1,42 @@
-## imports dependencies
-from typing import TYPE_CHECKING
-from napari import Viewer, current_viewer
-
-import numpy as np
-import pandas as pd
-import napari.types
-
-from napari.utils.notifications import show_info
-
-from magicgui import magic_factory, magicgui
-from magicgui.widgets import ProgressBar
-
+# imports dependencies
+from copy import deepcopy
 from os import sep
 from pathlib import Path
-from copy import deepcopy
+from typing import TYPE_CHECKING
 
-from scipy.stats import kde
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from magicgui import magic_factory, magicgui
+from magicgui.widgets import ProgressBar
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
-from qtpy.QtWidgets import QWidget, QVBoxLayout, QPushButton, QComboBox, QHBoxLayout, QLabel,  QSpinBox
-
+from napari import current_viewer
+from napari.utils.notifications import show_info
+from qtpy.QtWidgets import (
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
+from scipy.stats import kde
 
 # local imports
-from .arcos_module import process_input, ARCOS
-from .shape_functions import get_verticesHull, format_verticesHull, assign_color_id, COLOR_CYCLE, make_shapes, make_timestamp
-from .export_movie import resize_napari, iterate_over_frames
+from .arcos_module import ARCOS, process_input
+from .export_movie import iterate_over_frames, resize_napari
+from .magic_guis import columnpicker, show_timestamp_options, timestamp_options
+from .shape_functions import (
+    COLOR_CYCLE,
+    assign_color_id,
+    format_verticesHull,
+    get_verticesHull,
+    make_shapes,
+    make_timestamp,
+)
 from .temp_data_storage import data_storage
-from .magic_guis import timestamp_options, columnpicker, show_timestamp_options
 
 if TYPE_CHECKING:
     import napari.types
@@ -39,41 +48,83 @@ TOFFSET = 0
 # initalize class
 stored_variables = data_storage()
 
+
 # init function for magic_factory add_timestamp
 def on_ts_init(new_widget):
-    new_widget.Set_Timestamp_Options.changed.connect(show_timestamp_options) 
+    new_widget.Set_Timestamp_Options.changed.connect(show_timestamp_options)
 
-"""Button to add timestamp"""
-@magic_factory(widget_init= on_ts_init, call_button="Add Timestamp", Set_Timestamp_Options = {"widget_type": "PushButton"})
-def add_timestamp(viewer: 'napari.viewer.Viewer', Set_Timestamp_Options = False) -> napari.types.LayerDataTuple:
-        if list(viewer.layers) and viewer.layers.ndim > 2:
-            if "Timestamp" in stored_variables.layer_names:
-                viewer.layers.remove("Timestamp")
-            kw_timestamp = make_timestamp(viewer,start_time= timestamp_options.start_time.value, step_time= timestamp_options.step_time.value,
-            prefix= timestamp_options.prefix.value, suffix= timestamp_options.suffix.value,position= timestamp_options.position.value, size= timestamp_options.size.value,
-            x_shift= timestamp_options.x_shift.value, y_shift= timestamp_options.y_shift.value)
-            time_stamp = (kw_timestamp['data'], {'properties': kw_timestamp['properties'], 'face_color': kw_timestamp['face_color'], 'shape_type': kw_timestamp['shape_type'], 'text': kw_timestamp['text'], 'opacity':kw_timestamp['opacity'], 'name': "Timestamp"}, 'shapes')
-            return [time_stamp]
-        else: show_info("No Layers to add Timestamp to")
+
+@magic_factory(
+    widget_init=on_ts_init,
+    call_button="Add Timestamp",
+    Set_Timestamp_Options={"widget_type": "PushButton"},
+)
+def add_timestamp(
+    viewer: "napari.viewer.Viewer", Set_Timestamp_Options=False
+) -> napari.types.LayerDataTuple:
+    """Button to add timestamp"""
+    if list(viewer.layers) and viewer.layers.ndim > 2:
+        if "Timestamp" in stored_variables.layer_names:
+            viewer.layers.remove("Timestamp")
+        kw_timestamp = make_timestamp(
+            viewer,
+            start_time=timestamp_options.start_time.value,
+            step_time=timestamp_options.step_time.value,
+            prefix=timestamp_options.prefix.value,
+            suffix=timestamp_options.suffix.value,
+            position=timestamp_options.position.value,
+            size=timestamp_options.size.value,
+            x_shift=timestamp_options.x_shift.value,
+            y_shift=timestamp_options.y_shift.value,
+        )
+        time_stamp = (
+            kw_timestamp["data"],
+            {
+                "properties": kw_timestamp["properties"],
+                "face_color": kw_timestamp["face_color"],
+                "edge_color": kw_timestamp["edge_color"],
+                "shape_type": kw_timestamp["shape_type"],
+                "text": kw_timestamp["text"],
+                "opacity": kw_timestamp["opacity"],
+                "name": "Timestamp",
+            },
+            "shapes",
+        )
+        return [time_stamp]
+    else:
+        show_info("No Layers to add Timestamp to")
+
 
 def on_export_data_init(new_widget):
     """init function for the export data widget"""
     new_widget.Export_ARCOS_as_csv.changed.connect(show_output_csv_folder)
     new_widget.Export_movie.changed.connect(show_output_movie_folder)
 
-"""Widget to export csv and movie data"""
-@magic_factory(widget_init= on_export_data_init, call_button=False, Export_ARCOS_as_csv = {"widget_type": "PushButton"}, Export_movie = {"widget_type": "PushButton"})
-def export_data(Export_ARCOS_as_csv = False, Export_movie = False):
-    ...
 
-"""FileDialog with magicgui for reading in csv file"""
+@magic_factory(
+    widget_init=on_export_data_init,
+    call_button=False,
+    Export_ARCOS_as_csv={"widget_type": "PushButton"},
+    Export_movie={"widget_type": "PushButton"},
+)
+def export_data(Export_ARCOS_as_csv=False, Export_movie=False):
+    """Widget to export csv and movie data"""
+
+
 @magic_factory(call_button="Ok", filename={"label": "Choose CSV file:"})
-def filepicker(filename=Path("/home/benjamingraedel/share/imaging.data/bgraedel/LungOnAChip_Project/029_20211110/Analysis/arcos/dataframe2.csv")):
-    """Take a filename and if it is a csv file, open it and stores it in the stored_variables_object"""
+def filepicker(
+    filename=Path(),
+):
+    """
+    FileDialog with magicgui for reading in csv file.
+    Take a filename and if it is a csv file,
+    open it and stores it in the stored_variables_object
+    """
     columns = columnpicker.frame.choices
     column_keys = columnpicker.dicCols.value.keys()
     for i in column_keys:
-        for index, j in enumerate(columns): getattr(columnpicker, i).del_choice(str(j))
+        for index, j in enumerate(columns):
+            getattr(columnpicker, i).del_choice(str(j))
     csv_file = filepicker.filename.value
     if str(csv_file).endswith(".csv"):
         stored_variables.data = pd.read_csv(csv_file)
@@ -86,20 +137,24 @@ def filepicker(filename=Path("/home/benjamingraedel/share/imaging.data/bgraedel/
         columnpicker.field_of_view_id.choices = columns
         columnpicker.field_of_view_id.set_choice("None", "None")
         columnpicker.show()
-    else: show_info("Not a csv file")
+    else:
+        show_info("Not a csv file")
 
-# columnpicker callback
 
 def on_filter_widget_init(widget):
     """init functin that runs upon filter_widget init."""
     # get current viewer
     viewer = current_viewer()
-    
-    def close_columnpicker(): 
-        """listens for PushButton Press in columnpicker widget and gets the chosen columns to be stored inside of a dictionnary
-        as a parameter of the columnpicker widget. Additionally, determines minimum and maximum tracklength and unique positoins
-        for filtering the TimeSeries later on via sliders in filter_widget and updates these variables in the stored_variables object.
-        Function also initializes callbacks for when new layers are inserted and removes layers once new data gets loaded."""    
+
+    def close_columnpicker():
+        """listens for PushButton Press in columnpicker widget
+        and gets the chosen columns to be stored inside of a dictionnary
+        as a parameter of the columnpicker widget. Additionally,
+        determines minimum and maximum tracklength and unique positoins
+        for filtering the TimeSeries later on via sliders in filter_widget
+        and updates these variables in the stored_variables object.
+        Function also initializes callbacks for when new layers are inserted
+        and removes layers once new data gets loaded."""
         # populate column dictionnary
         frame = columnpicker.frame.value
         track_id = columnpicker.track_id.value
@@ -109,17 +164,21 @@ def on_filter_widget_init(widget):
         field_of_view_id = columnpicker.field_of_view_id.value
         columnpicker.close()
         columnpicker.dicCols.value = {
-            'frame': frame, 
-            'x_coordinates': x_coordinates, 
-            'y_coordinates': y_coordinates,
-            'track_id': track_id,
-            'measurment': measurment,
-            'field_of_view_id': field_of_view_id
-            }
+            "frame": frame,
+            "x_coordinates": x_coordinates,
+            "y_coordinates": y_coordinates,
+            "track_id": track_id,
+            "measurment": measurment,
+            "field_of_view_id": field_of_view_id,
+        }
 
         # get unique positions for filter_widget
-        if columnpicker.dicCols.value['field_of_view_id'] != "None":
-            positions = list(stored_variables.data[columnpicker.dicCols.value['field_of_view_id']].unique())
+        if columnpicker.dicCols.value["field_of_view_id"] != "None":
+            positions = list(
+                stored_variables.data[
+                    columnpicker.dicCols.value["field_of_view_id"]
+                ].unique()
+            )
         else:
             positions = ["None"]
 
@@ -129,14 +188,27 @@ def on_filter_widget_init(widget):
             widget.position.visible = True
 
         # get track_lenghts
-        if columnpicker.dicCols.value['field_of_view_id'] != "None":
-            data_g = stored_variables.data.groupby([columnpicker.dicCols.value['field_of_view_id'], columnpicker.dicCols.value['track_id']]).size()
+        if columnpicker.dicCols.value["field_of_view_id"] != "None":
+            data_g = stored_variables.data.groupby(
+                [
+                    columnpicker.dicCols.value["field_of_view_id"],
+                    columnpicker.dicCols.value["track_id"],
+                ]
+            ).size()
         else:
-            data_g = stored_variables.data.groupby([columnpicker.dicCols.value['track_id']]).size()
+            data_g = stored_variables.data.groupby(
+                [columnpicker.dicCols.value["track_id"]]
+            ).size()
         minmax = (min(data_g), max(data_g))
 
         # remove existing arcos layers before loading new data
-        for layer in ["coll cells", "coll events", "active cells", "all_cells", "Timestamp"]:
+        for layer in [
+            "coll cells",
+            "coll events",
+            "active cells",
+            "all_cells",
+            "Timestamp",
+        ]:
             if layer in stored_variables.layer_names:
                 viewer.layers.remove(layer)
                 stored_variables.layer_names.remove(layer)
@@ -153,70 +225,94 @@ def on_filter_widget_init(widget):
         stored_variables.positions = positions
         widget()
 
-        # hides position choice in filter_widget if no position column exists in the raw data
-        # i.e. during columnpicker position was set to None. Also hides it if there is only 
-        # one position available. Updates everytime when new data is read in
+        # hides position choice if no position column exists in the raw data
+        # i.e. during columnpicker position was set to None.
+        # Also hides it if there is only one position available.
+        # Updates everytime when new data is read in
         if len(widget.position.choices) == 1:
             widget.position.hide()
         else:
             widget.position.show()
 
-
     def add_new_layers_list(event):
-        """if called, adds newly inserted layers to the list stored in the stored_variables object"""
+        """
+        adds newly inserted layers to the list stored in the stored_variables object
+        """
         for idx, layer in enumerate(viewer.layers):
             if layer.name not in stored_variables.layer_names:
                 stored_variables.layer_names.append(layer.name)
 
         positions = sorted(stored_variables.positions)
         current_pos = stored_variables.current_position
-        for i in positions: widget.position.del_choice(str(i))
-        
+        for i in positions:
+            widget.position.del_choice(str(i))
+
         widget.position.choices = positions
         widget.position.value = current_pos
 
     def remove_old_layers_list(event):
-        """if called, removes layers that are not present anymore form the list the stored_variables object"""
+        """removes layers that are not present in napari
+        anymore form the list the stored_variables object"""
         for idx, layer in enumerate(viewer.layers):
             if layer.name not in [x.name for x in viewer.layers]:
                 stored_variables.layer_names.remove(layer.name)
 
         positions = sorted(stored_variables.positions)
-        for i in positions: widget.position.del_choice(str(i))
+        for i in positions:
+            widget.position.del_choice(str(i))
         current_pos = stored_variables.current_position
         widget.position.choices = positions
         widget.position.value = current_pos
 
     def update_what_to_run_variable():
-        """updates a 'what to run' variable in the stored_variables object, 
-        that is used in arcos_widget to check if what to run 
+        """updates a 'what to run' variable in the stored_variables object,
+        that is used in arcos_widget to check if what to run
         when certain field have updated values"""
         stored_variables.update_what_to_run("all")
 
-    ## callbacks
     # callback for updating several variables after OK press in columnpicker widget
     columnpicker.Ok.changed.connect(close_columnpicker)
+
     # callback for removing and adding layers to a list of layers
     viewer.layers.events.inserted.connect(add_new_layers_list)
     viewer.layers.events.removed.connect(remove_old_layers_list)
+
     # callback for updating what to run in arcos_widget
     widget.called.connect(update_what_to_run_variable)
 
-"""Creates a filter widget that is used to filter the input data to contain a single position. 
-filter options also include minimum and maximum tracklength. Allows for rescaling of measurment variable."""
-@magic_factory(widget_init=on_filter_widget_init, call_button="update field of view", position = {"choices": ["None"], "visible": False}, 
-        min_track_length = {"widget_type": "Slider", "min": 0, "max": 10}, 
-        max_track_length = {"widget_type": "Slider",  "min": 0, "max": 10})
-def filter_widget(position = "None", rescale_measurment = 1,frame_interval = 1, min_track_length = 0, max_track_length = 10):
-    # gets raw data read in by filepicker from stored_variables object and columns from columnpicker value
-    in_data = process_input(df=stored_variables.data, columns=columnpicker.dicCols.value)
+
+@magic_factory(
+    widget_init=on_filter_widget_init,
+    call_button="update field of view",
+    position={"choices": ["None"], "visible": False},
+    min_track_length={"widget_type": "Slider", "min": 0, "max": 10},
+    max_track_length={"widget_type": "Slider", "min": 0, "max": 10},
+)
+def filter_widget(
+    position="None",
+    rescale_measurment=1,
+    frame_interval=1,
+    min_track_length=0,
+    max_track_length=10,
+):
+    """
+    Creates a widget that is used to filter the input data to contain a single position.
+    filter options also include minimum and maximum tracklength.
+    Allows for rescaling of measurment variable.
+    """
+    # gets raw data read in by filepicker from stored_variables object
+    # and columns from columnpicker value
+    in_data = process_input(
+        df=stored_variables.data, columns=columnpicker.dicCols.value
+    )
     if stored_variables.data is None:
         show_info("No Data Loaded, Use filepicker to open data first")
     else:
         # if the position column was not chosen in columnpicker, dont filter by position
-        if columnpicker.dicCols.value['field_of_view_id'] != "None":
-            # hast to be done before .filter_tracklenght otherwise code could break if track ids are not unique to positions
-            in_data.filter_position(position) 
+        if columnpicker.dicCols.value["field_of_view_id"] != "None":
+            # hast to be done before .filter_tracklenght otherwise code could break
+            # if track ids are not unique to positions
+            in_data.filter_position(position)
         # filter by tracklenght
         in_data.filter_tracklength(min_track_length, max_track_length)
         # option to rescale the measurment column
@@ -227,9 +323,9 @@ def filter_widget(position = "None", rescale_measurment = 1,frame_interval = 1, 
         dataframe = in_data.return_pd_df()
 
         # get min and max values
-        if dataframe is not None:
-            max_meas = max(dataframe[columnpicker.dicCols.value['measurment']])
-            min_meas = min(dataframe[columnpicker.dicCols.value['measurment']])
+        if not dataframe.empty:
+            max_meas = max(dataframe[columnpicker.dicCols.value["measurment"]])
+            min_meas = min(dataframe[columnpicker.dicCols.value["measurment"]])
             stored_variables.min_max = (min_meas, max_meas)
         stored_variables.dataframe = dataframe
         stored_variables.current_position = filter_widget.position.value
@@ -250,26 +346,27 @@ def on_arcos_widget_init(widget):
         stored_variables.update_what_to_run("from_filtering")
 
     def toggle_clip_meas_visibility():
-        widget.clip_low.visible = (not widget.clip_low.visible)
-        widget.clip_high.visible = (not widget.clip_high.visible)
+        widget.clip_low.visible = not widget.clip_low.visible
+        widget.clip_high.visible = not widget.clip_high.visible
 
     def toggle_bias_method_parameter_visibility():
-        """based on the seleciton of bias method shows or hides the appropriate options in the widget"""
-        if widget.bias_method.value == 'runmed':
+        """based on the seleciton of bias method:
+        shows or hides the appropriate options in the widget"""
+        if widget.bias_method.value == "runmed":
             widget.smooth_k.visible = True
             widget.polyDeg.visible = False
             widget.bias_k.visible = True
             widget.bin_peak_threshold.visible = True
             widget.bin_threshold.visible = True
 
-        if widget.bias_method.value == 'lm':
+        if widget.bias_method.value == "lm":
             widget.smooth_k.visible = True
             widget.polyDeg.visible = True
             widget.bias_k.visible = False
             widget.bin_peak_threshold.visible = True
             widget.bin_threshold.visible = True
-        
-        if widget.bias_method.value == 'none':
+
+        if widget.bias_method.value == "none":
             widget.smooth_k.visible = True
             widget.polyDeg.visible = False
             widget.bias_k.visible = False
@@ -285,7 +382,7 @@ def on_arcos_widget_init(widget):
     widget.bin_threshold.changed.connect(update_what_to_run_all)
     widget.neighbourhood_size.changed.connect(update_what_to_run_tracking)
     widget.bin_peak_threshold.changed.connect(update_what_to_run_all)
-    widget.min_clustersize.changed.connect(update_what_to_run_tracking)  
+    widget.min_clustersize.changed.connect(update_what_to_run_tracking)
     widget.min_clustersize.changed.connect(update_what_to_run_tracking)
     widget.min_duration.changed.connect(update_what_to_run_filtering)
     widget.total_event_size.changed.connect(update_what_to_run_filtering)
@@ -293,46 +390,59 @@ def on_arcos_widget_init(widget):
 
     # callback for chaning available options of bias method
     widget.bias_method.changed.connect(toggle_bias_method_parameter_visibility)
-            
+
 
 # widget for running arcos
-"""widget for defining arcos parameters and running arcos"""
-@magic_factory(widget_init=on_arcos_widget_init,
+@magic_factory(
+    widget_init=on_arcos_widget_init,
     call_button="update arcos",
-    interval_type={"choices": ['fixed', 'var']},
-    bias_method={"choices": ['runmed', 'lm', 'none']},
-    clip_low={"min": 0, "max":1, "step": 0.001, "tooltip": "Measurment in Quantiles"},
-    clip_high={"min": 0, "max":1, "step": 0.001, "tooltip": "Measurment in Quantiles"},
-    bin_peak_threshold ={"min": 0, "step": 0.01},
-    bin_threshold ={"min": 0, "step": 0.01},
-    Progress={"min": 0, "step": 4, "max": 40, "value": 0}
+    interval_type={"choices": ["fixed", "var"]},
+    bias_method={"choices": ["runmed", "lm", "none"]},
+    clip_low={"min": 0, "max": 1, "step": 0.001, "tooltip": "Measurment in Quantiles"},
+    clip_high={"min": 0, "max": 1, "step": 0.001, "tooltip": "Measurment in Quantiles"},
+    bin_peak_threshold={"min": 0, "step": 0.01},
+    bin_threshold={"min": 0, "step": 0.01},
+    Progress={"min": 0, "step": 4, "max": 40, "value": 0},
 )
-
-def arcos_widget(viewer: 'napari.viewer.Viewer',
-    interpolate_measurments = True,
-    clip_measurments = True,
-    clip_low = 0.001,
-    clip_high = 0.999,
-    interval_type='fixed',
-    bias_method='runmed',
+def arcos_widget(
+    viewer: "napari.viewer.Viewer",
+    interpolate_measurments=True,
+    clip_measurments=True,
+    clip_low=0.001,
+    clip_high=0.999,
+    interval_type="fixed",
+    bias_method="runmed",
     smooth_k=1,
-    polyDeg = 1,
+    polyDeg=1,
     bias_k=25,
-    bin_peak_threshold = 0.2,
-    bin_threshold = 0.1,
-    neighbourhood_size = 40, 
-    min_clustersize = 5,
-    min_duration = 3, 
-    total_event_size = 30,
-    Progress: ProgressBar = 0) -> napari.types.LayerDataTuple:
-    """magic_factory decorated function, that creates a widget allowing a user to choose arcos parameters and that runs arcos
-    upon selecting "update arcos". returns a list of napari.types.LayerDataTuble to add or update layers. Included layers are:
-    all_cells: returns color coded points of all cells filtered by the filter_widget. Color code represents measurment
-    active_cells: returns black dots representing cells determined as being active by arcos binarise measurment function
-    coll_cells: returns black crosses representing cells that are according to the calculation done by arcos part of a collective event
-    coll_events: returns polycons representing the convex hulls of individual collective events, color coded accoring to a color_cycle attribute"""
+    bin_peak_threshold=0.2,
+    bin_threshold=0.1,
+    neighbourhood_size=40,
+    min_clustersize=5,
+    min_duration=3,
+    total_event_size=30,
+    Progress: ProgressBar = 0,
+) -> napari.types.LayerDataTuple:
+    """
+    widget allowing a user to choose arcos parameters and when called runs arcos.
+    returns a list of napari.types.LayerDataTuble to add or update layers.
 
-    # if statement checks if this part of the function has to be run depending on the parameters changed in arcos widget
+    Included layers are:
+    all_cells:
+    returns color coded points of all cells filtered by the filter_widget.
+    Color code represents measurment active_cells: returns black dots,
+    representing cells determined as being active by arcos binarise measurment function
+
+    coll_cells:
+    returns black crosses representing cells that are according
+    to the calculation done by arcos part of a collective event
+
+    coll_events:
+    returns polycons representing the convex hulls of individual collective
+    events, color coded accoring to a color_cycle attribute
+    """
+    # checks if this part of the function has to be run,
+    # depends on the parameters changed in arcos widget
     if stored_variables.dataframe is None:
         show_info("No Data Loaded, Use filepicker to load data first")
     else:
@@ -343,7 +453,7 @@ def arcos_widget(viewer: 'napari.viewer.Viewer',
 
             # create arcos object, run arcos
             arcos = ARCOS(stored_variables.dataframe, columnpicker.dicCols.value)
-            arcos.create_arcosTS(interval=1,inter_type=interval_type)
+            arcos.create_arcosTS(interval=1, inter_type=interval_type)
 
             Progress.increment()
 
@@ -360,25 +470,36 @@ def arcos_widget(viewer: 'napari.viewer.Viewer',
             # updates arcos object in the stored_variables object
             stored_variables.arcos = arcos
 
-            # binarize data and update ts variable in stored_variables aswell as from where to run
-            ts = arcos.bin_measurements(bias_method,smooth_k,bias_k, bin_peak_threshold, bin_threshold, polyDeg, return_dataframe=True)
+            # binarize data and update ts variable in stored_variables
+            # update from where to run
+            ts = arcos.bin_measurements(
+                bias_method,
+                smooth_k,
+                bias_k,
+                bin_peak_threshold,
+                bin_threshold,
+                polyDeg,
+                return_dataframe=True,
+            )
             stored_variables.ts_data = ts
             stored_variables.update_what_to_run("from_tracking")
 
             Progress.increment()
 
-        # if statement checks if this part of the function has to be run depending on the parameters changed in arcos widget
+        # if statement checks if this part of the function has to be run
+        # depends on the parameters changed in arcos widget
         if "from_tracking" in stored_variables.arcos_what_to_run:
-            arcos = stored_variables.arcos
+            arcos = stored_variables.arcos  # type: ignore
             ts = stored_variables.ts_data
             # if active cells were detected, run this
-            if 1 in ts['meas.bin'].values:
+            if 1 in ts["meas.bin"].values:
                 # track collective events
-                arcos.track_events(neighbourhood_size,min_clustersize)
+                arcos.track_events(neighbourhood_size, min_clustersize)
 
                 Progress.value = 12
 
-            # if no active cells were detected remove layer of previous calculated arcos, since this does not correspont to current widget parameters
+            # if no active cells were detected remove previous layer,
+            # since this does not correspont to current widget parameters
             else:
                 # check if layers exist, if yes, remove them
                 if "active cells" in stored_variables.layer_names:
@@ -388,106 +509,189 @@ def arcos_widget(viewer: 'napari.viewer.Viewer',
                     stored_variables.layer_names.remove("all_cells")
                     Progress.value = 40
                 show_info("No active Cells detected, consider adjusting parameters")
-            
+
             # update stored variables
             stored_variables.arcos = arcos
             stored_variables.update_what_to_run("from_filtering")
 
-        # if statement checks if this part of the function has to be run depending on the parameters changed in arcos widget
+        # depending on the parameters changed in arcos widget
         if "from_filtering" in stored_variables.arcos_what_to_run:
 
             # set progressbar value
             Progress.value = 20
-            
+
             # get most recent data from stored_variables
-            arcos = stored_variables.arcos
+            arcos = stored_variables.arcos  # type: ignore
             ts = stored_variables.ts_data
 
             # if no data show info to run arcos first and set the progressbar to 100%
-            if arcos == None:
+            if arcos is None:
                 show_info("No data available, run arcos first")
                 Progress.value = 40
 
-            # if cells were classifed as being active (represented by a 1) filter tracked events acording to chosen parameters
-            elif 1 in ts['meas.bin'].values:
+            # if cells were classifed as being active (represented by a 1)
+            # filter tracked events acording to chosen parameters
+            elif 1 in ts["meas.bin"].values:
 
-                # set return varaibles to check which layers have to be returned by the function
+                # set return varaibles to check which layers have to be created
                 return_collev = False
                 return_points = True
-                out = arcos.filter_tracked_events(min_duration,total_event_size, as_pd_dataframe=True)
+                out = arcos.filter_tracked_events(
+                    min_duration, total_event_size, as_pd_dataframe=True
+                )
 
                 Progress.increment()
 
                 # update stats variable
-                stats = arcos.calculate_stats()
+                arcos.calculate_stats()
 
                 Progress.increment()
 
                 # merge tracked and original data
-                merged_data = pd.merge(ts,out[[columnpicker.dicCols.value['frame'], columnpicker.dicCols.value['track_id'], 'collid']], how='left', on = [columnpicker.dicCols.value['frame'],columnpicker.dicCols.value['track_id']])
+                merged_data = pd.merge(
+                    ts,
+                    out[
+                        [
+                            columnpicker.dicCols.value["frame"],
+                            columnpicker.dicCols.value["track_id"],
+                            "collid",
+                        ]
+                    ],
+                    how="left",
+                    on=[
+                        columnpicker.dicCols.value["frame"],
+                        columnpicker.dicCols.value["track_id"],
+                    ],
+                )
                 stored_variables.data_merged = merged_data
-                
+
                 # subtract timeoffset
-                merged_data[columnpicker.dicCols.value['frame']] -= TOFFSET
+                merged_data[columnpicker.dicCols.value["frame"]] -= TOFFSET
 
                 # column list
-                vColsCore = [columnpicker.dicCols.value['frame'], columnpicker.dicCols.value['y_coordinates'], columnpicker.dicCols.value['x_coordinates']]
+                vColsCore = [
+                    columnpicker.dicCols.value["frame"],
+                    columnpicker.dicCols.value["y_coordinates"],
+                    columnpicker.dicCols.value["x_coordinates"],
+                ]
 
                 # np matrix with all cells
                 datAll = merged_data[vColsCore].to_numpy()
 
-                # a dictionary with activities; 
+                # a dictionary with activities;
                 # shown as a color code of all cells
 
                 datAllProp = {
-                    'act' : merged_data[columnpicker.dicCols.value['measurment']]}
+                    "act": merged_data[columnpicker.dicCols.value["measurment"]]
+                }
 
                 # np matrix with acvtive cells; shown as black dots
-                datAct = merged_data[merged_data['meas.bin'] > 0][vColsCore].to_numpy()
+                datAct = merged_data[merged_data["meas.bin"] > 0][vColsCore].to_numpy()
 
-                active_cells = (datAct, {'size': 2, 'edge_width': 0, 'face_color': 'black', 'opacity': 1, 'symbol': "disc", 'name': "active cells"}, 'points')
+                active_cells = (
+                    datAct,
+                    {
+                        "size": 2,
+                        "edge_width": 0,
+                        "face_color": "black",
+                        "opacity": 1,
+                        "symbol": "disc",
+                        "name": "active cells",
+                    },
+                    "points",
+                )
 
                 # np matrix with cells in collective events; shown as black pluses
-                datColl = merged_data[~np.isnan(merged_data['collid'])][vColsCore].to_numpy()
+                datColl = merged_data[~np.isnan(merged_data["collid"])][
+                    vColsCore
+                ].to_numpy()
 
                 # tuple to return layer as layer.data.tuple
-                all_cells = (datAll,{'properties': datAllProp, 'edge_width': 0, 'edge_color': 'act', 'face_color': 'act', 'face_colormap': stored_variables.lut, 
-                "face_contrast_limits": stored_variables.min_max, 
-                'size': 5, 'opacity': 1, 'symbol': "disc", 'name': "all_cells"}, 'points')
+                all_cells = (
+                    datAll,
+                    {
+                        "properties": datAllProp,
+                        "edge_width": 0,
+                        "edge_color": "act",
+                        "face_color": "act",
+                        "face_colormap": stored_variables.lut,
+                        "face_contrast_limits": stored_variables.min_max,
+                        "size": 5,
+                        "opacity": 1,
+                        "symbol": "disc",
+                        "name": "all_cells",
+                    },
+                    "points",
+                )
 
-                Progress.increment()      
+                Progress.increment()
 
-                # check if collective events were detected and add layer if yes calculate convex hulls for collective events
+                # check if collective events were detected and add layer,
+                # if yes calculate convex hulls for collective events
                 if datColl.size != 0:
                     # convex hulls
-                    df_gb = merged_data[~np.isnan(merged_data['collid'])].groupby([columnpicker.dicCols.value['frame'], 'collid'])
-                    datChull = df_gb.apply(get_verticesHull, col_x=columnpicker.dicCols.value['x_coordinates'], col_y=columnpicker.dicCols.value['y_coordinates']).reset_index(drop=True)
-                    # if statement to check if error Qhullerror was raised in get_verticesHull
-                    # shows column info that was passed on to the function 
-                    if type(datChull) == list: 
-                        show_info(f"Error in convex hull creation, correct x/y columns selected? \n x, y columns: {datChull}")
+                    df_gb = merged_data[~np.isnan(merged_data["collid"])].groupby(
+                        [columnpicker.dicCols.value["frame"], "collid"]
+                    )
+                    datChull = df_gb.apply(
+                        get_verticesHull,
+                        col_x=columnpicker.dicCols.value["x_coordinates"],
+                        col_y=columnpicker.dicCols.value["y_coordinates"],
+                    ).reset_index(drop=True)
+                    # check if error Qhullerror was raised in get_verticesHull
+                    # shows column info that was passed on to the function
+                    if type(datChull) == list:
+                        show_info(
+                            f"Error in convex hull creation, \
+                            correct x/y columns selected? \n x, y columns: {datChull}"
+                        )
 
-                    datChull = format_verticesHull(datChull, columnpicker.dicCols.value['frame'], columnpicker.dicCols.value['x_coordinates'], columnpicker.dicCols.value['y_coordinates'], 'collid')
-                    datChull['axis-0'] -= TOFFSET
+                    datChull = format_verticesHull(
+                        datChull,
+                        columnpicker.dicCols.value["frame"],
+                        columnpicker.dicCols.value["x_coordinates"],
+                        columnpicker.dicCols.value["y_coordinates"],
+                        "collid",
+                    )
+                    datChull["axis-0"] -= TOFFSET
 
                     df_collid_colors = assign_color_id(
-                        df = datChull,
-                        palette = COLOR_CYCLE,
+                        df=datChull,
+                        palette=COLOR_CYCLE,
                     )
 
-                    datChull = datChull.merge(
-                        df_collid_colors,
-                        on = 'collid'
-                    )
+                    datChull = datChull.merge(df_collid_colors, on="collid")
 
                     # creates actuall shapes
-                    kw_shapes = make_shapes(datChull, col_text = 'collid')
-                    
+                    kw_shapes = make_shapes(datChull, col_text="collid")
+
                     # create remaining layer.data.tuples
-                    coll_cells = (datColl, {'face_color': "black", 'size': 3,'opacity': 0.75, 'symbol': "x",'name': "coll cells"}, 'points')
-                    coll_events = (kw_shapes['data'], {'face_color': kw_shapes['face_color'], 'properties':kw_shapes['properties'], 'shape_type':'polygon', 'text': None, 'opacity': 0.5, 'edge_color': 'white','name': "coll events"}, 'shapes')
+                    coll_cells = (
+                        datColl,
+                        {
+                            "face_color": "black",
+                            "size": 3,
+                            "opacity": 0.75,
+                            "symbol": "x",
+                            "name": "coll cells",
+                        },
+                        "points",
+                    )
+                    coll_events = (
+                        kw_shapes["data"],
+                        {
+                            "face_color": kw_shapes["face_color"],
+                            "properties": kw_shapes["properties"],
+                            "shape_type": "polygon",
+                            "text": None,
+                            "opacity": 0.5,
+                            "edge_color": "white",
+                            "name": "coll events",
+                        },
+                        "shapes",
+                    )
                     return_collev = True
-                    
+
                     Progress.increment()
                 else:
                     # check if layers exit, if yes remove them
@@ -496,21 +700,23 @@ def arcos_widget(viewer: 'napari.viewer.Viewer',
                         viewer.layers.remove("coll events")
                         stored_variables.layer_names.remove("coll cells")
                         stored_variables.layer_names.remove("coll events")
-                    show_info("No collective events detected, consider adjusting parameters")
+                    show_info(
+                        "No collective events detected, consider adjusting parameters"
+                    )
                 Progress.value = 40
 
                 # empty what to run list to check for new parameter changes
                 stored_variables.clear_what_to_run()
 
-                ### update layers
+                # update layers
                 # check which layers need to be added, add these layers
                 if return_collev and return_points:
-                    return [all_cells, active_cells,coll_cells, coll_events]
+                    return [all_cells, active_cells, coll_cells, coll_events]
                 elif not return_collev and return_points:
-                    return [all_cells, active_cells]  
+                    return [all_cells, active_cells]
+
 
 def on_change_cell_colors_init(widget):
-    
     def update_lut_values():
         """updates values in lut mapping sliders"""
         min_max = stored_variables.min_max
@@ -522,52 +728,58 @@ def on_change_cell_colors_init(widget):
         widget.max_contrast.value = widget.max_contrast.max
         widget.min_contrast.value = widget.min_contrast.min
 
-
     def update_lut():
         """updates LUT choice in stored_variables"""
-        stored_variables.lut = widget.LUT.value 
+        stored_variables.lut = widget.LUT.value
 
     # callbacks to execute abve functions
     widget.ResetLUT.changed.connect(update_lut_values)
     widget.LUT.changed.connect(update_lut)
 
-"""widget to change lookup table and apply it to all_cells points layer"""
-@magic_factory(widget_init=on_change_cell_colors_init, auto_call = True, 
-                max_contrast={"widget_type": "FloatSlider", "max": 1}, 
-                min_contrast={"widget_type": "FloatSlider", "max": 1}, 
-                ResetLUT = {"widget_type": "PushButton"}, LUT={"widget_type": "ComboBox", "choices": stored_variables.colormaps})
 
+@magic_factory(
+    widget_init=on_change_cell_colors_init,
+    auto_call=True,
+    max_contrast={"widget_type": "FloatSlider", "max": 1},
+    min_contrast={"widget_type": "FloatSlider", "max": 1},
+    ResetLUT={"widget_type": "PushButton"},
+    LUT={"widget_type": "ComboBox", "choices": stored_variables.colormaps},
+)
 def change_cell_colors(
-    viewer: 'napari.viewer.Viewer',
-    LUT = "RdYlBu_r",
+    viewer: "napari.viewer.Viewer",
+    LUT="RdYlBu_r",
     max_contrast: float = 1,
     min_contrast: float = 0,
-    ResetLUT = False):
+    ResetLUT=False,
+):
     """
-    magic_factory decorated function that allows a user to choose lut and corresponding lut mappings
+    magic_factory decorated function that allows a user
+    to choose lut and corresponding lut mappings
     """
     # if the layer is present update points layer with lut
-    if 'all_cells' in stored_variables.layer_names:
-        viewer.layers['all_cells'].face_colormap = LUT
-        viewer.layers['all_cells'].face_contrast_limits = (min_contrast, max_contrast)
-        viewer.layers['all_cells'].face_contrast_limits = (min_contrast, max_contrast)
-        viewer.layers['all_cells'].refresh_colors()
-    
+    if "all_cells" in stored_variables.layer_names:
+        viewer.layers["all_cells"].face_colormap = LUT
+        viewer.layers["all_cells"].face_contrast_limits = (min_contrast, max_contrast)
+        viewer.layers["all_cells"].face_contrast_limits = (min_contrast, max_contrast)
+        viewer.layers["all_cells"].refresh_colors()
+
 
 class CollevPlotter(QWidget):
     """QWidget for plotting.
-    Class to make a matplotlib figure canvas and add it to a Qwidget. Canvas, figure and axis objects can be
-    acessed by self.canvas, self.fig and self.ax. This plots duration of Collective events over their size as
+    Class to make a matplotlib figure canvas and add it to a Qwidget.
+    Canvas, figure and axis objects can be acessed by self.canvas,
+    self.fig and self.ax. This plots duration of Collective events over their size as
     returned by arcos.
     """
-    def __init__(self, viewer: 'napari.viewer.Viewer', parent=None):
+
+    def __init__(self, viewer: "napari.viewer.Viewer", parent=None):
         """Initialise instance.
         :param viewer: Napari viewer instance
         :type viewer: napari.viewer.Viewer
         :param parent: Parent widget, optional
         :type parent: qtpy.QtWidgets.QWidget
         """
-        super(CollevPlotter, self).__init__(parent)
+        super().__init__(parent)
         self.viewer = viewer
         self._init_mpl_widgets()
         self.update_plot()
@@ -578,20 +790,19 @@ class CollevPlotter(QWidget):
 
     def _init_mpl_widgets(self):
         """
-        Method to initialise a matplotlib figure canvas.
-        Method to generate a matplotlib.backends.backend_qt5agg.FigureCanvas and set plot style and axis,
-        and populate it with a matplotlib.figure.Figure.
+        Method to initialise a matplotlib figure canvas, to generate,
+        set plot style and axis, and populate it with a matplotlib.figure.Figure.
         """
         # set up figure and axe objects
-        with plt.style.context('dark_background'):
-            plt.rcParams['figure.dpi'] = 110
-            plt.rcParams['axes.edgecolor'] = '#ffffff'
-            self.fig = Figure(figsize = (3,2))
+        with plt.style.context("dark_background"):
+            plt.rcParams["figure.dpi"] = 110
+            plt.rcParams["axes.edgecolor"] = "#ffffff"
+            self.fig = Figure(figsize=(3, 2))
             self.canvas = FigureCanvas(self.fig)
             self.ax = self.fig.add_subplot(111)
-            self.ax.scatter([],[])
+            self.ax.scatter([], [])
             self.ax.set_xlabel("Total Size")
-            self.ax.set_ylabel("Event Duration")       
+            self.ax.set_ylabel("Event Duration")
             self.canvas.figure.tight_layout()
 
         # construct layout
@@ -599,7 +810,7 @@ class CollevPlotter(QWidget):
         # layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
         self.setLayout(layout)
-        self.setWindowTitle('Collective Events')
+        self.setWindowTitle("Collective Events")
 
     def update_plot(self):
         """
@@ -611,32 +822,33 @@ class CollevPlotter(QWidget):
         # populate it with no data
         if arcos is not None:
             stats = arcos.calculate_stats()
-        else: 
-            stats = pd.DataFrame(data={'totSz': [], 'clDur': []})
+        else:
+            stats = pd.DataFrame(data={"totSz": [], "clDur": []})
         self.ax.cla()
-        self.ax.spines['bottom'].set_color('white')
-        self.ax.spines['top'].set_color('white') 
-        self.ax.spines['right'].set_color('white')
-        self.ax.spines['left'].set_color('white')
-        self.ax.xaxis.label.set_color('white')
-        self.ax.yaxis.label.set_color('white')
-        self.ax.tick_params(colors='white', which='both')
-        self.ax.axis('on')
-        stats = stats[['totSz', 'clDur']]
-        self.ax.scatter(stats[['totSz']],stats[['clDur']], alpha = 0.8)
+        self.ax.spines["bottom"].set_color("white")
+        self.ax.spines["top"].set_color("white")
+        self.ax.spines["right"].set_color("white")
+        self.ax.spines["left"].set_color("white")
+        self.ax.xaxis.label.set_color("white")
+        self.ax.yaxis.label.set_color("white")
+        self.ax.tick_params(colors="white", which="both")
+        self.ax.axis("on")
+        stats = stats[["totSz", "clDur"]]
+        self.ax.scatter(stats[["totSz"]], stats[["clDur"]], alpha=0.8)
         self.ax.set_xlabel("Total Size")
-        self.ax.set_ylabel("Event Duration")  
+        self.ax.set_ylabel("Event Duration")
         self.fig.canvas.draw_idle()
-
 
 
 class TimeSeriesPlots(QWidget):
     """
     QWidget for plotting.
-    Class to make a matplotlib figure canvas and add it to a Qwidget. Canvas, figure and axis objects can be
-    acessed by self.canvas, self.fig and self.ax. This plots several different Timeseries plots such as Position/t plots, 
+    Class to make a matplotlib figure canvas and add it to a Qwidget.
+    Canvas, figure and axis objects can be acessed by self.canvas, self.fig and self.ax.
+    This plots several different Timeseries plots such as Position/t plots,
     tracklength histogram and a measurment density plot.
     """
+
     def __init__(self, napari_viewer, parent=None):
         """
         Initialise instance.
@@ -645,18 +857,23 @@ class TimeSeriesPlots(QWidget):
         :param parent: Parent widget, optional
         :type parent: qtpy.QtWidgets.QWidget
         """
-        super(TimeSeriesPlots, self).__init__(parent)
+        super().__init__(parent)
         self.viewer = napari_viewer
         # available plots
-        self.plot_list = ["tracklength histogram", 'measurment density plot', 'x/t-plot', 'y/t-plot']
+        self.plot_list = [
+            "tracklength histogram",
+            "measurment density plot",
+            "x/t-plot",
+            "y/t-plot",
+        ]
         self._init_widgets()
-
 
     def _init_widgets(self):
         """
-        Method to initialise a matplotlib figure canvas as well as a spinbox, Button and label widgets.
-        Method to generate a matplotlib.backends.backend_qt5agg.FigureCanvas and set plot style and axis,
-        and populate it with a matplotlib.figure.Figure.
+        Method to initialise a matplotlib figure canvas as well as a spinbox,
+        Button and label widgets. Additionally, generates a
+        matplotlib.backends.backend_qt5agg.FigureCanvas, a set plot style and axis,
+        and populates it with a matplotlib.figure.Figure.
         These are the added to a QVboxlayout.
         """
         # creating spinbox widget
@@ -675,17 +892,17 @@ class TimeSeriesPlots(QWidget):
         self.combo_box = QComboBox(self)
         self.combo_box.addItems(self.plot_list)
         self.combo_box.currentIndexChanged.connect(self.update_plot)
-        
+
         # set up figure and axe objects
-        with plt.style.context('dark_background'):
-            plt.rcParams['figure.dpi'] = 110
-            plt.rcParams['axes.edgecolor'] = '#ffffff'
-            self.fig = Figure(figsize = (3,2))
+        with plt.style.context("dark_background"):
+            plt.rcParams["figure.dpi"] = 110
+            plt.rcParams["axes.edgecolor"] = "#ffffff"
+            self.fig = Figure(figsize=(3, 2))
             self.canvas = FigureCanvas(self.fig)
             self.ax = self.fig.add_subplot(111)
-            self.ax.scatter([],[])
+            self.ax.scatter([], [])
             self.ax.set_xlabel("X Axis")
-            self.ax.set_ylabel("Y Axis")       
+            self.ax.set_ylabel("Y Axis")
             self.canvas.figure.tight_layout()
 
         # construct layout
@@ -704,13 +921,13 @@ class TimeSeriesPlots(QWidget):
         layout.addLayout(layout_spinbox)
         layout.addWidget(self.canvas)
         self.setLayout(layout)
-        self.setWindowTitle('Collective Events')
+        self.setWindowTitle("Collective Events")
 
     def update_plot(self):
         """
-        Method to update the from the dropdown menu chosen 
+        Method to update the from the dropdown menu chosen
         matplotlibl plot with values from
-        the stored_variables object dataframe. 
+        the stored_variables object dataframe.
         """
         # return plottype that should be plotted
         plottype = self.combo_box.currentText()
@@ -723,62 +940,74 @@ class TimeSeriesPlots(QWidget):
         dataframe = stored_variables.dataframe
 
         # check if some data was loaded already, otherwise do nothing
-        if dataframe is not None:
+        if not dataframe.empty:
             self.ax.cla()
-            self.ax.spines['bottom'].set_color('white')
-            self.ax.spines['top'].set_color('white') 
-            self.ax.spines['right'].set_color('white')
-            self.ax.spines['left'].set_color('white')
-            self.ax.xaxis.label.set_color('white')
-            self.ax.yaxis.label.set_color('white')
-            self.ax.tick_params(colors='white', which='both')
-            self.ax.axis('on')
+            self.ax.spines["bottom"].set_color("white")
+            self.ax.spines["top"].set_color("white")
+            self.ax.spines["right"].set_color("white")
+            self.ax.spines["left"].set_color("white")
+            self.ax.xaxis.label.set_color("white")
+            self.ax.yaxis.label.set_color("white")
+            self.ax.tick_params(colors="white", which="both")
+            self.ax.axis("on")
 
-        # tracklength histogram
-            if plottype == 'tracklength histogram':
-                track_length = dataframe.groupby(columns['track_id']).size()
+            # tracklength histogram
+            if plottype == "tracklength histogram":
+                track_length = dataframe.groupby(columns["track_id"]).size()
                 self.ax.hist(track_length)
                 self.ax.set_xlabel("tracklength")
-                self.ax.set_ylabel("counts")  
+                self.ax.set_ylabel("counts")
 
-        # measurment density plot, kde
-            elif plottype == 'measurment density plot':
-                density = kde.gaussian_kde(dataframe[columns['measurment']].interpolate())
-                x = np.linspace(min(dataframe[columns['measurment']]),max(dataframe[columns['measurment']]), 100)
-                y=density(x)
-                self.ax.plot(x,y)
+            # measurment density plot, kde
+            elif plottype == "measurment density plot":
+                density = kde.gaussian_kde(
+                    dataframe[columns["measurment"]].interpolate()
+                )
+                x = np.linspace(
+                    min(dataframe[columns["measurment"]]),
+                    max(dataframe[columns["measurment"]]),
+                    100,
+                )
+                y = density(x)
+                self.ax.plot(x, y)
                 self.ax.set_xlabel("measurement values")
-                self.ax.set_ylabel("density")  
+                self.ax.set_ylabel("density")
 
-        # xy/t plots
-            elif plottype == 'x/t-plot':
-                sample = pd.Series(dataframe[columns['track_id']].unique()).sample(n)
-                pd_from_r_df = dataframe.loc[dataframe[columns['track_id']].isin(sample)]
-                for label, df in pd_from_r_df.groupby(columns['track_id']):
-                    self.ax.plot(df[columns['frame']], df[columns['x_coordinates']])
+            # xy/t plots
+            elif plottype == "x/t-plot":
+                sample = pd.Series(dataframe[columns["track_id"]].unique()).sample(n)
+                pd_from_r_df = dataframe.loc[
+                    dataframe[columns["track_id"]].isin(sample)
+                ]
+                for label, df in pd_from_r_df.groupby(columns["track_id"]):
+                    self.ax.plot(df[columns["frame"]], df[columns["x_coordinates"]])
                 self.ax.set_xlabel("Frame")
-                self.ax.set_ylabel("Position X")    
+                self.ax.set_ylabel("Position X")
 
-            elif plottype == 'y/t-plot':
-                sample = pd.Series(dataframe[columns['track_id']].unique()).sample(n)
-                pd_from_r_df = dataframe.loc[dataframe[columns['track_id']].isin(sample)]
-                for label, df in pd_from_r_df.groupby(columns['track_id']):
-                    self.ax.plot(df[columns['frame']], df[columns['y_coordinates']])
+            elif plottype == "y/t-plot":
+                sample = pd.Series(dataframe[columns["track_id"]].unique()).sample(n)
+                pd_from_r_df = dataframe.loc[
+                    dataframe[columns["track_id"]].isin(sample)
+                ]
+                for label, df in pd_from_r_df.groupby(columns["track_id"]):
+                    self.ax.plot(df[columns["frame"]], df[columns["y_coordinates"]])
                 self.ax.set_xlabel("Frame")
                 self.ax.set_ylabel("Position Y")
             self.fig.canvas.draw_idle()
         else:
             show_info("No Data to plot")
 
+
 #######################################
 # # callback functions
 
-#callback function to export csv to specified path
+# callback function to export csv to specified path
+
 
 def export_csv(arcos_data):
     """
     function to export the arcos data sotred in the
-    stored_varaibles object and save it to the 
+    stored_varaibles object and save it to the
     filepath set with the filepicker widget
     """
     if arcos_data is None:
@@ -789,6 +1018,7 @@ def export_csv(arcos_data):
         output_path = f"{path}{sep}{output_csv_folder.Name.value}.csv"
         arcos_data.to_csv(output_path)
         show_info(f"wrote csv file to {output_path}")
+
 
 # export movie
 def movie_export(viewer, automatic_viewer_size):
@@ -808,44 +1038,70 @@ def movie_export(viewer, automatic_viewer_size):
         path = str(output_movie_folder.filename.value)
         output_path = f"{path}{sep}{output_movie_folder.Name.value}"
         rgt, rgy, rgx = deepcopy(viewer.dims.range)
-        maxx, maxy, maxt = rgx[1], rgy[1], rgt[1]
+        maxx, maxy = rgx[1], rgy[1]
         # resize viewer if chosen
         if automatic_viewer_size:
-            resize_napari([maxx,maxy], viewer)
+            resize_napari([maxx, maxy], viewer)
         # iterate over frames to export data to chosen output path
         iterate_over_frames.show()
-        iterate_over_frames(viewer,output_path)
+        iterate_over_frames(viewer, output_path)
         iterate_over_frames.close()
         show_dock_widgets(viewer)
 
-# magicgui to choose movie path
-"""FileDialog with magicgui for writing csv file"""
-@magicgui(call_button="Ok", filename={"label": "Choose Folder:", "mode": "d"}, Automaic_viewer_size = {"widget_type": "CheckBox", "label": "Automatically determine correct \n viewer size for export"})
-def output_movie_folder(viewer: 'napari.viewer.Viewer', filename=Path(), Name = "arcos", Automaic_viewer_size = True):
+
+@magicgui(
+    call_button="Ok",
+    filename={"label": "Choose Folder:", "mode": "d"},
+    Automaic_viewer_size={
+        "widget_type": "CheckBox",
+        "label": "Automatically determine correct \n viewer size for export",
+    },
+)
+def output_movie_folder(
+    viewer: "napari.viewer.Viewer",
+    filename=Path(),
+    Name="arcos",
+    Automaic_viewer_size=True,
+):
+    """
+    FileDialog with magicgui to choose movie path
+    """
     output_movie_folder.close()
     movie_export(viewer, Automaic_viewer_size)
 
+
 # callback to show folder selector for movie export
+
 
 def show_output_movie_folder():
     output_movie_folder.show()
 
-"""FileDialog with magicgui for writing movie file"""
+
 @magicgui(call_button="Ok", filename={"label": "Choose Folder:", "mode": "d"})
-def output_csv_folder(filename=Path(), Name = "arcos_data", arcos_data = stored_variables.data_merged):
+def output_csv_folder(
+    filename=Path(), Name="arcos_data", arcos_data=stored_variables.data_merged
+):
+    """
+    FileDialog with magicgui for writing csv file
+    """
     output_csv_folder.close()
     export_csv(arcos_data)
+
 
 # callback to show folder selector for csv epxort
 def show_output_csv_folder():
     output_csv_folder.show()
 
+
 # function to hide and show dockwidgets -> maybe risky method?
 def hide_dock_widgets(viewer):
-    for key, value in viewer.window._dock_widgets.items(): value.hide()
+    for key, value in viewer.window._dock_widgets.items():
+        value.hide()
+
 
 def show_dock_widgets(viewer):
-    for key, value in viewer.window._dock_widgets.items(): value.show()
+    for key, value in viewer.window._dock_widgets.items():
+        value.show()
+
 
 #####################################################################################
-
