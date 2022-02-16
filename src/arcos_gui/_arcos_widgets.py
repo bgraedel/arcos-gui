@@ -147,14 +147,16 @@ def on_filter_widget_init(widget):
     viewer = current_viewer()
 
     def close_columnpicker():
-        """listens for PushButton Press in columnpicker widget
+        """
+        listens for PushButton Press in columnpicker widget
         and gets the chosen columns to be stored inside of a dictionnary
         as a parameter of the columnpicker widget. Additionally,
         determines minimum and maximum tracklength and unique positoins
         for filtering the TimeSeries later on via sliders in filter_widget
         and updates these variables in the stored_variables object.
         Function also initializes callbacks for when new layers are inserted
-        and removes layers once new data gets loaded."""
+        and removes layers once new data gets loaded.
+        """
         # populate column dictionnary
         frame = columnpicker.frame.value
         track_id = columnpicker.track_id.value
@@ -251,8 +253,10 @@ def on_filter_widget_init(widget):
         widget.position.value = current_pos
 
     def remove_old_layers_list(event):
-        """removes layers that are not present in napari
-        anymore form the list the stored_variables object"""
+        """
+        removes layers that are not present in napari
+        anymore form the list the stored_variables object
+        """
         for idx, layer in enumerate(viewer.layers):
             if layer.name not in [x.name for x in viewer.layers]:
                 stored_variables.layer_names.remove(layer.name)
@@ -265,9 +269,11 @@ def on_filter_widget_init(widget):
         widget.position.value = current_pos
 
     def update_what_to_run_variable():
-        """updates a 'what to run' variable in the stored_variables object,
+        """
+        updates a 'what to run' variable in the stored_variables object,
         that is used in arcos_widget to check if what to run
-        when certain field have updated values"""
+        when certain field have updated values
+        """
         stored_variables.update_what_to_run("all")
 
     # callback for updating several variables after OK press in columnpicker widget
@@ -333,7 +339,9 @@ def filter_widget(
 
 
 def on_arcos_widget_init(widget):
-    """called each time arcos widget is created."""
+    """
+    called each time arcos widget is created.
+    """
 
     # several functions to update the 'what to run' variable in stored_variables
     def update_what_to_run_all():
@@ -350,8 +358,10 @@ def on_arcos_widget_init(widget):
         widget.clip_high.visible = not widget.clip_high.visible
 
     def toggle_bias_method_parameter_visibility():
-        """based on the seleciton of bias method:
-        shows or hides the appropriate options in the widget"""
+        """
+        based on the seleciton of bias method:
+        shows or hides the appropriate options in the widget
+        """
         if widget.bias_method.value == "runmed":
             widget.smooth_k.visible = True
             widget.polyDeg.visible = False
@@ -718,7 +728,9 @@ def arcos_widget(
 
 def on_change_cell_colors_init(widget):
     def update_lut_values():
-        """updates values in lut mapping sliders"""
+        """
+        updates values in lut mapping sliders
+        """
         min_max = stored_variables.min_max
         # change slider values
         widget.max_contrast.max = min_max[1]
@@ -729,7 +741,9 @@ def on_change_cell_colors_init(widget):
         widget.min_contrast.value = widget.min_contrast.min
 
     def update_lut():
-        """updates LUT choice in stored_variables"""
+        """
+        updates LUT choice in stored_variables
+        """
         stored_variables.lut = widget.LUT.value
 
     # callbacks to execute abve functions
@@ -765,7 +779,8 @@ def change_cell_colors(
 
 
 class CollevPlotter(QWidget):
-    """QWidget for plotting.
+    """
+    QWidget for plotting.
     Class to make a matplotlib figure canvas and add it to a Qwidget.
     Canvas, figure and axis objects can be acessed by self.canvas,
     self.fig and self.ax. This plots duration of Collective events over their size as
@@ -998,12 +1013,7 @@ class TimeSeriesPlots(QWidget):
             show_info("No Data to plot")
 
 
-#######################################
-# # callback functions
-
-# callback function to export csv to specified path
-
-
+# function to export csv to specified path
 def export_csv(arcos_data):
     """
     function to export the arcos data sotred in the
@@ -1070,9 +1080,7 @@ def output_movie_folder(
     movie_export(viewer, Automaic_viewer_size)
 
 
-# callback to show folder selector for movie export
-
-
+# show folder selector for movie export
 def show_output_movie_folder():
     output_movie_folder.show()
 
@@ -1088,7 +1096,7 @@ def output_csv_folder(
     export_csv(arcos_data)
 
 
-# callback to show folder selector for csv epxort
+# show folder selector for csv epxort
 def show_output_csv_folder():
     output_csv_folder.show()
 
