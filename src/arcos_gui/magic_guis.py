@@ -20,9 +20,13 @@ def timestamp_options(
     x_shift=12,
     y_shift=0,
 ):
+    """
+    Widget to choose timestamp options from when called
+    """
     timestamp_options.close()
 
 
+# used as a callback function in main widget file
 def show_timestamp_options():
     timestamp_options.show()
 

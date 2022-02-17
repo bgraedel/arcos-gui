@@ -12,6 +12,7 @@ from magicgui.widgets import ProgressBar
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 from napari import current_viewer
+from napari.types import LayerDataTuple
 from napari.utils.notifications import show_info
 from qtpy.QtWidgets import (
     QComboBox,
@@ -39,7 +40,6 @@ from .shape_functions import (
 from .temp_data_storage import data_storage
 
 if TYPE_CHECKING:
-    import napari.types
     import napari.viewer
 
 # define some variables
@@ -61,7 +61,7 @@ def on_ts_init(new_widget):
 )
 def add_timestamp(
     viewer: "napari.viewer.Viewer", Set_Timestamp_Options=False
-) -> napari.types.LayerDataTuple:
+) -> LayerDataTuple:
     """Button to add timestamp"""
     if list(viewer.layers) and viewer.layers.ndim > 2:
         if "Timestamp" in stored_variables.layer_names:
@@ -111,12 +111,12 @@ def export_data(Export_ARCOS_as_csv=False, Export_movie=False):
     """Widget to export csv and movie data"""
 
 
-@magic_factory(call_button="Ok", filename={"label": "Choose CSV file:"})
+@magic_factory(auto_call=True, filename={"label": "Choose CSV file:"})
 def filepicker(
     filename=Path(),
 ):
     """
-    FileDialog with magicgui for reading in csv file.
+    FileDialog with magic_factory for reading in csv file.
     Take a filename and if it is a csv file,
     open it and stores it in the stored_variables_object
     """
@@ -311,7 +311,7 @@ def filter_widget(
     in_data = process_input(
         df=stored_variables.data, columns=columnpicker.dicCols.value
     )
-    if stored_variables.data is None:
+    if stored_variables.data.empty:
         show_info("No Data Loaded, Use filepicker to open data first")
     else:
         # if the position column was not chosen in columnpicker, dont filter by position
@@ -412,6 +412,7 @@ def on_arcos_widget_init(widget):
     clip_high={"min": 0, "max": 1, "step": 0.001, "tooltip": "Measurment in Quantiles"},
     bin_peak_threshold={"min": 0, "step": 0.01},
     bin_threshold={"min": 0, "step": 0.01},
+    neighbourhood_size={"min": 0, "max": 10000},
     Progress={"min": 0, "step": 4, "max": 40, "value": 0},
 )
 def arcos_widget(
@@ -432,7 +433,7 @@ def arcos_widget(
     min_duration=3,
     total_event_size=30,
     Progress: ProgressBar = 0,
-) -> napari.types.LayerDataTuple:
+) -> LayerDataTuple:
     """
     widget allowing a user to choose arcos parameters and when called runs arcos.
     returns a list of napari.types.LayerDataTuble to add or update layers.
@@ -453,7 +454,7 @@ def arcos_widget(
     """
     # checks if this part of the function has to be run,
     # depends on the parameters changed in arcos widget
-    if stored_variables.dataframe is None:
+    if stored_variables.dataframe.empty:
         show_info("No Data Loaded, Use filepicker to load data first")
     else:
         if "all" in stored_variables.arcos_what_to_run:
@@ -601,7 +602,7 @@ def arcos_widget(
                 active_cells = (
                     datAct,
                     {
-                        "size": 2,
+                        "size": round(col_widget.point_size.value / 2.5, 2),
                         "edge_width": 0,
                         "face_color": "black",
                         "opacity": 1,
@@ -624,9 +625,10 @@ def arcos_widget(
                         "edge_width": 0,
                         "edge_color": "act",
                         "face_color": "act",
-                        "face_colormap": stored_variables.lut,
+                        "face_colormap": col_widget.LUT.value,
                         "face_contrast_limits": stored_variables.min_max,
-                        "size": 5,
+                        "size": col_widget.point_size.value,
+                        "edge_width": 0,
                         "opacity": 1,
                         "symbol": "disc",
                         "name": "all_cells",
@@ -680,7 +682,8 @@ def arcos_widget(
                         datColl,
                         {
                             "face_color": "black",
-                            "size": 3,
+                            "size": round(col_widget.point_size.value / 1.7, 2),
+                            "edge_width": 0,
                             "opacity": 0.75,
                             "symbol": "x",
                             "name": "coll cells",
@@ -696,6 +699,7 @@ def arcos_widget(
                             "text": None,
                             "opacity": 0.5,
                             "edge_color": "white",
+                            "edge_width": round(col_widget.point_size.value / 5, 2),
                             "name": "coll events",
                         },
                         "shapes",
@@ -731,6 +735,17 @@ def on_change_cell_colors_init(widget):
         """
         updates values in lut mapping sliders
         """
+        data = stored_variables.data
+        minx = min(data[columnpicker.dicCols.value["x_coordinates"]])
+        maxx = max(data[columnpicker.dicCols.value["x_coordinates"]])
+        miny = min(data[columnpicker.dicCols.value["y_coordinates"]])
+        maxy = max(data[columnpicker.dicCols.value["y_coordinates"]])
+
+        max_coord_diff = max(maxx - minx, maxy - miny)
+        print(max_coord_diff)
+        widget.point_size.value = (
+            0.75482 + 0.00523857 * max_coord_diff + 9.0618311e-6 * max_coord_diff ** 2
+        )
         min_max = stored_variables.min_max
         # change slider values
         widget.max_contrast.max = min_max[1]
@@ -749,6 +764,7 @@ def on_change_cell_colors_init(widget):
     # callbacks to execute abve functions
     widget.ResetLUT.changed.connect(update_lut_values)
     widget.LUT.changed.connect(update_lut)
+    filter_widget().called.connect(update_lut_values)
 
 
 @magic_factory(
@@ -756,14 +772,15 @@ def on_change_cell_colors_init(widget):
     auto_call=True,
     max_contrast={"widget_type": "FloatSlider", "max": 1},
     min_contrast={"widget_type": "FloatSlider", "max": 1},
+    point_size={"min": 0},
     ResetLUT={"widget_type": "PushButton"},
     LUT={"widget_type": "ComboBox", "choices": stored_variables.colormaps},
 )
 def change_cell_colors(
-    viewer: "napari.viewer.Viewer",
     LUT="RdYlBu_r",
     max_contrast: float = 1,
     min_contrast: float = 0,
+    point_size: float = 5,
     ResetLUT=False,
 ):
     """
@@ -771,11 +788,22 @@ def change_cell_colors(
     to choose lut and corresponding lut mappings
     """
     # if the layer is present update points layer with lut
+
+    viewer = current_viewer()
     if "all_cells" in stored_variables.layer_names:
         viewer.layers["all_cells"].face_colormap = LUT
         viewer.layers["all_cells"].face_contrast_limits = (min_contrast, max_contrast)
-        viewer.layers["all_cells"].face_contrast_limits = (min_contrast, max_contrast)
         viewer.layers["all_cells"].refresh_colors()
+        viewer.layers["all_cells"].size = point_size
+        viewer.layers["active cells"].size = round(point_size / 2.5, 2)
+
+    if "coll cells" in stored_variables.layer_names:
+        viewer.layers["coll cells"].size = round(point_size / 1.7, 2)
+        viewer.layers["coll events"].edge_width = point_size / 5
+        viewer.layers["coll events"].refresh()
+
+
+col_widget = change_cell_colors()
 
 
 class CollevPlotter(QWidget):
@@ -1014,19 +1042,19 @@ class TimeSeriesPlots(QWidget):
 
 
 # function to export csv to specified path
-def export_csv(arcos_data):
+def export_csv(merged_data):
     """
     function to export the arcos data sotred in the
     stored_varaibles object and save it to the
     filepath set with the filepicker widget
     """
-    if arcos_data is None:
+    if merged_data.empty:
         show_info("No data to export, run arcos first")
     else:
         output_csv_folder.close()
         path = str(output_csv_folder.filename.value)
         output_path = f"{path}{sep}{output_csv_folder.Name.value}.csv"
-        arcos_data.to_csv(output_path)
+        merged_data.to_csv(output_path)
         show_info(f"wrote csv file to {output_path}")
 
 
@@ -1086,14 +1114,13 @@ def show_output_movie_folder():
 
 
 @magicgui(call_button="Ok", filename={"label": "Choose Folder:", "mode": "d"})
-def output_csv_folder(
-    filename=Path(), Name="arcos_data", arcos_data=stored_variables.data_merged
-):
+def output_csv_folder(filename=Path(), Name="arcos_data"):
     """
     FileDialog with magicgui for writing csv file
     """
+    merged_data = stored_variables.data_merged
     output_csv_folder.close()
-    export_csv(arcos_data)
+    export_csv(merged_data)
 
 
 # show folder selector for csv epxort

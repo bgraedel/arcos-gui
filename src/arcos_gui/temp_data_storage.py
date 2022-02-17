@@ -1,20 +1,20 @@
 from dataclasses import dataclass, field
 
 import pandas as pd
-from arcos_module import ARCOS
+from arcos_gui.arcos_module import ARCOS
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 
 
 # class to store and retrive a number of variables
 @dataclass
 class data_storage:
-    data: pd.DataFrame = field(default_factory=lambda: [])
-    dataframe: pd.DataFrame = field(default_factory=lambda: [])
+    data: pd.DataFrame = field(default_factory=lambda: pd.DataFrame())
+    dataframe: pd.DataFrame = field(default_factory=lambda: pd.DataFrame())
     layer_names: list = field(default_factory=lambda: [])
-    data_merged: pd.DataFrame = field(default_factory=lambda: [])
-    arcos: ARCOS = None
+    data_merged: pd.DataFrame = field(default_factory=lambda: pd.DataFrame())
+    arcos: ARCOS = None  # type: ignore
     arcos_what_to_run: list = field(default_factory=lambda: ["all"])
-    ts_data: pd.DataFrame = field(default_factory=lambda: [])
+    ts_data: pd.DataFrame = field(default_factory=lambda: pd.DataFrame())
     colormaps = list(AVAILABLE_COLORMAPS)
     current_position = None
     positions = "None"
