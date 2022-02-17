@@ -36,7 +36,7 @@ def data_frame():
 
 
 def test_add_timestamp(make_napari_viewer):
-    viewer = make_napari_viewer(block_plugin_discovery=False)
+    viewer = make_napari_viewer(strict_qt=True)
     viewer.add_image(
         data.binary_blobs(length=10, blob_size_fraction=0.2, n_dim=3), name="Image"
     )
@@ -47,7 +47,7 @@ def test_add_timestamp(make_napari_viewer):
 
 
 def test_export_data_widget_csv_no_data(make_napari_viewer, capsys):
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     mywidget = export_data()
     viewer.window.add_dock_widget(mywidget)
     show_output_csv_folder()
@@ -58,7 +58,7 @@ def test_export_data_widget_csv_no_data(make_napari_viewer, capsys):
 
 def test_export_data_widget_csv_data(make_napari_viewer, tmp_path, data_frame):
     arcos_dir = str(tmp_path)
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     mywidget = export_data()
     viewer.window.add_dock_widget(mywidget)
     show_output_csv_folder()
@@ -71,7 +71,7 @@ def test_export_data_widget_csv_data(make_napari_viewer, tmp_path, data_frame):
 
 
 def test_export_data_widget_images_no_data(make_napari_viewer, capsys):
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     mywidget = export_data()
     viewer.window.add_dock_widget(mywidget)
     show_output_movie_folder()
@@ -81,7 +81,7 @@ def test_export_data_widget_images_no_data(make_napari_viewer, capsys):
 
 
 def test_export_data_widget_images_data(make_napari_viewer, tmp_path):
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     viewer.add_image(data.binary_blobs(length=1, blob_size_fraction=0.2, n_dim=3))
     arcos_dir = str(tmp_path)
     mywidget = export_data()
@@ -94,7 +94,7 @@ def test_export_data_widget_images_data(make_napari_viewer, tmp_path):
 
 
 def test_filepicker(make_napari_viewer):
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     mywidget = filepicker()
     viewer.window.add_dock_widget(mywidget)
     mywidget.filename.value = Path("src/arcos_gui/_tests/fixtures/arcos_test.csv")
@@ -113,7 +113,7 @@ def test_filepicker(make_napari_viewer):
 
 def test_filterwidget_no_data(make_napari_viewer, capsys):
     stored_variables.data = pd.DataFrame()
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     mywidget = filter_widget()
     viewer.window.add_dock_widget(mywidget)
     mywidget()
@@ -122,7 +122,7 @@ def test_filterwidget_no_data(make_napari_viewer, capsys):
 
 
 def test_filterwidget_data(make_napari_viewer, capsys):
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     # set choices needed for test
     columnpicker.dicCols.value = {
         "frame": "Frame",
@@ -150,7 +150,7 @@ def test_filterwidget_data(make_napari_viewer, capsys):
 
 def test_arcos_widget_no_data(make_napari_viewer, capsys):
     stored_variables.dataframe = pd.DataFrame()
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     mywidget = arcos_widget()
     viewer.window.add_dock_widget(mywidget)
     mywidget()
@@ -164,7 +164,7 @@ def test_arcos_widget_data_active_cells(make_napari_viewer, capsys):
     stored_variables.dataframe = pd.read_csv(
         "src/arcos_gui/_tests/fixtures/arcos_test.csv"
     )
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     mywidget = arcos_widget()
     viewer.window.add_dock_widget(mywidget)
     mywidget()
@@ -182,7 +182,7 @@ def test_arcos_widget_data_all(make_napari_viewer, capsys):
     stored_variables.dataframe = pd.read_csv(
         "src/arcos_gui/_tests/fixtures/arcos_data.csv"
     )
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(strict_qt=True)
     mywidget = arcos_widget()
     # set paramete5rs
     viewer.window.add_dock_widget(mywidget)

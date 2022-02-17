@@ -295,6 +295,7 @@ def on_filter_widget_init(widget):
     max_track_length={"widget_type": "Slider", "min": 0, "max": 10},
 )
 def filter_widget(
+    viewer: "napari.viewer.Viewer",
     position="None",
     rescale_measurment=1,
     frame_interval=1,
@@ -602,7 +603,7 @@ def arcos_widget(
                 active_cells = (
                     datAct,
                     {
-                        "size": round(col_widget.point_size.value / 2.5, 2),
+                        "size": round(change_cell_colors().point_size.value / 2.5, 2),
                         "edge_width": 0,
                         "face_color": "black",
                         "opacity": 1,
@@ -625,9 +626,9 @@ def arcos_widget(
                         "edge_width": 0,
                         "edge_color": "act",
                         "face_color": "act",
-                        "face_colormap": col_widget.LUT.value,
+                        "face_colormap": change_cell_colors().LUT.value,
                         "face_contrast_limits": stored_variables.min_max,
-                        "size": col_widget.point_size.value,
+                        "size": change_cell_colors().point_size.value,
                         "edge_width": 0,
                         "opacity": 1,
                         "symbol": "disc",
@@ -682,7 +683,9 @@ def arcos_widget(
                         datColl,
                         {
                             "face_color": "black",
-                            "size": round(col_widget.point_size.value / 1.7, 2),
+                            "size": round(
+                                change_cell_colors().point_size.value / 1.7, 2
+                            ),
                             "edge_width": 0,
                             "opacity": 0.75,
                             "symbol": "x",
@@ -699,7 +702,9 @@ def arcos_widget(
                             "text": None,
                             "opacity": 0.5,
                             "edge_color": "white",
-                            "edge_width": round(col_widget.point_size.value / 5, 2),
+                            "edge_width": round(
+                                change_cell_colors().point_size.value / 5, 2
+                            ),
                             "name": "coll events",
                         },
                         "shapes",
@@ -752,8 +757,8 @@ def on_change_cell_colors_init(widget):
         widget.max_contrast.min = min_max[0]
         widget.min_contrast.max = min_max[1]
         widget.min_contrast.min = min_max[0]
-        widget.max_contrast.value = widget.max_contrast.max
-        widget.min_contrast.value = widget.min_contrast.min
+        # widget.max_contrast.value = widget.max_contrast.max
+        # widget.min_contrast.value = widget.min_contrast.min
 
     def update_lut():
         """
@@ -764,7 +769,7 @@ def on_change_cell_colors_init(widget):
     # callbacks to execute abve functions
     widget.ResetLUT.changed.connect(update_lut_values)
     widget.LUT.changed.connect(update_lut)
-    filter_widget().called.connect(update_lut_values)
+    stored_variables.register_callback(update_lut_values)
 
 
 @magic_factory(
@@ -801,9 +806,6 @@ def change_cell_colors(
         viewer.layers["coll cells"].size = round(point_size / 1.7, 2)
         viewer.layers["coll events"].edge_width = point_size / 5
         viewer.layers["coll events"].refresh()
-
-
-col_widget = change_cell_colors()
 
 
 class CollevPlotter(QWidget):
