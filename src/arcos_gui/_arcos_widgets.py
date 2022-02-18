@@ -111,38 +111,7 @@ def export_data(Export_ARCOS_as_csv=False, Export_movie=False):
     """Widget to export csv and movie data"""
 
 
-@magic_factory(auto_call=True, filename={"label": "Choose CSV file:"})
-def filepicker(
-    filename=Path(),
-):
-    """
-    FileDialog with magic_factory for reading in csv file.
-    Take a filename and if it is a csv file,
-    open it and stores it in the stored_variables_object
-    """
-    columns = columnpicker.frame.choices
-    column_keys = columnpicker.dicCols.value.keys()
-    for i in column_keys:
-        for index, j in enumerate(columns):
-            getattr(columnpicker, i).del_choice(str(j))
-    csv_file = filepicker.filename.value
-    if str(csv_file).endswith(".csv"):
-        stored_variables.data = pd.read_csv(csv_file)
-        columns = list(stored_variables.data.columns)
-        columnpicker.frame.choices = columns
-        columnpicker.track_id.choices = columns
-        columnpicker.x_coordinates.choices = columns
-        columnpicker.y_coordinates.choices = columns
-        columnpicker.measurment.choices = columns
-        columnpicker.field_of_view_id.choices = columns
-        columnpicker.field_of_view_id.set_choice("None", "None")
-        columnpicker.show()
-    else:
-        show_info("Not a csv file")
-
-
-def on_filter_widget_init(widget):
-    """init functin that runs upon filter_widget init."""
+def on_arcos_widget_init(widget):
     # get current viewer
     viewer = current_viewer()
 
@@ -174,6 +143,7 @@ def on_filter_widget_init(widget):
             "field_of_view_id": field_of_view_id,
         }
 
+    def set_positions():
         # get unique positions for filter_widget
         if columnpicker.dicCols.value["field_of_view_id"] != "None":
             positions = list(
@@ -203,6 +173,28 @@ def on_filter_widget_init(widget):
             ).size()
         minmax = (min(data_g), max(data_g))
 
+        # set positions in filter widget, filter data
+        widget.position.choices = []
+        widget.position.choices = positions
+        widget.min_track_length.min = minmax[0]
+        widget.min_track_length.max = minmax[1]
+        widget.max_track_length.min = minmax[0]
+        widget.max_track_length.max = minmax[1]
+        widget.min_track_length.value = minmax[0]
+        widget.max_track_length.value = minmax[1]
+        stored_variables.positions = positions
+        stored_variables.current_position = widget.position.value
+
+        # hides position choice if no position column exists in the raw data
+        # i.e. during columnpicker position was set to None.
+        # Also hides it if there is only one position available.
+        # Updates everytime when new data is read in
+        if len(widget.position.choices) == 1:
+            widget.position.hide()
+        else:
+            widget.position.show()
+
+    def remove_layers_after_columnpicker():
         # remove existing arcos layers before loading new data
         for layer in [
             "coll cells",
@@ -214,27 +206,6 @@ def on_filter_widget_init(widget):
             if layer in stored_variables.layer_names:
                 viewer.layers.remove(layer)
                 stored_variables.layer_names.remove(layer)
-
-        # set positions in filter widget, filter data
-        widget.position.choices = []
-        widget.position.choices = positions
-        widget.min_track_length.min = minmax[0]
-        widget.min_track_length.max = minmax[1]
-        widget.max_track_length.min = minmax[0]
-        widget.max_track_length.max = minmax[1]
-        widget.min_track_length.value = minmax[0]
-        widget.max_track_length.value = minmax[1]
-        stored_variables.positions = positions
-        widget()
-
-        # hides position choice if no position column exists in the raw data
-        # i.e. during columnpicker position was set to None.
-        # Also hides it if there is only one position available.
-        # Updates everytime when new data is read in
-        if len(widget.position.choices) == 1:
-            widget.position.hide()
-        else:
-            widget.position.show()
 
     def add_new_layers_list(event):
         """
@@ -250,6 +221,7 @@ def on_filter_widget_init(widget):
             widget.position.del_choice(str(i))
 
         widget.position.choices = positions
+
         widget.position.value = current_pos
 
     def remove_old_layers_list(event):
@@ -266,6 +238,7 @@ def on_filter_widget_init(widget):
             widget.position.del_choice(str(i))
         current_pos = stored_variables.current_position
         widget.position.choices = positions
+
         widget.position.value = current_pos
 
     def update_what_to_run_variable():
@@ -276,75 +249,74 @@ def on_filter_widget_init(widget):
         """
         stored_variables.update_what_to_run("all")
 
-    # callback for updating several variables after OK press in columnpicker widget
-    columnpicker.Ok.changed.connect(close_columnpicker)
+    def open_columnpicker():
+        """
+        FileDialog with magic_factory for reading in csv file.
+        Take a filename and if it is a csv file,
+        open it and stores it in the stored_variables_object
+        """
+        columns = columnpicker.frame.choices
+        column_keys = columnpicker.dicCols.value.keys()
+        for i in column_keys:
+            for index, j in enumerate(columns):
+                getattr(columnpicker, i).del_choice(str(j))
+        csv_file = widget.filename.value
+        if str(csv_file).endswith(".csv"):
+            stored_variables.data = pd.read_csv(csv_file)
+            columns = list(stored_variables.data.columns)
+            columnpicker.frame.choices = columns
+            columnpicker.track_id.choices = columns
+            columnpicker.x_coordinates.choices = columns
+            columnpicker.y_coordinates.choices = columns
+            columnpicker.measurment.choices = columns
+            columnpicker.field_of_view_id.choices = columns
+            columnpicker.field_of_view_id.set_choice("None", "None")
+            columnpicker.show()
+        else:
+            show_info("Not a csv file")
 
-    # callback for removing and adding layers to a list of layers
-    viewer.layers.events.inserted.connect(add_new_layers_list)
-    viewer.layers.events.removed.connect(remove_old_layers_list)
+    def filter_data():
+        """
+        Used to filter the input datato contain a single position.
+        filter options also include minimum and maximum tracklength.
+        Allows for rescaling of measurment variable.
+        """
+        # gets raw data read in by arcos_widget from stored_variables object
+        # and columns from columnpicker value
+        in_data = process_input(
+            df=stored_variables.data, columns=columnpicker.dicCols.value
+        )
+        if stored_variables.data.empty:
+            show_info("No Data Loaded, Use arcos_widget to open data first")
+        else:
+            # if the position column was not chosen in columnpicker,
+            # dont filter by position
+            if columnpicker.dicCols.value["field_of_view_id"] != "None":
+                # hast to be done before .filter_tracklenght otherwise code could break
+                # if track ids are not unique to positions
+                in_data.filter_position(widget.position.value)
+            # filter by tracklenght
+            in_data.filter_tracklength(
+                widget.min_track_length.value, widget.max_track_length.value
+            )
+            # option to rescale the measurment column
+            in_data.rescale_measurment(rescale_factor=widget.rescale_measurment.value)
+            # option to set frame interval
+            in_data.frame_interval(widget.frame_interval.value)
 
-    # callback for updating what to run in arcos_widget
-    widget.called.connect(update_what_to_run_variable)
+            dataframe = in_data.return_pd_df()
 
+            # get min and max values
+            if not dataframe.empty:
+                max_meas = max(dataframe[columnpicker.dicCols.value["measurment"]])
+                min_meas = min(dataframe[columnpicker.dicCols.value["measurment"]])
+                stored_variables.min_max = (min_meas, max_meas)
+            stored_variables.dataframe = dataframe
+            stored_variables.current_position = widget.position.value
+            show_info("Data Filtered!")
 
-@magic_factory(
-    widget_init=on_filter_widget_init,
-    call_button="update field of view",
-    position={"choices": ["None"], "visible": False},
-    min_track_length={"widget_type": "Slider", "min": 0, "max": 10},
-    max_track_length={"widget_type": "Slider", "min": 0, "max": 10},
-)
-def filter_widget(
-    viewer: "napari.viewer.Viewer",
-    position="None",
-    rescale_measurment=1,
-    frame_interval=1,
-    min_track_length=0,
-    max_track_length=10,
-):
-    """
-    Creates a widget that is used to filter the input data to contain a single position.
-    filter options also include minimum and maximum tracklength.
-    Allows for rescaling of measurment variable.
-    """
-    # gets raw data read in by filepicker from stored_variables object
-    # and columns from columnpicker value
-    in_data = process_input(
-        df=stored_variables.data, columns=columnpicker.dicCols.value
-    )
-    if stored_variables.data.empty:
-        show_info("No Data Loaded, Use filepicker to open data first")
-    else:
-        # if the position column was not chosen in columnpicker, dont filter by position
-        if columnpicker.dicCols.value["field_of_view_id"] != "None":
-            # hast to be done before .filter_tracklenght otherwise code could break
-            # if track ids are not unique to positions
-            in_data.filter_position(position)
-        # filter by tracklenght
-        in_data.filter_tracklength(min_track_length, max_track_length)
-        # option to rescale the measurment column
-        in_data.rescale_measurment(rescale_factor=rescale_measurment)
-        # option to set frame interval
-        in_data.frame_interval(frame_interval)
+        # several functions to update the 'what to run' variable in stored_variables
 
-        dataframe = in_data.return_pd_df()
-
-        # get min and max values
-        if not dataframe.empty:
-            max_meas = max(dataframe[columnpicker.dicCols.value["measurment"]])
-            min_meas = min(dataframe[columnpicker.dicCols.value["measurment"]])
-            stored_variables.min_max = (min_meas, max_meas)
-        stored_variables.dataframe = dataframe
-        stored_variables.current_position = filter_widget.position.value
-        show_info("Data Filtered!")
-
-
-def on_arcos_widget_init(widget):
-    """
-    called each time arcos widget is created.
-    """
-
-    # several functions to update the 'what to run' variable in stored_variables
     def update_what_to_run_all():
         stored_variables.update_what_to_run("all")
 
@@ -384,6 +356,40 @@ def on_arcos_widget_init(widget):
             widget.bin_peak_threshold.visible = False
             widget.bin_threshold.visible = True
 
+    def update_lut_values():
+        """
+        updates values in lut mapping sliders
+        """
+        data = stored_variables.data
+        minx = min(data[columnpicker.dicCols.value["x_coordinates"]])
+        maxx = max(data[columnpicker.dicCols.value["x_coordinates"]])
+        miny = min(data[columnpicker.dicCols.value["y_coordinates"]])
+        maxy = max(data[columnpicker.dicCols.value["y_coordinates"]])
+
+        max_coord_diff = max(maxx - minx, maxy - miny)
+        widget.point_size.value = (
+            0.75482 + 0.00523857 * max_coord_diff + 9.0618311e-6 * max_coord_diff ** 2
+        )
+        min_max = stored_variables.min_max
+        # change slider values
+        widget.max_contrast.max = min_max[1]
+        widget.max_contrast.min = min_max[0]
+        widget.min_contrast.max = min_max[1]
+        widget.min_contrast.min = min_max[0]
+        widget.max_contrast.value = widget.max_contrast.max
+        widget.min_contrast.value = widget.min_contrast.min
+
+    def update_lut():
+        """
+        updates LUT choice in stored_variables
+        """
+        stored_variables.lut = widget.LUT.value
+
+    # callbacks to execute abve functions
+    widget.ResetLUT.changed.connect(update_lut_values)
+    widget.LUT.changed.connect(update_lut)
+    stored_variables.register_callback(update_lut_values)
+
     # callback for updating 'what to run' in stored_variables object
     widget.clip_low.changed.connect(update_what_to_run_all)
     widget.clip_high.changed.connect(update_what_to_run_all)
@@ -402,11 +408,72 @@ def on_arcos_widget_init(widget):
     # callback for chaning available options of bias method
     widget.bias_method.changed.connect(toggle_bias_method_parameter_visibility)
 
+    # callback for updating what to run in arcos_widget
+    widget.filename.changed.connect(open_columnpicker)
 
-# widget for running arcos
+    # callback for updating several variables after OK press in columnpicker widget
+    columnpicker.Ok.changed.connect(close_columnpicker)
+    columnpicker.Ok.changed.connect(set_positions)
+    columnpicker.Ok.changed.connect(remove_layers_after_columnpicker)
+
+    # callbackfor filtering data
+    widget.filter_input_data.changed.connect(filter_data)
+
+    # reset what to run
+    widget.filter_input_data.changed.connect(update_what_to_run_variable)
+
+    # callback for removing and adding layers to a list of layers
+    viewer.layers.events.inserted.connect(add_new_layers_list)
+    viewer.layers.events.removed.connect(remove_old_layers_list)
+
+    def run():
+        widget()
+
+    widget.Update_ARCOS.changed.connect(run)
+
+    def change_cell_colors():
+        """
+        magic_factory decorated function that allows a user
+        to choose lut and corresponding lut mappings
+        """
+        # if the layer is present update points layer with lut
+
+        viewer = current_viewer()
+        if "all_cells" in stored_variables.layer_names:
+            viewer.layers["all_cells"].face_colormap = widget.LUT.value
+            viewer.layers["all_cells"].face_contrast_limits = (
+                widget.min_contrast.value,
+                widget.max_contrast.value,
+            )
+            viewer.layers["all_cells"].refresh_colors()
+
+    def change_cell_size():
+        if "all_cells" in stored_variables.layer_names:
+            viewer.layers["all_cells"].size = widget.point_size.value
+            viewer.layers["active cells"].size = round(widget.point_size.value / 2.5, 2)
+
+        if "coll cells" in stored_variables.layer_names:
+            viewer.layers["coll cells"].size = round(widget.point_size.value / 1.7, 2)
+            viewer.layers["coll events"].edge_width = widget.point_size.value / 5
+            viewer.layers["coll events"].refresh()
+
+    widget.max_contrast.changed.connect(change_cell_colors)
+    widget.min_contrast.changed.connect(change_cell_colors)
+    widget.LUT.changed.connect(change_cell_colors)
+    widget.point_size.changed.connect(change_cell_size)
+    widget.called.connect(change_cell_size)
+
+
 @magic_factory(
     widget_init=on_arcos_widget_init,
-    call_button="update arcos",
+    call_button=False,
+    filename={"label": "Choose CSV file:"},
+    position={"choices": ["None"], "visible": False},
+    min_track_length={"widget_type": "Slider", "min": 0, "max": 10},
+    max_track_length={"widget_type": "Slider", "min": 0, "max": 10},
+    filter_input_data={"widget_type": "PushButton", "value": False},
+    spacer={"widget_type": "Label", "name": ""},
+    arcos_label={"widget_type": "Label", "name": ""},
     interval_type={"choices": ["fixed", "var"]},
     bias_method={"choices": ["runmed", "lm", "none"]},
     clip_low={"min": 0, "max": 1, "step": 0.001, "tooltip": "Measurment in Quantiles"},
@@ -415,9 +482,25 @@ def on_arcos_widget_init(widget):
     bin_threshold={"min": 0, "step": 0.01},
     neighbourhood_size={"min": 0, "max": 10000},
     Progress={"min": 0, "step": 4, "max": 40, "value": 0},
+    Update_ARCOS={"widget_type": "PushButton", "value": False},
+    spacer_2={"widget_type": "Label", "name": ""},
+    max_contrast={"widget_type": "FloatSlider", "max": 1},
+    min_contrast={"widget_type": "FloatSlider", "max": 1},
+    point_size={"min": 0},
+    ResetLUT={"widget_type": "PushButton"},
+    LUT={"widget_type": "ComboBox", "choices": stored_variables.colormaps},
 )
 def arcos_widget(
     viewer: "napari.viewer.Viewer",
+    filename=Path(),
+    position="None",
+    rescale_measurment=1,
+    frame_interval=1,
+    min_track_length=0,
+    max_track_length=10,
+    filter_input_data=False,
+    spacer="",
+    arcos_label="ARCOS Parameters",
     interpolate_measurments=True,
     clip_measurments=True,
     clip_low=0.001,
@@ -434,7 +517,15 @@ def arcos_widget(
     min_duration=3,
     total_event_size=30,
     Progress: ProgressBar = 0,
+    Update_ARCOS=False,
+    spacer_2="",
+    LUT="RdYlBu_r",
+    max_contrast: float = 1,
+    min_contrast: float = 0,
+    point_size: float = 5,
+    ResetLUT=False,
 ) -> LayerDataTuple:
+
     """
     widget allowing a user to choose arcos parameters and when called runs arcos.
     returns a list of napari.types.LayerDataTuble to add or update layers.
@@ -456,28 +547,33 @@ def arcos_widget(
     # checks if this part of the function has to be run,
     # depends on the parameters changed in arcos widget
     if stored_variables.dataframe.empty:
-        show_info("No Data Loaded, Use filepicker to load data first")
+        show_info("No Data Loaded, Use arcos_widget to load data first")
     else:
         if "all" in stored_variables.arcos_what_to_run:
 
             # sets Progressbar to 0
-            Progress.value = 0
+            arcos_widget.Progress.value = 0
 
             # create arcos object, run arcos
             arcos = ARCOS(stored_variables.dataframe, columnpicker.dicCols.value)
-            arcos.create_arcosTS(interval=1, inter_type=interval_type)
+            arcos.create_arcosTS(
+                interval=1, inter_type=arcos_widget.interval_type.value
+            )
 
-            Progress.increment()
+            arcos_widget.Progress.increment()
 
             # if corresponding checkbox was selected run interpolate measurments
-            if interpolate_measurments:
+            if arcos_widget.interpolate_measurments:
                 arcos.interpolate_measurements()
 
             # if corresponding checkbock was selected run clip_measuremnts
-            if clip_measurments:
-                arcos.clip_measurements(clip_low=clip_low, clip_high=clip_high)
+            if arcos_widget.clip_measurments:
+                arcos.clip_measurements(
+                    clip_low=arcos_widget.clip_low.value,
+                    clip_high=arcos_widget.clip_high.value,
+                )
 
-            Progress.increment()
+            arcos_widget.Progress.increment()
 
             # updates arcos object in the stored_variables object
             stored_variables.arcos = arcos
@@ -485,18 +581,18 @@ def arcos_widget(
             # binarize data and update ts variable in stored_variables
             # update from where to run
             ts = arcos.bin_measurements(
-                bias_method,
-                smooth_k,
-                bias_k,
-                bin_peak_threshold,
-                bin_threshold,
-                polyDeg,
+                arcos_widget.bias_method.value,
+                arcos_widget.smooth_k.value,
+                arcos_widget.bias_k.value,
+                arcos_widget.bin_peak_threshold.value,
+                arcos_widget.bin_threshold.value,
+                arcos_widget.polyDeg.value,
                 return_dataframe=True,
             )
             stored_variables.ts_data = ts
             stored_variables.update_what_to_run("from_tracking")
 
-            Progress.increment()
+            arcos_widget.Progress.increment()
 
         # if statement checks if this part of the function has to be run
         # depends on the parameters changed in arcos widget
@@ -506,9 +602,12 @@ def arcos_widget(
             # if active cells were detected, run this
             if 1 in ts["meas.bin"].values:
                 # track collective events
-                arcos.track_events(neighbourhood_size, min_clustersize)
+                arcos.track_events(
+                    arcos_widget.neighbourhood_size.value,
+                    arcos_widget.min_clustersize.value,
+                )
 
-                Progress.value = 12
+                arcos_widget.Progress.value = 12
 
             # if no active cells were detected remove previous layer,
             # since this does not correspont to current widget parameters
@@ -519,7 +618,7 @@ def arcos_widget(
                     viewer.layers.remove("all_cells")
                     stored_variables.layer_names.remove("active cells")
                     stored_variables.layer_names.remove("all_cells")
-                    Progress.value = 40
+                    arcos_widget.Progress.value = 40
                 show_info("No active Cells detected, consider adjusting parameters")
 
             # update stored variables
@@ -530,7 +629,7 @@ def arcos_widget(
         if "from_filtering" in stored_variables.arcos_what_to_run:
 
             # set progressbar value
-            Progress.value = 20
+            arcos_widget.Progress.value = 20
 
             # get most recent data from stored_variables
             arcos = stored_variables.arcos  # type: ignore
@@ -539,7 +638,7 @@ def arcos_widget(
             # if no data show info to run arcos first and set the progressbar to 100%
             if arcos is None:
                 show_info("No data available, run arcos first")
-                Progress.value = 40
+                arcos_widget.Progress.value = 40
 
             # if cells were classifed as being active (represented by a 1)
             # filter tracked events acording to chosen parameters
@@ -549,15 +648,17 @@ def arcos_widget(
                 return_collev = False
                 return_points = True
                 out = arcos.filter_tracked_events(
-                    min_duration, total_event_size, as_pd_dataframe=True
+                    arcos_widget.min_duration.value,
+                    arcos_widget.total_event_size.value,
+                    as_pd_dataframe=True,
                 )
 
-                Progress.increment()
+                arcos_widget.Progress.increment()
 
                 # update stats variable
                 arcos.calculate_stats()
 
-                Progress.increment()
+                arcos_widget.Progress.increment()
 
                 # merge tracked and original data
                 merged_data = pd.merge(
@@ -603,7 +704,7 @@ def arcos_widget(
                 active_cells = (
                     datAct,
                     {
-                        "size": round(change_cell_colors().point_size.value / 2.5, 2),
+                        "size": round(point_size / 2.5, 2),
                         "edge_width": 0,
                         "face_color": "black",
                         "opacity": 1,
@@ -626,9 +727,9 @@ def arcos_widget(
                         "edge_width": 0,
                         "edge_color": "act",
                         "face_color": "act",
-                        "face_colormap": change_cell_colors().LUT.value,
+                        "face_colormap": stored_variables.lut,
                         "face_contrast_limits": stored_variables.min_max,
-                        "size": change_cell_colors().point_size.value,
+                        "size": point_size,
                         "edge_width": 0,
                         "opacity": 1,
                         "symbol": "disc",
@@ -637,7 +738,7 @@ def arcos_widget(
                     "points",
                 )
 
-                Progress.increment()
+                arcos_widget.Progress.increment()
 
                 # check if collective events were detected and add layer,
                 # if yes calculate convex hulls for collective events
@@ -683,9 +784,7 @@ def arcos_widget(
                         datColl,
                         {
                             "face_color": "black",
-                            "size": round(
-                                change_cell_colors().point_size.value / 1.7, 2
-                            ),
+                            "size": round(point_size / 1.7, 2),
                             "edge_width": 0,
                             "opacity": 0.75,
                             "symbol": "x",
@@ -702,16 +801,14 @@ def arcos_widget(
                             "text": None,
                             "opacity": 0.5,
                             "edge_color": "white",
-                            "edge_width": round(
-                                change_cell_colors().point_size.value / 5, 2
-                            ),
+                            "edge_width": round(point_size / 5, 2),
                             "name": "coll events",
                         },
                         "shapes",
                     )
                     return_collev = True
 
-                    Progress.increment()
+                    arcos_widget.Progress.increment()
                 else:
                     # check if layers exit, if yes remove them
                     if "coll cells" in stored_variables.layer_names:
@@ -722,7 +819,7 @@ def arcos_widget(
                     show_info(
                         "No collective events detected, consider adjusting parameters"
                     )
-                Progress.value = 40
+                arcos_widget.Progress.value = 40
 
                 # empty what to run list to check for new parameter changes
                 stored_variables.clear_what_to_run()
@@ -733,79 +830,6 @@ def arcos_widget(
                     return [all_cells, active_cells, coll_cells, coll_events]
                 elif not return_collev and return_points:
                     return [all_cells, active_cells]
-
-
-def on_change_cell_colors_init(widget):
-    def update_lut_values():
-        """
-        updates values in lut mapping sliders
-        """
-        data = stored_variables.data
-        minx = min(data[columnpicker.dicCols.value["x_coordinates"]])
-        maxx = max(data[columnpicker.dicCols.value["x_coordinates"]])
-        miny = min(data[columnpicker.dicCols.value["y_coordinates"]])
-        maxy = max(data[columnpicker.dicCols.value["y_coordinates"]])
-
-        max_coord_diff = max(maxx - minx, maxy - miny)
-        print(max_coord_diff)
-        widget.point_size.value = (
-            0.75482 + 0.00523857 * max_coord_diff + 9.0618311e-6 * max_coord_diff ** 2
-        )
-        min_max = stored_variables.min_max
-        # change slider values
-        widget.max_contrast.max = min_max[1]
-        widget.max_contrast.min = min_max[0]
-        widget.min_contrast.max = min_max[1]
-        widget.min_contrast.min = min_max[0]
-        # widget.max_contrast.value = widget.max_contrast.max
-        # widget.min_contrast.value = widget.min_contrast.min
-
-    def update_lut():
-        """
-        updates LUT choice in stored_variables
-        """
-        stored_variables.lut = widget.LUT.value
-
-    # callbacks to execute abve functions
-    widget.ResetLUT.changed.connect(update_lut_values)
-    widget.LUT.changed.connect(update_lut)
-    stored_variables.register_callback(update_lut_values)
-
-
-@magic_factory(
-    widget_init=on_change_cell_colors_init,
-    auto_call=True,
-    max_contrast={"widget_type": "FloatSlider", "max": 1},
-    min_contrast={"widget_type": "FloatSlider", "max": 1},
-    point_size={"min": 0},
-    ResetLUT={"widget_type": "PushButton"},
-    LUT={"widget_type": "ComboBox", "choices": stored_variables.colormaps},
-)
-def change_cell_colors(
-    LUT="RdYlBu_r",
-    max_contrast: float = 1,
-    min_contrast: float = 0,
-    point_size: float = 5,
-    ResetLUT=False,
-):
-    """
-    magic_factory decorated function that allows a user
-    to choose lut and corresponding lut mappings
-    """
-    # if the layer is present update points layer with lut
-
-    viewer = current_viewer()
-    if "all_cells" in stored_variables.layer_names:
-        viewer.layers["all_cells"].face_colormap = LUT
-        viewer.layers["all_cells"].face_contrast_limits = (min_contrast, max_contrast)
-        viewer.layers["all_cells"].refresh_colors()
-        viewer.layers["all_cells"].size = point_size
-        viewer.layers["active cells"].size = round(point_size / 2.5, 2)
-
-    if "coll cells" in stored_variables.layer_names:
-        viewer.layers["coll cells"].size = round(point_size / 1.7, 2)
-        viewer.layers["coll events"].edge_width = point_size / 5
-        viewer.layers["coll events"].refresh()
 
 
 class CollevPlotter(QWidget):
@@ -1020,7 +1044,9 @@ class TimeSeriesPlots(QWidget):
 
             # xy/t plots
             elif plottype == "x/t-plot":
-                sample = pd.Series(dataframe[columns["track_id"]].unique()).sample(n)
+                sample = pd.Series(dataframe[columns["track_id"]].unique()).sample(
+                    n, replace=True
+                )
                 pd_from_r_df = dataframe.loc[
                     dataframe[columns["track_id"]].isin(sample)
                 ]
@@ -1030,7 +1056,9 @@ class TimeSeriesPlots(QWidget):
                 self.ax.set_ylabel("Position X")
 
             elif plottype == "y/t-plot":
-                sample = pd.Series(dataframe[columns["track_id"]].unique()).sample(n)
+                sample = pd.Series(dataframe[columns["track_id"]].unique()).sample(
+                    n, replace=True
+                )
                 pd_from_r_df = dataframe.loc[
                     dataframe[columns["track_id"]].isin(sample)
                 ]
@@ -1048,7 +1076,7 @@ def export_csv(merged_data):
     """
     function to export the arcos data sotred in the
     stored_varaibles object and save it to the
-    filepath set with the filepicker widget
+    filepath set with the arcos_widget widget
     """
     if merged_data.empty:
         show_info("No data to export, run arcos first")
