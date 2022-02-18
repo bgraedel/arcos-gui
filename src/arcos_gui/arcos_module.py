@@ -227,7 +227,7 @@ class process_input:
         if fov_to_select is not None:
             self.df = self.df.loc[
                 self.df.loc[:, self.columns["field_of_view_id"]] == fov_to_select
-            ]
+            ].copy(deep=True)
         if return_dataframe:
             return self.df
 
@@ -240,7 +240,7 @@ class process_input:
         track_length_filtered_names = track_length_filtered[track_length_filtered].index
         self.df = self.df.loc[
             self.df.loc[:, self.columns["track_id"]].isin(track_length_filtered_names)
-        ]
+        ].copy(deep=True)
         if return_dataframe:
             return self.df
 
@@ -249,14 +249,12 @@ class process_input:
         rescales measurment column by factor passed in as argument
         """
         meas_col = self.columns["measurment"]
-        self.df.loc[:, meas_col].update(rescale_factor * self.df.loc[:, meas_col])
+        self.df[meas_col] = rescale_factor * self.df[meas_col]
         if return_dataframe:
             return self.df
 
     def frame_interval(self, factor):
-        self.df.loc[:, self.columns["frame"]].update(
-            self.df.loc[:, self.columns["frame"]] / factor
-        )
+        self.df[self.columns["frame"]] = self.df[self.columns["frame"]] / factor
 
     def return_pd_df(self):
         return self.df

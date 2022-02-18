@@ -8,8 +8,6 @@ from arcos_gui._arcos_widgets import (
     arcos_widget,
     columnpicker,
     export_data,
-    filepicker,
-    filter_widget,
     output_csv_folder,
     output_movie_folder,
     show_output_csv_folder,
@@ -93,9 +91,9 @@ def test_export_data_widget_images_data(make_napari_viewer, tmp_path):
     assert path.isfile(file)
 
 
-def test_filepicker(make_napari_viewer):
+def test_arcos_widget_choose_file(make_napari_viewer):
     viewer = make_napari_viewer(strict_qt=True)
-    mywidget = filepicker()
+    mywidget = arcos_widget()
     viewer.window.add_dock_widget(mywidget)
     mywidget.filename.value = Path("src/arcos_gui/_tests/fixtures/arcos_test.csv")
     mywidget()
@@ -114,7 +112,7 @@ def test_filepicker(make_napari_viewer):
 def test_filterwidget_no_data(make_napari_viewer, capsys):
     stored_variables.data = pd.DataFrame()
     viewer = make_napari_viewer(strict_qt=True)
-    mywidget = filter_widget()
+    mywidget = "filter_widget()"
     viewer.window.add_dock_widget(mywidget)
     mywidget()
     catptured = capsys.readouterr()
@@ -135,7 +133,7 @@ def test_filterwidget_data(make_napari_viewer, capsys):
     df_1 = pd.read_csv("src/arcos_gui/_tests/fixtures/filter_test.csv")
     stored_variables.data = df_1
     df_1 = df_1[df_1["Position"] == 1]
-    mywidget = filter_widget()
+    mywidget = "filter_widget()"
     viewer.window.add_dock_widget(mywidget)
     mywidget.position.set_choice("1", 1)
     mywidget.position.value = 1

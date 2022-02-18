@@ -159,29 +159,9 @@ def on_arcos_widget_init(widget):
         else:
             widget.position.visible = True
 
-        # get track_lenghts
-        if columnpicker.dicCols.value["field_of_view_id"] != "None":
-            data_g = stored_variables.data.groupby(
-                [
-                    columnpicker.dicCols.value["field_of_view_id"],
-                    columnpicker.dicCols.value["track_id"],
-                ]
-            ).size()
-        else:
-            data_g = stored_variables.data.groupby(
-                [columnpicker.dicCols.value["track_id"]]
-            ).size()
-        minmax = (min(data_g), max(data_g))
-
         # set positions in filter widget, filter data
         widget.position.choices = []
         widget.position.choices = positions
-        widget.min_track_length.min = minmax[0]
-        widget.min_track_length.max = minmax[1]
-        widget.max_track_length.min = minmax[0]
-        widget.max_track_length.max = minmax[1]
-        widget.min_track_length.value = minmax[0]
-        widget.max_track_length.value = minmax[1]
         stored_variables.positions = positions
         stored_variables.current_position = widget.position.value
 
@@ -194,8 +174,38 @@ def on_arcos_widget_init(widget):
         else:
             widget.position.show()
 
+    def get_tracklengths():
+        """
+        Groups filtered data by track_id and
+        returns minimum and maximum tracklenght.
+        Updates min and max tracklenght in the arcos_widget.
+        """
+        data = stored_variables.data
+        if not data.empty:
+            if columnpicker.dicCols.value["field_of_view_id"] != "None":
+                track_lenths = stored_variables.data.groupby(
+                    [
+                        columnpicker.dicCols.value["field_of_view_id"],
+                        columnpicker.dicCols.value["track_id"],
+                    ]
+                ).size()
+            else:
+                track_lenths = stored_variables.data.groupby(
+                    [columnpicker.dicCols.value["track_id"]]
+                ).size()
+            minmax = (min(track_lenths), max(track_lenths))
+
+            widget.min_track_length.min = minmax[0]
+            widget.min_track_length.max = minmax[1]
+            widget.max_track_length.min = minmax[0]
+            widget.max_track_length.max = minmax[1]
+            widget.min_track_length.value = minmax[0]
+            widget.max_track_length.value = minmax[1]
+
     def remove_layers_after_columnpicker():
-        # remove existing arcos layers before loading new data
+        """
+        removes existing arcos layers before loading new data
+        """
         for layer in [
             "coll cells",
             "coll events",
@@ -218,7 +228,8 @@ def on_arcos_widget_init(widget):
         positions = sorted(stored_variables.positions)
         current_pos = stored_variables.current_position
         for i in positions:
-            widget.position.del_choice(str(i))
+            if i is not None:
+                widget.position.del_choice(str(i))
 
         widget.position.choices = positions
 
@@ -235,7 +246,8 @@ def on_arcos_widget_init(widget):
 
         positions = sorted(stored_variables.positions)
         for i in positions:
-            widget.position.del_choice(str(i))
+            if i is not None:
+                widget.position.del_choice(str(i))
         current_pos = stored_variables.current_position
         widget.position.choices = positions
 
@@ -251,9 +263,9 @@ def on_arcos_widget_init(widget):
 
     def open_columnpicker():
         """
-        FileDialog with magic_factory for reading in csv file.
         Take a filename and if it is a csv file,
-        open it and stores it in the stored_variables_object
+        open it and stores it in the stored_variables_object.
+        Shows columnpicker dialog.
         """
         columns = columnpicker.frame.choices
         column_keys = columnpicker.dicCols.value.keys()
@@ -286,8 +298,12 @@ def on_arcos_widget_init(widget):
         in_data = process_input(
             df=stored_variables.data, columns=columnpicker.dicCols.value
         )
-        if stored_variables.data.empty:
-            show_info("No Data Loaded, Use arcos_widget to open data first")
+        if (
+            stored_variables.data.empty
+            or columnpicker.dicCols.value["field_of_view_id"]
+            == columnpicker.dicCols.value["measurment"]
+        ):
+            show_info("No data loaded, or not loaded correctly")
         else:
             # if the position column was not chosen in columnpicker,
             # dont filter by position
@@ -356,7 +372,7 @@ def on_arcos_widget_init(widget):
             widget.bin_peak_threshold.visible = False
             widget.bin_threshold.visible = True
 
-    def update_lut_values():
+    def set_point_size():
         """
         updates values in lut mapping sliders
         """
@@ -370,6 +386,11 @@ def on_arcos_widget_init(widget):
         widget.point_size.value = (
             0.75482 + 0.00523857 * max_coord_diff + 9.0618311e-6 * max_coord_diff ** 2
         )
+
+    def reset_contrast():
+        """
+        updates values in lut mapping sliders
+        """
         min_max = stored_variables.min_max
         # change slider values
         widget.max_contrast.max = min_max[1]
@@ -385,10 +406,11 @@ def on_arcos_widget_init(widget):
         """
         stored_variables.lut = widget.LUT.value
 
-    # callbacks to execute abve functions
-    widget.ResetLUT.changed.connect(update_lut_values)
+    # hook up callbacks to execute LUT and point functions
+    widget.ResetLUT.changed.connect(reset_contrast)
     widget.LUT.changed.connect(update_lut)
-    stored_variables.register_callback(update_lut_values)
+    stored_variables.register_callback(reset_contrast)
+    stored_variables.register_callback(set_point_size)
 
     # callback for updating 'what to run' in stored_variables object
     widget.clip_low.changed.connect(update_what_to_run_all)
@@ -414,6 +436,7 @@ def on_arcos_widget_init(widget):
     # callback for updating several variables after OK press in columnpicker widget
     columnpicker.Ok.changed.connect(close_columnpicker)
     columnpicker.Ok.changed.connect(set_positions)
+    columnpicker.Ok.changed.connect(get_tracklengths)
     columnpicker.Ok.changed.connect(remove_layers_after_columnpicker)
 
     # callbackfor filtering data
@@ -433,11 +456,8 @@ def on_arcos_widget_init(widget):
 
     def change_cell_colors():
         """
-        magic_factory decorated function that allows a user
-        to choose lut and corresponding lut mappings
+        function to update lut and corresponding lut mappings
         """
-        # if the layer is present update points layer with lut
-
         viewer = current_viewer()
         if "all_cells" in stored_variables.layer_names:
             viewer.layers["all_cells"].face_colormap = widget.LUT.value
@@ -448,6 +468,10 @@ def on_arcos_widget_init(widget):
             viewer.layers["all_cells"].refresh_colors()
 
     def change_cell_size():
+        """
+        function to update size of points and shapes layers:
+        "all_cells, "active cells", "coll cells" and "coll events"
+        """
         if "all_cells" in stored_variables.layer_names:
             viewer.layers["all_cells"].size = widget.point_size.value
             viewer.layers["active cells"].size = round(widget.point_size.value / 2.5, 2)
@@ -476,6 +500,7 @@ def on_arcos_widget_init(widget):
     arcos_label={"widget_type": "Label", "name": ""},
     interval_type={"choices": ["fixed", "var"]},
     bias_method={"choices": ["runmed", "lm", "none"]},
+    polyDeg={"visible": False},
     clip_low={"min": 0, "max": 1, "step": 0.001, "tooltip": "Measurment in Quantiles"},
     clip_high={"min": 0, "max": 1, "step": 0.001, "tooltip": "Measurment in Quantiles"},
     bin_peak_threshold={"min": 0, "step": 0.01},
@@ -527,20 +552,26 @@ def arcos_widget(
 ) -> LayerDataTuple:
 
     """
-    widget allowing a user to choose arcos parameters and when called runs arcos.
-    returns a list of napari.types.LayerDataTuble to add or update layers.
+    widget allowing a user to import a csv file, filter this file,
+    choose arcos parameters, choose LUT mappings aswell as shape sizes
+    When called runs arcos.
+    Returns a list of napari.types.LayerDataTuble to add or update layers.
 
-    Included layers are:
+    Returned layers are:
     all_cells:
     returns color coded points of all cells filtered by the filter_widget.
     Color code represents measurment active_cells: returns black dots,
     representing cells determined as being active by arcos binarise measurment function
 
-    coll_cells:
+    active cells:
+    points representing cells that have been classified as being active
+    by the arcos binarization approach.
+
+    coll cells:
     returns black crosses representing cells that are according
     to the calculation done by arcos part of a collective event
 
-    coll_events:
+    coll events:
     returns polycons representing the convex hulls of individual collective
     events, color coded accoring to a color_cycle attribute
     """
