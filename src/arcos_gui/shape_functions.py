@@ -147,7 +147,7 @@ def get_verticesHull(df, col_x, col_y):
         containing the XY coordinates of a set of points.
     """
 
-    df_xy = df[[col_x, col_y]]
+    df_xy = df[[col_x, col_y]].copy(deep=True)
     df_xy.dropna(inplace=True)
     # try except statement to test if Qhullerror is thrown
     # returns column names as a list of df_xy

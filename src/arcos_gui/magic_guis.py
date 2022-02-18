@@ -60,3 +60,4 @@ def columnpicker(
     },
 ):
     """Dialog with magicgui for selecting columns"""
+    columnpicker.Ok.bind(not Ok)

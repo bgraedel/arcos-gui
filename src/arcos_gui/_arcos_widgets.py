@@ -23,7 +23,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from scipy.stats import kde
+from scipy.stats import gaussian_kde
 
 # local imports
 from .arcos_module import ARCOS, process_input
@@ -377,15 +377,18 @@ def on_arcos_widget_init(widget):
         updates values in lut mapping sliders
         """
         data = stored_variables.data
-        minx = min(data[columnpicker.dicCols.value["x_coordinates"]])
-        maxx = max(data[columnpicker.dicCols.value["x_coordinates"]])
-        miny = min(data[columnpicker.dicCols.value["y_coordinates"]])
-        maxy = max(data[columnpicker.dicCols.value["y_coordinates"]])
+        if not data.empty:
+            minx = min(data[columnpicker.dicCols.value["x_coordinates"]])
+            maxx = max(data[columnpicker.dicCols.value["x_coordinates"]])
+            miny = min(data[columnpicker.dicCols.value["y_coordinates"]])
+            maxy = max(data[columnpicker.dicCols.value["y_coordinates"]])
 
-        max_coord_diff = max(maxx - minx, maxy - miny)
-        widget.point_size.value = (
-            0.75482 + 0.00523857 * max_coord_diff + 9.0618311e-6 * max_coord_diff ** 2
-        )
+            max_coord_diff = max(maxx - minx, maxy - miny)
+            widget.point_size.value = (
+                0.75482
+                + 0.00523857 * max_coord_diff
+                + 9.0618311e-6 * max_coord_diff ** 2
+            )
 
     def reset_contrast():
         """
@@ -409,8 +412,6 @@ def on_arcos_widget_init(widget):
     # hook up callbacks to execute LUT and point functions
     widget.ResetLUT.changed.connect(reset_contrast)
     widget.LUT.changed.connect(update_lut)
-    stored_variables.register_callback(reset_contrast)
-    stored_variables.register_callback(set_point_size)
 
     # callback for updating 'what to run' in stored_variables object
     widget.clip_low.changed.connect(update_what_to_run_all)
@@ -444,6 +445,10 @@ def on_arcos_widget_init(widget):
 
     # reset what to run
     widget.filter_input_data.changed.connect(update_what_to_run_variable)
+
+    # reset contrast and point size
+    widget.filter_input_data.changed.connect(reset_contrast)
+    widget.filter_input_data.changed.connect(set_point_size)
 
     # callback for removing and adding layers to a list of layers
     viewer.layers.events.inserted.connect(add_new_layers_list)
@@ -578,13 +583,12 @@ def arcos_widget(
     # checks if this part of the function has to be run,
     # depends on the parameters changed in arcos widget
     if stored_variables.dataframe.empty:
-        show_info("No Data Loaded, Use arcos_widget to load data first")
+        show_info("No Data Loaded, Use arcos_widget to load and filter data first")
     else:
         if "all" in stored_variables.arcos_what_to_run:
 
             # sets Progressbar to 0
             arcos_widget.Progress.value = 0
-
             # create arcos object, run arcos
             arcos = ARCOS(stored_variables.dataframe, columnpicker.dicCols.value)
             arcos.create_arcosTS(
@@ -1060,9 +1064,7 @@ class TimeSeriesPlots(QWidget):
 
             # measurment density plot, kde
             elif plottype == "measurment density plot":
-                density = kde.gaussian_kde(
-                    dataframe[columns["measurment"]].interpolate()
-                )
+                density = gaussian_kde(dataframe[columns["measurment"]].interpolate())
                 x = np.linspace(
                     min(dataframe[columns["measurment"]]),
                     max(dataframe[columns["measurment"]]),

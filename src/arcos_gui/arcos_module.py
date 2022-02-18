@@ -254,7 +254,8 @@ class process_input:
             return self.df
 
     def frame_interval(self, factor):
-        self.df[self.columns["frame"]] = self.df[self.columns["frame"]] / factor
+        if factor > 1:
+            self.df[self.columns["frame"]] = self.df[self.columns["frame"]] / factor
 
     def return_pd_df(self):
         return self.df

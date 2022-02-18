@@ -44,6 +44,7 @@ def iterate_over_frames(viewer, temp_dir, label="Exporting Frames", Abort=False)
         plt.savefig(
             str(temp_dir) + "_%03d.png" % frame, bbox_inches="tight", pad_inches=0
         )
+        plt.close()
 
 
 @iterate_over_frames.Abort.changed.connect
