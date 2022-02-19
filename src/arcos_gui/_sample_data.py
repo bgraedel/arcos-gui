@@ -1,16 +1,18 @@
 """
-This module is an example of a barebones sample data provider for napari.
-
 It implements the "sample data" specification.
 see: https://napari.org/plugins/stable/guides.html#sample-data
 
-Replace code below according to your needs.
 """
 from __future__ import annotations
 
-import numpy
+from pathlib import Path
+
+from arcos_gui._arcos_widgets import arcos_widget
 
 
-def make_sample_data():
-    """Generates an image"""
-    return numpy.random.rand(512, 512)
+def load_sample_data():
+    """Load sample data into stored_variables"""
+    arcos_widget().filename.value = Path(
+        "src/arcos_gui/_tests/test_data/arcos_data.csv"
+    )
+    return []

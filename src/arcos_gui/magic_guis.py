@@ -32,6 +32,7 @@ def show_timestamp_options():
 
 
 @magicgui(
+    call_button=False,
     Ok={"widget_type": "PushButton"},
     frame={"choices": ["None"]},
     track_id={"choices": ["None"]},
@@ -40,7 +41,6 @@ def show_timestamp_options():
     measurment={"choices": ["None"]},
     field_of_view_id={"choices": ["None"]},
     dicCols={"visible": False},
-    auto_call=True,
 )
 def columnpicker(
     frame="None",
