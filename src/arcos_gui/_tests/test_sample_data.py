@@ -17,7 +17,6 @@ def dock_arcos_widget(make_napari_viewer):
 
 
 def test_loading_sample_data(dock_arcos_widget):
-
     load_sample_data()
     test_data = stored_variables.data
     direct_test_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")

@@ -8,8 +8,8 @@ contributions:
     - id: arcos-gui.add_timestamp
       python_name: arcos_gui._arcos_widgets:add_timestamp
       title: Gui to add a timestamp
-    - id: arcos-gui.arcos_widget
-      python_name: arcos_gui._arcos_widgets:arcos_widget
+    - id: arcos-gui.MainWindow
+      python_name: arcos_gui._arcos_widgets:MainWindow
       title: Opens filedialog to import csv
     - id: arcos-gui.CollevPlotter
       python_name: arcos_gui._arcos_widgets:CollevPlotter
@@ -29,7 +29,7 @@ contributions:
       display_name: Data Export
     - command: arcos-gui.add_timestamp
       display_name: Timestamp
-    - command: arcos-gui.arcos_widget
+    - command: arcos-gui.MainWindow
       display_name: ARCOS Main Widget
     - command: arcos-gui.CollevPlotter
       display_name: Collective Events Plot
