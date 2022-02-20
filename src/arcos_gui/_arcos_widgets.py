@@ -13,7 +13,9 @@ from matplotlib.figure import Figure
 from napari.types import LayerDataTuple
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
+from qtpy.QtCore import Qt
 from scipy.stats import gaussian_kde
+from superqt import QDoubleRangeSlider, QRangeSlider
 
 if TYPE_CHECKING:
     import napari.layers
@@ -21,10 +23,10 @@ if TYPE_CHECKING:
 
 
 # local imports
-from .arcos_module import ARCOS, process_input
-from .export_movie import iterate_over_frames, resize_napari
-from .magic_guis import columnpicker, show_timestamp_options, timestamp_options
-from .shape_functions import (
+from arcos_gui.arcos_module import ARCOS, process_input
+from arcos_gui.export_movie import iterate_over_frames, resize_napari
+from arcos_gui.magic_guis import columnpicker, show_timestamp_options, timestamp_options
+from arcos_gui.shape_functions import (
     COLOR_CYCLE,
     assign_color_id,
     format_verticesHull,
@@ -32,7 +34,7 @@ from .shape_functions import (
     make_shapes,
     make_timestamp,
 )
-from .temp_data_storage import data_storage
+from arcos_gui.temp_data_storage import data_storage
 
 # define some variables
 TOFFSET = 0
@@ -42,6 +44,7 @@ stored_variables = data_storage()
 
 
 class _MainUI:
+
     UI_FILE = str(Path(__file__).parent / "_ui" / "ARCOS_widget.ui")
 
     # The UI_FILE above contains these objects:
@@ -62,6 +65,7 @@ class _MainUI:
     max_tracklength_spinbox: QtWidgets.QDoubleSpinBox
     filter_groupBox: QtWidgets.QGroupBox
     filter_input_data: QtWidgets.QPushButton
+    horizontalLayout_tracklength: QtWidgets.QHBoxLayout
 
     clip_low_label: QtWidgets.QLabel
     clip_high_label: QtWidgets.QLabel
@@ -109,11 +113,15 @@ class _MainUI:
     min_lut_spinbox: QtWidgets.QDoubleSpinBox
     reset_lut: QtWidgets.QPushButton
     layer_properties: QtWidgets.QGroupBox
+    horizontalLayout_lut: QtWidgets.QHBoxLayout
 
     def setup_ui(self):
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
 
-        # set some defaults
+        self.LUT.addItems(stored_variables.colormaps)
+        self.LUT.setCurrentText("RdYlBu_r")
+
+        # set text of Line edit
         self.file_LineEdit.setText(".")
 
 
@@ -122,23 +130,83 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
     widget allowing a user to import a csv file, filter this file,
     choose arcos parameters, choose LUT mappings aswell as shape sizes
     When called runs arcos.
-    Returns a list of napari.types.LayerDataTuble to add or update layers.
+    list of napari.types.LayerDataTuble to add or update layers is generated.
     """
 
     def __init__(self, viewer: napari.viewer.Viewer, remote=True):
         super().__init__()
         self.setup_ui()
+        self.layers_to_create: list = []
+        self.viewer: napari.viewer.Viewer = viewer
+        self._filename: str = self.file_LineEdit.text()
 
-        self.viewer = viewer
-        self.filename = self.file_LineEdit
+        self._init_ranged_sliderts()
+        self._set_default_visible()
 
+        self._init_callbacks_for_whattorun()
+        self._init_columnpicker_callbacks()
+        self._init_callback_for_sample_data()
+        self._init_size_contrast_callbacks()
+        self._connect_ranged_sliders_to_spinboxes()
+        self._connect_pushbutton_callbacks()
+        self._init_callbacks_visible_arcosparameters()
+
+    def _init_callbacks_visible_arcosparameters(self):
+        # callback for changing available options of bias method
+        self.bias_method.currentIndexChanged.connect(
+            self.toggle_bias_method_parameter_visibility
+        )
+
+    def _connect_pushbutton_callbacks(self):
         # callback to open file dialog
         self.browse_file.clicked.connect(self.browse_files)
+        # callback for updating what to run in arcos_widget
+        self.open_file_button.clicked.connect(self.open_columnpicker)
+        # reset what to run
+        self.filter_input_data.clicked.connect(self.update_what_to_run_variable)
+        self.open_file_button.clicked.connect(stored_variables.clear_what_to_run)
+        # callbackfor filtering data
+        self.filter_input_data.clicked.connect(self.filter_data)
+        self.update_arcos.clicked.connect(self.reset_contrast)
+        self.update_arcos.clicked.connect(self.run)
 
-        # hook up callbacks to execute LUT and point functions
+    def _connect_ranged_sliders_to_spinboxes(self):
+        self.tracklenght_slider.valueChanged.connect(
+            self.handleSlider_tracklength_ValueChange
+        )
+        self.min_tracklength_spinbox.valueChanged.connect(
+            self.handle_min_tracklenght_box_ValueChange
+        )
+        self.max_tracklength_spinbox.valueChanged.connect(
+            self.handle_max_tracklength_box_ValueChange
+        )
+        self.lut_slider.valueChanged.connect(self.handleSlider_lut_ValueChange)
+        self.min_lut_spinbox.valueChanged.connect(self.handle_min_lut_box_ValueChange)
+        self.max_lut_spinbox.valueChanged.connect(self.handle_max_lut_box_ValueChange)
+
+    def _init_size_contrast_callbacks(self):
+        # reset contrast and point size
+        self.filter_input_data.clicked.connect(self.reset_contrast)
+        self.filter_input_data.clicked.connect(self.set_point_size)
+        # execute LUT and point functions
         self.reset_lut.clicked.connect(self.reset_contrast)
+        # update size and LUT
         self.LUT.currentIndexChanged.connect(self.update_lut)
+        self.lut_slider.valueChanged.connect(self.change_cell_colors)
+        self.LUT.currentIndexChanged.connect(self.change_cell_colors)
+        self.point_size.valueChanged.connect(self.change_cell_size)
 
+    def _init_callback_for_sample_data(self):
+        stored_variables.register_callback(self.callback_file_Linedit_text)
+
+    def _init_columnpicker_callbacks(self):
+        # callback for updating several variables after OK press in columnpicker widget
+        columnpicker.Ok.changed.connect(self.close_columnpicker)
+        columnpicker.Ok.changed.connect(self.set_positions)
+        columnpicker.Ok.changed.connect(self.get_tracklengths)
+        columnpicker.Ok.changed.connect(self.remove_layers_after_columnpicker)
+
+    def _init_callbacks_for_whattorun(self):
         # callback for updating 'what to run' in stored_variables object
         self.clip_low.valueChanged.connect(self.update_what_to_run_all)
         self.clip_high.valueChanged.connect(self.update_what_to_run_all)
@@ -152,51 +220,56 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.min_clustersize.valueChanged.connect(self.update_what_to_run_tracking)
         self.min_dur.valueChanged.connect(self.update_what_to_run_filtering)
         self.total_event_size.valueChanged.connect(self.update_what_to_run_filtering)
-        # self.clip_meas.changed.connect(self.toggle_clip_meas_visibility)
 
-        # callback for chaning available options of bias method
-        self.bias_method.currentIndexChanged.connect(
-            self.toggle_bias_method_parameter_visibility
-        )
+    def _init_ranged_sliderts(self):
+        self.lut_slider = QDoubleRangeSlider(Qt.Horizontal)
+        self.tracklenght_slider = QRangeSlider(Qt.Horizontal)
+        self.horizontalLayout_lut.addWidget(self.lut_slider)
+        self.horizontalLayout_tracklength.addWidget(self.tracklenght_slider)
 
-        # callback for updating what to run in arcos_widget
-        self.file_LineEdit.textChanged.connect(self.open_columnpicker)
+        # set starting values
+        self.lut_slider.setRange(0, 10)
+        self.tracklenght_slider.setRange(0, 10)
+        self.tracklenght_slider.setValue((0, 10))
+        self.lut_slider.setValue((0, 10))
 
-        # callback for updating several variables after OK press in columnpicker widget
-        columnpicker.Ok.changed.connect(self.close_columnpicker)
-        columnpicker.Ok.changed.connect(self.set_positions)
-        columnpicker.Ok.changed.connect(self.get_tracklengths)
-        columnpicker.Ok.changed.connect(self.remove_layers_after_columnpicker)
+    def handleSlider_tracklength_ValueChange(self):
+        slider_vals = self.tracklenght_slider.value()
+        self.min_tracklength_spinbox.setValue(slider_vals[0])
+        self.max_tracklength_spinbox.setValue(slider_vals[1])
 
-        # callbackfor filtering data
-        self.filter_input_data.clicked.connect(self.filter_data)
+    def handle_min_tracklenght_box_ValueChange(self, value):
+        slider_vals = self.tracklenght_slider.value()
+        self.tracklenght_slider.setValue((value, slider_vals[1]))
 
-        # reset what to run
-        self.filter_input_data.clicked.connect(self.update_what_to_run_variable)
+    def handle_max_tracklength_box_ValueChange(self, value):
+        slider_vals = self.tracklenght_slider.value()
+        self.tracklenght_slider.setValue((slider_vals[0], value))
 
-        # reset contrast and point size
-        self.filter_input_data.clicked.connect(self.reset_contrast)
-        self.filter_input_data.clicked.connect(self.set_point_size)
+    def handleSlider_lut_ValueChange(self):
+        slider_vals = self.lut_slider.value()
+        self.min_lut_spinbox.setValue(slider_vals[0])
+        self.max_lut_spinbox.setValue(slider_vals[1])
 
-        # callback for removing and adding layers to a list of layers
-        self.viewer.layers.events.inserted.connect(self.add_new_layers_list)
-        self.viewer.layers.events.removed.connect(self.remove_old_layers_list)
+    def handle_min_lut_box_ValueChange(self, value):
+        slider_vals = self.lut_slider.value()
+        self.lut_slider.setValue((value, slider_vals[1]))
 
-        self.max_lut.valueChanged.connect(self.change_cell_colors)
-        self.min_lut.valueChanged.connect(self.change_cell_colors)
-        self.LUT.currentIndexChanged.connect(self.change_cell_colors)
-        self.point_size.valueChanged.connect(self.change_cell_size)
+    def handle_max_lut_box_ValueChange(self, value):
+        slider_vals = self.lut_slider.value()
+        self.lut_slider.setValue((slider_vals[0], value))
 
-        self.update_arcos.clicked.connect(self.run)
-
-    def connect_tracklength_widgets_2(self):
-        self.min_tracklength_spinbox.setValue(self.min_tracklength.value())
+    def _set_default_visible(self):
+        self.position.setVisible(False)
+        self.position_label.setVisible(False)
+        self.polyDeg.setVisible(False)
+        self.polyDeg_label.setVisible(False)
 
     def browse_files(self):
         self.filename = QtWidgets.QFileDialog.getOpenFileName(
             self, "Load CSV file", str(Path.home()), "csv(*.csv)"
         )
-        self.file_LineEdit.setText(str(self.filename[0]))
+        self.file_LineEdit.setText(self.filename[0])
 
     def close_columnpicker(self):
         """
@@ -236,11 +309,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         else:
             positions = ["None"]
 
-        if columnpicker.field_of_view_id == "None":
-            self.position.isVisible = False
-        else:
-            self.position.isVisible = True
-
         # set positions in filter widget, filter data
         self.position.clear()
         for i in positions:
@@ -253,9 +321,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         # Also hides it if there is only one position available.
         # Updates everytime when new data is read in
         if self.position.count() <= 1:
-            self.position.hide()
+            self.position.setVisible(False)
+            self.position_label.setVisible(False)
         else:
-            self.position.show()
+            self.position.setVisible(True)
+            self.position_label.setVisible(True)
 
     def get_tracklengths(self):
         """
@@ -278,17 +348,24 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 ).size()
             minmax = (min(track_lenths), max(track_lenths))
 
-            self.min_tracklength.setMinimum(minmax[0])
-            self.min_tracklength.setMaximum(minmax[1])
-            self.max_tracklength.setMinimum(minmax[0])
-            self.max_tracklength.setMaximum(minmax[1])
-            self.min_tracklength.setValue(minmax[0])
-            self.max_tracklength.setValue(minmax[1])
+            if minmax[1] - minmax[0] > 1:
+                self.tracklenght_slider.setMinimum(minmax[0])
+                self.tracklenght_slider.setMaximum(minmax[1])
+
+            self.min_tracklength_spinbox.setMinimum(minmax[0])
+            self.max_tracklength_spinbox.setMinimum(minmax[0])
+
+            self.min_tracklength_spinbox.setMaximum(minmax[1])
+            self.max_tracklength_spinbox.setMaximum(minmax[1])
+
+            self.min_tracklength_spinbox.setValue(minmax[0])
+            self.max_tracklength_spinbox.setValue(minmax[1])
 
     def remove_layers_after_columnpicker(self):
         """
         removes existing arcos layers before loading new data
         """
+        layer_list = self.get_layer_list()
         for layer in [
             "coll cells",
             "coll events",
@@ -296,42 +373,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             "all_cells",
             "Timestamp",
         ]:
-            if layer in stored_variables.layer_names:
+            if layer in layer_list:
                 self.viewer.layers.remove(layer)
-                stored_variables.layer_names.remove(layer)
 
-    def add_new_layers_list(self):
-        """
-        adds newly inserted layers to the list stored in the stored_variables object
-        """
-        for idx, layer in enumerate(self.viewer.layers):
-            if layer.name not in stored_variables.layer_names:
-                stored_variables.layer_names.append(layer.name)
-
-        # positions = sorted(stored_variables.positions)
-        # current_pos = stored_variables.current_position
-        # for i in positions:
-        #     if i is not None:
-        #         self.position.removeItem(str(i))
-
-        # self.position.choices = positions
-
-        # self.position.value = current_pos
-
-    def remove_old_layers_list(self):
-        """
-        removes layers that are not present in napari
-        anymore form the list the stored_variables object
-        """
-        for idx, layer in enumerate(self.viewer.layers):
-            if layer.name not in [x.name for x in self.viewer.layers]:
-                stored_variables.layer_names.remove(layer.name)
-
-        # positions = sorted(stored_variables.positions)
-
-        # self.position.value = positions
-
-        # self.position.value = current_pos
+    def get_layer_list(self):
+        layer_list = [layer.name for layer in self.viewer.layers]
+        return layer_list
 
     def update_what_to_run_variable(self):
         """
@@ -391,10 +438,10 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 # hast to be done before .filter_tracklenght otherwise code could break
                 # if track ids are not unique to positions
                 in_data.filter_position(self.position.currentData())
-                print(self.position.currentData())
             # filter by tracklenght
             in_data.filter_tracklength(
-                self.min_tracklength.value(), self.max_tracklength.value()
+                self.min_tracklength_spinbox.value(),
+                self.max_tracklength_spinbox.value(),
             )
             # option to rescale the measurment column
             in_data.rescale_measurment(rescale_factor=self.rescale_measurment.value())
@@ -409,11 +456,10 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 min_meas = min(dataframe[columnpicker.dicCols.value["measurment"]])
                 stored_variables.min_max = (min_meas, max_meas)
             stored_variables.dataframe = dataframe
-            print(stored_variables.dataframe)
             stored_variables.current_position = self.position.currentData()
             show_info("Data Filtered!")
 
-        # several functions to update the 'what to run' variable in stored_variables
+    # several functions to update the 'what to run' variable in stored_variables
 
     def update_what_to_run_all(self):
         stored_variables.update_what_to_run("all")
@@ -424,35 +470,46 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
     def update_what_to_run_filtering(self):
         stored_variables.update_what_to_run("from_filtering")
 
-    # def toggle_clip_meas_visibility(self):
-    #     self.clip_low.isVisible = not self.clip_low.isVisible
-    #     self.clip_high.isVisible = not self.clip_high.isVisible
-
     def toggle_bias_method_parameter_visibility(self):
         """
         based on the seleciton of bias method:
         shows or hides the appropriate options in the widget
         """
-        if self.bias_method.currentText == "runmed":
-            self.smooth_k.isVisible = True
-            self.polyDeg.isVisible = False
-            self.bias_k.isVisible = True
-            self.bin_peak_threshold.isVisible = True
-            self.bin_threshold.isVisible = True
+        if self.bias_method.currentText() == "runmed":
+            self.smooth_k.setVisible(True)
+            self.smooth_k_label.setVisible(True)
+            self.polyDeg.setVisible(False)
+            self.polyDeg_label.setVisible(False)
+            self.bias_k.setVisible(True)
+            self.bias_k_label.setVisible(True)
+            self.bin_peak_threshold.setVisible(True)
+            self.bin_peak_threshold_label.setVisible(True)
+            self.bin_threshold.setVisible(True)
+            self.bin_threshold_label.setVisible(True)
 
-        if self.bias_method.currentText == "lm":
-            self.smooth_k.isVisible = True
-            self.polyDeg.isVisible = True
-            self.bias_k.isVisible = False
-            self.bin_peak_threshold.isVisible = True
-            self.bin_threshold.isVisible = True
+        if self.bias_method.currentText() == "lm":
+            self.smooth_k.setVisible(True)
+            self.smooth_k_label.setVisible(True)
+            self.polyDeg.setVisible(True)
+            self.polyDeg_label.setVisible(True)
+            self.bias_k.setVisible(False)
+            self.bias_k_label.setVisible(False)
+            self.bin_peak_threshold.setVisible(True)
+            self.bin_peak_threshold_label.setVisible(True)
+            self.bin_threshold.setVisible(True)
+            self.bin_threshold_label.setVisible(True)
 
-        if self.bias_method.currentText == "none":
-            self.smooth_k.isVisible = True
-            self.polyDeg.isVisible = False
-            self.bias_k.isVisible = False
-            self.bin_peak_threshold.isVisible = False
-            self.bin_threshold.isVisible = True
+        if self.bias_method.currentText() == "none":
+            self.smooth_k.setVisible(True)
+            self.smooth_k_label.setVisible(True)
+            self.polyDeg.setVisible(False)
+            self.polyDeg_label.setVisible(False)
+            self.bias_k.setVisible(False)
+            self.bias_k_label.setVisible(False)
+            self.bin_peak_threshold.setVisible(False)
+            self.bin_peak_threshold_label.setVisible(False)
+            self.bin_threshold.setVisible(True)
+            self.bin_threshold_label.setVisible(True)
 
     def set_point_size(self):
         """
@@ -466,7 +523,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             maxy = max(data[columnpicker.dicCols.value["y_coordinates"]])
 
             max_coord_diff = max(maxx - minx, maxy - miny)
-            self.point_size.value = (
+            self.point_size.setValue(
                 0.75482
                 + 0.00523857 * max_coord_diff
                 + 9.0618311e-6 * max_coord_diff ** 2
@@ -478,12 +535,13 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         """
         min_max = stored_variables.min_max
         # change slider values
-        self.max_lut.setMaximum = min_max[1]
-        self.max_lut.setMinimum = min_max[0]
-        self.min_lut.setMaximum = min_max[1]
-        self.min_lut.setMinimum = min_max[0]
-        self.max_lut.value = min_max[1]
-        self.min_lut.value = min_max[0]
+        self.max_lut_spinbox.setMaximum(min_max[1])
+        self.max_lut_spinbox.setMinimum(min_max[0])
+        self.min_lut_spinbox.setMaximum(min_max[1])
+        self.min_lut_spinbox.setMinimum(min_max[0])
+        self.lut_slider.setRange(*min_max)
+        self.max_lut_spinbox.setValue(min_max[1])
+        self.min_lut_spinbox.setValue(min_max[0])
 
     def update_lut(self):
         """
@@ -495,11 +553,14 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         """
         function to update lut and corresponding lut mappings
         """
-        if "all_cells" in stored_variables.layer_names:
-            self.viewer.layers["all_cells"].face_colormap = self.LUT.value
+        layer_list = self.get_layer_list()
+        min_value = self.min_lut_spinbox.value()
+        max_value = self.max_lut_spinbox.value()
+        if "all_cells" in layer_list:
+            self.viewer.layers["all_cells"].face_colormap = self.LUT.currentText()
             self.viewer.layers["all_cells"].face_contrast_limits = (
-                self.min_lut.value(),
-                self.max_contrast.value(),
+                min_value,
+                max_value,
             )
             self.viewer.layers["all_cells"].refresh_colors()
 
@@ -508,22 +569,22 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         function to update size of points and shapes layers:
         "all_cells, "active cells", "coll cells" and "coll events"
         """
-        if "all_cells" in stored_variables.layer_names:
-            self.viewer.layers["all_cells"].size = self.point_size.value()
-            self.viewer.layers["active cells"].size = round(
-                self.point_size.value() / 2.5, 2
-            )
+        layer_list = self.get_layer_list()
+        size = self.point_size.value()
+        if "all_cells" in layer_list:
+            self.viewer.layers["all_cells"].size = size
+            self.viewer.layers["active cells"].size = round(size / 2.5, 2)
 
-        if "coll cells" in stored_variables.layer_names:
-            self.viewer.layers["coll cells"].size = round(
-                self.point_size.value() / 1.7, 2
-            )
-            self.viewer.layers["coll events"].edge_width = self.point_size.value() / 5
+        if "coll cells" in layer_list:
+            self.viewer.layers["coll cells"].size = round(size / 1.7, 2)
+            self.viewer.layers["coll events"].edge_width = size / 5
             self.viewer.layers["coll events"].refresh()
 
     def arcos_function(self) -> LayerDataTuple:
         """
-        Returned layers are:
+        ARCOS function to execute R code and detect collective events.
+
+        Returned data can contain:
         all_cells:
         returns color coded points of all cells filtered by the filter_widget.
         Color code represents measurment active_cells: returns black dots,
@@ -546,9 +607,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         # depends on the parameters changed in arcos widget
         if stored_variables.dataframe.empty:
             show_info("No Data Loaded, Use arcos_widget to load and filter data first")
-            print(stored_variables.dataframe)
         else:
             if "all" in stored_variables.arcos_what_to_run:
+
+                # get point_size
+                size = self.point_size.value()
 
                 # sets Progressbar to 0
                 self.Progress.reset()
@@ -610,13 +673,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 # if no active cells were detected remove previous layer,
                 # since this does not correspont to current widget parameters
                 else:
+                    layer_list = self.get_layer_list()
                     # check if layers exist, if yes, remove them
-                    if "active cells" in stored_variables.layer_names:
+                    if "active cells" in layer_list:
                         self.viewer.layers.remove("active cells")
                         self.viewer.layers.remove("all_cells")
-                        stored_variables.layer_names.remove("active cells")
-                        stored_variables.layer_names.remove("all_cells")
-                        self.Progress.setValue(40)
+                    self.Progress.setValue(40)
                     show_info("No active Cells detected, consider adjusting parameters")
 
                 # update stored variables
@@ -626,9 +688,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             # depending on the parameters changed in arcos widget
             if "from_filtering" in stored_variables.arcos_what_to_run:
 
-                # set progressbar value
-                self.Progress.setValue(20)
-
                 # get most recent data from stored_variables
                 arcos = stored_variables.arcos  # type: ignore
                 ts = stored_variables.ts_data
@@ -637,7 +696,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 # and set the progressbar to 100%
                 if arcos is None:
                     show_info("No data available, run arcos first")
-                    self.Progress.reset()
+                    self.Progress.setValue(0)
 
                 # if cells were classifed as being active (represented by a 1)
                 # filter tracked events acording to chosen parameters
@@ -656,8 +715,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                     # update stats variable
                     arcos.calculate_stats()
-
-                    self.Progress.setValue(20)
 
                     # merge tracked and original data
                     merged_data = pd.merge(
@@ -705,7 +762,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     active_cells = (
                         datAct,
                         {
-                            "size": round(self.point_size.value / 2.5, 2),
+                            "size": round(size / 2.5, 2),
                             "edge_width": 0,
                             "face_color": "black",
                             "opacity": 1,
@@ -730,7 +787,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                             "face_color": "act",
                             "face_colormap": stored_variables.lut,
                             "face_contrast_limits": stored_variables.min_max,
-                            "size": self.point_size.value,
+                            "size": size,
                             "edge_width": 0,
                             "opacity": 1,
                             "symbol": "disc",
@@ -790,7 +847,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                             datColl,
                             {
                                 "face_color": "black",
-                                "size": round(self.point_size.value / 1.7, 2),
+                                "size": round(size / 1.7, 2),
                                 "edge_width": 0,
                                 "opacity": 0.75,
                                 "symbol": "x",
@@ -807,7 +864,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                                 "text": None,
                                 "opacity": 0.5,
                                 "edge_color": "white",
-                                "edge_width": round(self.point_size.value / 5, 2),
+                                "edge_width": round(size / 5, 2),
                                 "name": "coll events",
                             },
                             "shapes",
@@ -816,12 +873,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                         self.Progress.setValue(36)
                     else:
+                        layer_list = self.get_layer_list()
                         # check if layers exit, if yes remove them
-                        if "coll cells" in stored_variables.layer_names:
+                        if "coll cells" in layer_list:
                             self.viewer.layers.remove("coll cells")
                             self.viewer.layers.remove("coll events")
-                            stored_variables.layer_names.remove("coll cells")
-                            stored_variables.layer_names.remove("coll events")
                         show_info(
                             "No collective events detected, \
                             consider adjusting parameters"
@@ -834,12 +890,43 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # update layers
                     # check which layers need to be added, add these layers
                     if return_collev and return_points:
-                        return [all_cells, active_cells, coll_cells, coll_events]
+                        self.layers_to_create = [
+                            all_cells,
+                            active_cells,
+                            coll_cells,
+                            coll_events,
+                        ]
                     elif not return_collev and return_points:
-                        return [all_cells, active_cells]
+                        self.layers_to_create = [all_cells, active_cells]
+
+    def make_layers(self):
+        layers_names = [layer.name for layer in self.viewer.layers]
+        for layer in [
+            "coll cells",
+            "coll events",
+            "active cells",
+            "all_cells",
+        ]:
+            if layer in layers_names:
+                self.viewer.layers.remove(layer)
+        if self.layers_to_create:
+            for result in self.layers_to_create:
+                self.viewer.add_layer(napari.layers.Layer.create(*result))
+            self.layers_to_create.clear()
+
+    def callback_file_Linedit_text(self, value):
+        self.file_LineEdit.setText(value)
+        self.open_columnpicker()
+        columnpicker.frame.value = "t"
+        columnpicker.track_id.value = "id"
+        columnpicker.x_coordinates.value = "x"
+        columnpicker.y_coordinates.value = "y"
+        columnpicker.measurment.value = "m"
+        columnpicker.field_of_view_id.value = "Position"
 
     def run(self):
         self.arcos_function()
+        self.make_layers()
         self.change_cell_size()
 
 
@@ -1168,7 +1255,7 @@ def show_output_csv_folder():
 # function to hide and show dockwidgets -> maybe risky method?
 def hide_dock_widgets(viewer):
     for key, value in viewer.window._dock_widgets.items():
-        value.hide()
+        value.setVisible(False)
 
 
 def show_dock_widgets(viewer):
@@ -1191,7 +1278,8 @@ def add_timestamp(
 ) -> LayerDataTuple:
     """Button to add timestamp"""
     if list(viewer.layers) and viewer.layers.ndim > 2:
-        if "Timestamp" in stored_variables.layer_names:
+        layer_list = [layer.name for layer in viewer.layers]
+        if "Timestamp" in layer_list:
             viewer.layers.remove("Timestamp")
         kw_timestamp = make_timestamp(
             viewer,
@@ -1236,3 +1324,8 @@ def on_export_data_init(new_widget):
 )
 def export_data(Export_ARCOS_as_csv=False, Export_movie=False):
     """Widget to export csv and movie data"""
+
+
+if __name__ == "__main__":
+    hi = MainWindow(viewer=napari.Viewer())
+    no = MainWindow(viewer=napari.Viewer())

@@ -7,12 +7,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from arcos_gui._arcos_widgets import MainWindow
+from arcos_gui._arcos_widgets import stored_variables
 
 
 def load_sample_data():
     """Load sample data into stored_variables"""
-    MainWindow.file_LineEdit.setText(
+    stored_variables.filename_for_sample_data = str(
         Path("src/arcos_gui/_tests/test_data/arcos_data.csv")
     )
     return []
