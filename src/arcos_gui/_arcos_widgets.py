@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     import napari.layers
     import napari.viewer
 
-
 # local imports
 from arcos_gui.arcos_module import ARCOS, process_input
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
@@ -879,8 +878,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                             self.viewer.layers.remove("coll cells")
                             self.viewer.layers.remove("coll events")
                         show_info(
-                            "No collective events detected, \
-                            consider adjusting parameters"
+                            "No collective events detected, consider adjusting parameters"  # NOQA
                         )
                     self.Progress.setValue(40)
 
@@ -1047,7 +1045,7 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         self.sample_number = QtWidgets.QSpinBox()
         self.sample_number.setMinimum(1)
         self.sample_number.setMaximum(200)
-        self.sample_number.setValue(100)
+        self.sample_number.setValue(20)
 
         self.button = QtWidgets.QPushButton("Update Plot")
         self.button.clicked.connect(self.update_plot)
@@ -1098,7 +1096,6 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         """
         # return plottype that should be plotted
         plottype = self.combo_box.currentText()
-
         # sample number for position/t-plots
         n = self.sample_number.value()
 
@@ -1146,7 +1143,8 @@ class TimeSeriesPlots(QtWidgets.QWidget):
                 pd_from_r_df = dataframe.loc[
                     dataframe[columns["track_id"]].isin(sample)
                 ]
-                for label, df in pd_from_r_df.groupby(columns["track_id"]):
+                df_grp = pd_from_r_df.groupby(columns["track_id"])
+                for label, df in df_grp:
                     self.ax.plot(df[columns["frame"]], df[columns["x_coordinates"]])
                 self.ax.set_xlabel("Frame")
                 self.ax.set_ylabel("Position X")
@@ -1158,7 +1156,8 @@ class TimeSeriesPlots(QtWidgets.QWidget):
                 pd_from_r_df = dataframe.loc[
                     dataframe[columns["track_id"]].isin(sample)
                 ]
-                for label, df in pd_from_r_df.groupby(columns["track_id"]):
+                df_grp = pd_from_r_df.groupby(columns["track_id"])
+                for label, df in df_grp:
                     self.ax.plot(df[columns["frame"]], df[columns["y_coordinates"]])
                 self.ax.set_xlabel("Frame")
                 self.ax.set_ylabel("Position Y")
@@ -1220,11 +1219,11 @@ def movie_export(viewer, automatic_viewer_size):
     },
 )
 def output_movie_folder(
-    viewer: "napari.viewer.Viewer",
     filename=Path(),
     Name="arcos",
     Automaic_viewer_size=True,
 ):
+    viewer = napari.current_viewer()
     """
     FileDialog with magicgui to choose movie path
     """

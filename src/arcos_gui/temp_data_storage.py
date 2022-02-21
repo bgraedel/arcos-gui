@@ -19,7 +19,6 @@ class data_storage:
         self.min_max = (0, 1)
         self.lut = "RdYlBu_r"
         self.colormaps.append("RdYlBu_r")
-        self._filename_for_sample_data: str = ""
         self._callbacks = []
 
     def update_what_to_run(self, to_update: str):
@@ -35,7 +34,7 @@ class data_storage:
 
     @filename_for_sample_data.setter
     def filename_for_sample_data(self, new_value):
-        self._value = new_value
+        self._filename_for_sample_data = new_value
         self._notify_observers(new_value)
 
     def _notify_observers(self, new_value):

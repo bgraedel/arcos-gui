@@ -1,3 +1,4 @@
+import gc
 from os import path, sep
 from pathlib import Path
 
@@ -35,24 +36,27 @@ def data_frame():
 
 
 @pytest.fixture()
-def dock_arcos_widget(make_napari_viewer):
+def dock_arcos_widget(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     mywidget = viewer.window.add_plugin_dock_widget(
         plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
     )
-    return viewer, mywidget[1]
+    yield viewer, mywidget[1]
+    viewer.close()
+    gc.collect()
 
 
-def test_add_timestamp_no_layers(make_napari_viewer, capsys):
+def test_add_timestamp_no_layers(make_napari_viewer, capsys, qtbot):
     viewer = make_napari_viewer()
     mywidget = add_timestamp()
     viewer.window.add_dock_widget(mywidget)
     mywidget()
     catptured = capsys.readouterr()
     assert catptured.out == "INFO: No Layers to add Timestamp to\n"
+    viewer.close()
 
 
-def test_add_timestamp(make_napari_viewer):
+def test_add_timestamp(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     viewer.add_image(
         data.binary_blobs(length=10, blob_size_fraction=0.2, n_dim=3), name="Image"
@@ -62,9 +66,10 @@ def test_add_timestamp(make_napari_viewer):
     mywidget()
     mywidget()  # removes first timestamp and re adds new
     assert viewer.layers["Timestamp"]
+    viewer.close()
 
 
-def test_export_data_widget_csv_no_data(make_napari_viewer, capsys):
+def test_export_data_widget_csv_no_data(make_napari_viewer, capsys, qtbot):
     viewer = make_napari_viewer()
     mywidget = export_data()
     viewer.window.add_dock_widget(mywidget)
@@ -72,9 +77,10 @@ def test_export_data_widget_csv_no_data(make_napari_viewer, capsys):
     output_csv_folder()
     catptured = capsys.readouterr()
     assert catptured.out == "INFO: No data to export, run arcos first\n"
+    viewer.close()
 
 
-def test_export_data_widget_csv_data(make_napari_viewer, tmp_path, data_frame):
+def test_export_data_widget_csv_data(make_napari_viewer, tmp_path, data_frame, qtbot):
     arcos_dir = str(tmp_path)
     viewer = make_napari_viewer()
     mywidget = export_data()
@@ -86,9 +92,10 @@ def test_export_data_widget_csv_data(make_napari_viewer, tmp_path, data_frame):
     file = arcos_dir + sep + "arcos_data.csv"
     df = pd.read_csv(file, index_col=0)
     assert_frame_equal(df, data_frame)
+    viewer.close()
 
 
-def test_export_data_widget_images_no_data(make_napari_viewer, capsys):
+def test_export_data_widget_images_no_data(make_napari_viewer, capsys, qtbot):
     viewer = make_napari_viewer()
     mywidget = export_data()
     viewer.window.add_dock_widget(mywidget)
@@ -96,9 +103,10 @@ def test_export_data_widget_images_no_data(make_napari_viewer, capsys):
     output_movie_folder()
     catptured = capsys.readouterr()
     assert catptured.out == "INFO: No data to export, run arcos first\n"
+    viewer.close()
 
 
-def test_export_data_widget_images_data(make_napari_viewer, tmp_path):
+def test_export_data_widget_images_data(make_napari_viewer, tmp_path, qtbot):
     viewer = make_napari_viewer()
     viewer.add_image(data.binary_blobs(length=1, blob_size_fraction=0.2, n_dim=3))
     arcos_dir = str(tmp_path)
@@ -109,33 +117,38 @@ def test_export_data_widget_images_data(make_napari_viewer, tmp_path):
     output_movie_folder()
     file = arcos_dir + sep + "arcos_000.png"
     assert path.isfile(file)
+    viewer.close()
 
 
-def test_arcos_widget_choose_file(dock_arcos_widget):
+def test_arcos_widget_choose_file(dock_arcos_widget, qtbot):
     viewer, mywidget = dock_arcos_widget
-    mywidget.filename.value = Path("src/arcos_gui/_tests/test_data/arcos_test.csv")
+    stored_variables.filename_for_sample_data = str(
+        Path("src/arcos_gui/_tests/test_data/arcos_data.csv")
+    )
     test_data = stored_variables.data
-    direct_test_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_test.csv")
+    direct_test_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     # manually trigger button press
     QTest.mouseClick(columnpicker.Ok.native, Qt.LeftButton)
-    assert columnpicker.frame.value == "track_id"
-    assert columnpicker.track_id.value == "track_id"
-    assert columnpicker.x_coordinates.value == "track_id"
-    assert columnpicker.y_coordinates.value == "track_id"
-    assert columnpicker.measurment.value == "track_id"
-    assert columnpicker.field_of_view_id.value == "track_id"
+    assert columnpicker.frame.value == "t"
+    assert columnpicker.track_id.value == "id"
+    assert columnpicker.x_coordinates.value == "x"
+    assert columnpicker.y_coordinates.value == "y"
+    assert columnpicker.measurment.value == "m"
+    assert columnpicker.field_of_view_id.value == "Position"
     assert_frame_equal(test_data, direct_test_data)
+    viewer.close()
 
 
-def test_filter_no_data(dock_arcos_widget, capsys):
+def test_filter_no_data(dock_arcos_widget, capsys, qtbot):
     viewer, mywidget = dock_arcos_widget
     stored_variables.data = pd.DataFrame()
-    QTest.mouseClick(mywidget.filter_input_data.native, Qt.LeftButton)
+    QTest.mouseClick(mywidget.filter_input_data, Qt.LeftButton)
     catptured = capsys.readouterr()
     assert catptured.out == "INFO: No data loaded, or not loaded correctly\n"
+    viewer.close()
 
 
-def test_filterwidget_data(dock_arcos_widget, capsys):
+def test_filterwidget_data(dock_arcos_widget, capsys, qtbot):
     # set choices needed for test
     columnpicker.dicCols.value = {
         "frame": "Frame",
@@ -149,21 +162,22 @@ def test_filterwidget_data(dock_arcos_widget, capsys):
     stored_variables.data = df_1
     df_1 = df_1[df_1["Position"] == 1]
     viewer, mywidget = dock_arcos_widget
-    mywidget.position.set_choice("1", 1)
-    mywidget.position.value = 1
-    QTest.mouseClick(mywidget.filter_input_data.native, Qt.LeftButton)
+    mywidget.position.addItem("1", 1)
+    mywidget.position.setCurrentText("1")
+    QTest.mouseClick(mywidget.filter_input_data, Qt.LeftButton)
     df = stored_variables.dataframe
     # capture output
     catptured = capsys.readouterr()
     # assert output
     assert catptured.out == "INFO: Data Filtered!\n"
     assert_frame_equal(df, df_1)
+    viewer.close()
 
 
-def test_arcos_widget_no_data(dock_arcos_widget, capsys):
+def test_arcos_widget_no_data(dock_arcos_widget, capsys, qtbot):
     stored_variables.dataframe = pd.DataFrame()
     viewer, mywidget = dock_arcos_widget
-    QTest.mouseClick(mywidget.Update_ARCOS.native, Qt.LeftButton)
+    QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
     # capture output
     catptured = capsys.readouterr()
     # assert output
@@ -171,9 +185,10 @@ def test_arcos_widget_no_data(dock_arcos_widget, capsys):
         catptured.out
         == "INFO: No Data Loaded, Use arcos_widget to load and filter data first\n"
     )
+    viewer.close()
 
 
-def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys):
+def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys, qtbot):
     columnpicker.dicCols.value = {
         "frame": "t",
         "x_coordinates": "x",
@@ -188,7 +203,9 @@ def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys):
     viewer, mywidget = dock_arcos_widget
     stored_variables.positions = [0, 1]
     stored_variables.current_position = 0
-    QTest.mouseClick(mywidget.Update_ARCOS.native, Qt.LeftButton)
+    mywidget.total_event_size.setValue(50)
+    mywidget.update_what_to_run_variable()
+    QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
     # capture output
     catptured = capsys.readouterr()
     # assert output
@@ -198,9 +215,10 @@ def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys):
     )
     assert viewer.layers["all_cells"]
     assert viewer.layers["active cells"]
+    viewer.close()
 
 
-def test_arcos_widget_data_all(dock_arcos_widget, capsys):
+def test_arcos_widget_data_all(dock_arcos_widget, capsys, qtbot):
     columnpicker.dicCols.value = {
         "frame": "t",
         "x_coordinates": "x",
@@ -215,31 +233,43 @@ def test_arcos_widget_data_all(dock_arcos_widget, capsys):
     viewer, mywidget = dock_arcos_widget
     stored_variables.positions = [0, 1]
     stored_variables.current_position = 0
-    mywidget.total_event_size.value = 10
-    QTest.mouseClick(mywidget.Update_ARCOS.native, Qt.LeftButton)
+    mywidget.total_event_size.setValue(5)
+    mywidget.update_what_to_run_variable()
+    QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
     assert viewer.layers["all_cells"]
     assert viewer.layers["active cells"]
     assert viewer.layers["coll cells"]
     assert viewer.layers["coll events"]
+    viewer.close()
 
 
-def test_toggle_biasmethod_visibility_lm(dock_arcos_widget):
+def test_toggle_biasmethod_visibility(dock_arcos_widget, qtbot):
     viewer, mywidget = dock_arcos_widget
-    mywidget.bias_method.value = "lm"
-    mywidget.bias_method.value = "none"
-    mywidget.bias_method.value = "runmed"
+    mywidget.bias_method.setCurrentText("runmed")
+    mywidget.bias_method.setCurrentText("lm")
+    mywidget.bias_method.setCurrentText("none")
+    viewer.close()
 
 
-def test_collev_plot_widget(dock_arcos_widget):
-    # dock arcos
-    viewer, mywidget = dock_arcos_widget
-    # dock collev plot
+def test_collev_plot_widget(make_napari_viewer):
+    viewer = make_napari_viewer()
     num_dw = len(viewer.window._dock_widgets)
-
     viewer.window.add_plugin_dock_widget(
         plugin_name="arcos-gui", widget_name="Collective Events Plot"
     )
+    assert len(viewer.window._dock_widgets) == num_dw + 1
+    viewer.close()
 
+
+def test_TimeSeriesPlots_widget(dock_arcos_widget, qtbot):
+    # dock arcos
+    viewer, mywidget = dock_arcos_widget
+    num_dw = len(viewer.window._dock_widgets)
+    # dock TimeSeriesPlots plot
+    widget_info = viewer.window.add_plugin_dock_widget(
+        plugin_name="arcos-gui", widget_name="Timeseries plots"
+    )
+    plot = widget_info[1]
     columnpicker.dicCols.value = {
         "frame": "t",
         "x_coordinates": "x",
@@ -254,44 +284,17 @@ def test_collev_plot_widget(dock_arcos_widget):
 
     stored_variables.positions = [0, 1]
     stored_variables.current_position = 0
-    mywidget.total_event_size.value = 10
+    mywidget.total_event_size.setValue(5)
+    mywidget.update_what_to_run_variable()
+    QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
+    plot.update_plot()
+    plot.combo_box.setCurrentText("tracklength histogram")
+    plot.update_plot()
+    plot.combo_box.setCurrentText("measurment density plot")
+    plot.update_plot()
+    plot.combo_box.setCurrentText("x/t-plot")
+    plot.update_plot()
+    plot.combo_box.setCurrentText("y/t-plot")
 
-    QTest.mouseClick(mywidget.Update_ARCOS.native, Qt.LeftButton)
     assert len(viewer.window._dock_widgets) == num_dw + 1
-
-
-# def test_TimeSeriesPlots_widget(dock_arcos_widget):
-#     # dock arcos
-#     viewer, mywidget = dock_arcos_widget
-#     num_dw = len(viewer.window._dock_widgets)
-#     # dock TimeSeriesPlots plot
-#     widget_info = viewer.window.add_plugin_dock_widget(
-#         plugin_name="arcos-gui", widget_name="Timeseries plots"
-#     )
-#     plot = widget_info[1]
-#     columnpicker.dicCols.value = {
-#         "frame": "t",
-#         "x_coordinates": "x",
-#         "y_coordinates": "y",
-#         "track_id": "id",
-#         "measurment": "m",
-#         "field_of_view_id": "Position",
-#     }
-#     stored_variables.dataframe = pd.read_csv(
-#         "src/arcos_gui/_tests/test_data/arcos_data.csv"
-#     )
-
-#     stored_variables.positions = [0, 1]
-#     stored_variables.current_position = 0
-#     mywidget.total_event_size.value = 10
-#     QTest.mouseClick(mywidget.Update_ARCOSk.native, Qt.LeftButton)
-#     plot.update_plot()
-#     plot.combo_box.setCurrentText("tracklength histogram")
-#     plot.update_plot()
-#     plot.combo_box.setCurrentText("measurment density plot")
-#     plot.update_plot()
-#     plot.combo_box.setCurrentText("x/t-plot")
-#     plot.update_plot()
-#     plot.combo_box.setCurrentText("y/t-plot")
-
-#     assert len(viewer.window._dock_widgets) == num_dw + 1
+    viewer.close()
