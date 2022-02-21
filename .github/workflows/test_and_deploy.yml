@@ -67,10 +67,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y r-base
           sudo apt-get install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev
-
-      - name: install r-base-dev
-        if: [[ $RPY2_CFFI_MODE == 'API' ]];
-        run: |
           sudo apt-get install -y r-base-dev
 
       - name: install R scripts
