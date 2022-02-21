@@ -5,7 +5,7 @@ site_author: Benjamin Grädel
 theme: readthedocs
 
 
-repo_url: https://github.com/githubuser/arcos-gui
+repo_url: https://github.com/bgraedel/arcos-gui
 
 pages:
 - Home: Documentation.md
