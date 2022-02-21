@@ -55,10 +55,10 @@ jobs:
           sudo apt-get install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev
           sudo apt-get install -y r-base-dev
 
-      - name: install required packages
-      - run: |
-          Rscript ./install_r_packages.r dplyr data.table devtools
-          Rscript ./install_ARCOS.r
+      - name: install required_packages
+        run: |
+          Rscript install_r_packages.r dplyr data.table devtools
+          Rscript install_ARCOS.r
 
       - name: Install dependencies
         run: |
