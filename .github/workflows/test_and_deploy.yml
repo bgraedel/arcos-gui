@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
-        platform: [ubuntu-latest, windows-latest, macos-latest]
+        platform: [ubuntu-latest, macos-latest]
         python-version: [3.8, 3.9, 3.10]
 
     steps:
@@ -43,10 +43,39 @@ jobs:
           git clone --depth 1 git://github.com/pyvista/gl-ci-helpers.git
           powershell gl-ci-helpers/appveyor/install_opengl.ps1
 
-      # note: if you need dependencies from conda, considering using
-      # setup-miniconda: https://github.com/conda-incubator/setup-miniconda
-      # and
-      # tox-conda: https://github.com/tox-dev/tox-conda
+      # Install from latest CRAN binary build for OS X
+      - name: install R, osx
+        if: runner.os == 'macos-latest'
+        run: |
+          wget https://cloud.r-project.org/bin/macosx/R-latest.pkg -O /tmp/R-latest.pkg
+          echo "Installing OS X binary package for R"
+          sudo installer -pkg "/tmp/R-latest.pkg" -target /
+          rm "/tmp/R-latest.pkg"
+          brew install openssl
+
+      # Install from latest CRAN binary build for linux
+      - name: install R, linux
+        if: runner.os == 'ubuntu-latest'
+        run: |
+          sudo apt-key adv \
+            --keyserver keyserver.ubuntu.com \
+            --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
+          sudo add-apt-repository \
+            --yes \
+            "deb https://cloud.r-project.org/bin/linux/ubuntu/ $(lsb_release -c -s)-cran35/"
+          cat /etc/apt/sources.list
+          sudo apt-get update -qq
+          sudo apt-get install -y r-base
+          sudo apt-get install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev
+        if: [[ $RPY2_CFFI_MODE == 'API' ]];
+        run: |
+          sudo apt-get install -y r-base-dev
+
+      - name: install R scripts
+      - run: |
+          sudo Rscript ./install_r_packages.r dplyr data.table devtools
+          sudo Rscript ./install_ARCOS.r
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
