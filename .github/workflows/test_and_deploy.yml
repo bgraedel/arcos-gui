@@ -43,7 +43,7 @@ jobs:
           git clone --depth 1 git://github.com/pyvista/gl-ci-helpers.git
           powershell gl-ci-helpers/appveyor/install_opengl.ps1
 
-      # Install from latest CRAN binary build for OS X
+      # Install from latest CRAN binary build for Mac OS
       - name: install R, osx
         if: runner.os == 'macos-latest'
         run: |
