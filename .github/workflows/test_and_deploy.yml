@@ -45,17 +45,17 @@ jobs:
           git clone --depth 1 git://github.com/pyvista/gl-ci-helpers.git
           powershell gl-ci-helpers/appveyor/install_opengl.ps1
 
-      - name: install devtools dependencies
-        if: runner.os == 'macos-latest'
+      - name: install devtools dependencies mac
+        if: runner.os == 'macOS'
         run: |
           brew install openssl
 
-      - name: install devtools dependencies
-        if: runner.os == 'ubuntu-latest'
+      - name: install devtools dependencies ubuntu
+        if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev
-          sudo apt-get install -y r-base-dev
+          sudo apt update
+          sudo apt install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev
+          sudo apt install -y r-base-dev
 
       - name: install required_packages
         run: |
@@ -76,6 +76,8 @@ jobs:
 
       - name: Coverage
         uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   deploy:
     needs: [test]
