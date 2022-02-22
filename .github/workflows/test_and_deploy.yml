@@ -60,7 +60,7 @@ jobs:
 
       - name: install required_packages
         run: |
-          sudo Rscript install_r_packages.r dplyr data.table devtools
+          sudo Rscript install_r_packages.r dplyr lazyeval data.table devtools
           sudo Rscript install_ARCOS.r
 
       - name: Install dependencies
