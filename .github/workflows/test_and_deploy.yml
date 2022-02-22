@@ -69,11 +69,9 @@ jobs:
           pip install setuptools tox tox-gh-actions
 
       - name: Test with tox
-        uses: GabrielBB/xvfb-action@v1
-        with:
-          run: |
-              ${{ matrix.ld_libpath }}
-              tox
+        run: |
+          ${{ matrix.ld_libpath }}
+          tox
         env:
           PLATFORM: ${{ matrix.platform }}
 
