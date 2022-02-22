@@ -4,4 +4,3 @@ recursive-include arcos_gui *.ui *.png *.jpeg *.jpg *.svg
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
-recursive-exclude arcos_gui/_tests * 
