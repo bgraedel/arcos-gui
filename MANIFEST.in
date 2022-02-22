@@ -5,3 +5,4 @@ recursive-include src/arcos_gui *.csv
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
+recursive-exclude src/arcos_gui/_tests *
