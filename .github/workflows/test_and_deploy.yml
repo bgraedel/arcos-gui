@@ -23,6 +23,7 @@ jobs:
       matrix:
         platform: [ubuntu-latest, macos-latest]
         python-version: [3.8, 3.9]
+        ld_libpath: ["export LD_LIBRARY_PATH=$(python -m rpy2.situation LD_LIBRARY_PATH):${LD_LIBRARY_PATH}"]
 
     steps:
       - uses: actions/checkout@v2
@@ -70,7 +71,9 @@ jobs:
       - name: Test with tox
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: tox
+          run: |
+              ${{ matrix.ld_libpath }}
+              tox
         env:
           PLATFORM: ${{ matrix.platform }}
 
