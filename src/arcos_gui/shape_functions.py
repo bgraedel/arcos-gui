@@ -112,7 +112,7 @@ def make_timestamp(
     out = {}
     rgt, rgy, rgx = deepcopy(viewer.dims.range)
     # Napari uses float64 for dims
-    maxx, maxy, maxt = rgx[1], rgy[1], rgt[1]
+    maxx, maxy, maxt = rgx[1], rgy[1], rgt[1] - 1
     # Points to the corners of the image at each frame
     corners = [
         np.array(

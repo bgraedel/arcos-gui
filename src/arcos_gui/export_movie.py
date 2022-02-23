@@ -1,3 +1,5 @@
+from copy import deepcopy
+from typing import final
 import matplotlib.pyplot as plt
 import numpy as np
 from magicgui import magicgui
@@ -9,7 +11,7 @@ def resize_napari(final_shape, viewer):
     Center the camera and set zoom to 1 (1 canvas pixel == 1 data pixel)"""
     shape = final_shape  # init with good guess
     viewer.window.resize(shape[0].astype(int), shape[1].astype(int))
-    for i in range(40):  # nb iterations
+    for i in range(80):  # nb iterations
         current_shape = viewer.screenshot().shape[:2]
         error = np.subtract(final_shape, list(current_shape))
         error = error * 0.5  # how quick should the error be reduced
@@ -19,8 +21,11 @@ def resize_napari(final_shape, viewer):
         shape = [shape[0] + error[0], shape[1] + error[1]]
         viewer.window.resize(shape[1].astype(int), shape[0].astype(int) * 2)
     viewer.reset_view()
-    viewer.camera.zoom = 2
-    viewer.camera.center = (final_shape[0] / 2, final_shape[1] / 2)
+    rgt, rgy, rgx = deepcopy(viewer.dims.range)
+    # Napari uses float64 for dims
+    maxx, maxy, maxt = rgx[1], rgy[1], rgt[1] - 1
+    zoom_factor = [final_shape[0]/maxx,final_shape[1]/maxy]
+    viewer.camera.zoom = min(zoom_factor)
     viewer.screenshot()
 
 

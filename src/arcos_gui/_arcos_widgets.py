@@ -35,9 +35,6 @@ from arcos_gui.shape_functions import (
 )
 from arcos_gui.temp_data_storage import data_storage
 
-# define some variables
-TOFFSET = 0
-
 # initalize class
 stored_variables = data_storage()
 
@@ -296,6 +293,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             "measurment": measurment,
             "field_of_view_id": field_of_view_id,
         }
+        self.subtract_timeoffset()
+    
+    def subtract_timeoffset(self):
+        data = stored_variables.data
+        data[columnpicker.dicCols.value["frame"]] -= min(data[columnpicker.dicCols.value["frame"]])
 
     def set_positions(self):
         # get unique positions for filter_widget
@@ -733,9 +735,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     )
                     stored_variables.data_merged = merged_data
 
-                    # subtract timeoffset
-                    merged_data[columnpicker.dicCols.value["frame"]] -= TOFFSET
-
                     # column list
                     vColsCore = [
                         columnpicker.dicCols.value["frame"],
@@ -757,6 +756,10 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     datAct = merged_data[merged_data["meas.bin"] > 0][
                         vColsCore
                     ].to_numpy()
+                    
+
+                    # get point_size
+                    size = self.point_size.value()
 
                     active_cells = (
                         datAct,
@@ -825,7 +828,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                             columnpicker.dicCols.value["y_coordinates"],
                             "collid",
                         )
-                        datChull["axis-0"] -= TOFFSET
 
                         self.Progress.setValue(28)
 
@@ -841,6 +843,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                         self.Progress.setValue(32)
 
+                        # get point_size
+                        size = self.point_size.value()
                         # create remaining layer.data.tuples
                         coll_cells = (
                             datColl,
@@ -882,9 +886,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         )
                     self.Progress.setValue(40)
 
-                    # empty what to run list to check for new parameter changes
-                    stored_variables.clear_what_to_run()
-
                     # update layers
                     # check which layers need to be added, add these layers
                     if return_collev and return_points:
@@ -899,15 +900,15 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def make_layers(self):
         layers_names = [layer.name for layer in self.viewer.layers]
-        for layer in [
-            "coll cells",
-            "coll events",
-            "active cells",
-            "all_cells",
-        ]:
-            if layer in layers_names:
-                self.viewer.layers.remove(layer)
         if self.layers_to_create:
+            for layer in [
+                "coll cells",
+                "coll events",
+                "active cells",
+                "all_cells",
+            ]:
+                if layer in layers_names:
+                    self.viewer.layers.remove(layer)
             for result in self.layers_to_create:
                 self.viewer.add_layer(napari.layers.Layer.create(*result))
             self.layers_to_create.clear()
@@ -926,6 +927,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.arcos_function()
         self.make_layers()
         self.change_cell_size()
+        stored_variables.clear_what_to_run()
 
 
 class CollevPlotter(QtWidgets.QWidget):
@@ -1198,11 +1200,9 @@ def movie_export(viewer, automatic_viewer_size):
         hide_dock_widgets(viewer)
         path = str(output_movie_folder.filename.value)
         output_path = f"{path}{sep}{output_movie_folder.Name.value}"
-        rgt, rgy, rgx = deepcopy(viewer.dims.range)
-        maxx, maxy = rgx[1], rgy[1]
         # resize viewer if chosen
         if automatic_viewer_size:
-            resize_napari([maxx, maxy], viewer)
+            resize_napari([np.float64(1012), np.float64(1012)], viewer)
         # iterate over frames to export data to chosen output path
         iterate_over_frames.show()
         iterate_over_frames(viewer, output_path)
