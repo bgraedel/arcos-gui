@@ -127,6 +127,7 @@ def test_arcos_widget_choose_file(dock_arcos_widget, qtbot):
     )
     test_data = stored_variables.data
     direct_test_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
+    direct_test_data['t'] -= 1
     # manually trigger button press
     QTest.mouseClick(columnpicker.Ok.native, Qt.LeftButton)
     assert columnpicker.frame.value == "t"

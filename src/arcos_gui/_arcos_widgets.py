@@ -133,6 +133,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         super().__init__()
         self.setup_ui()
         self.layers_to_create: list = []
+        self.what_to_run: list = []
         self.viewer: napari.viewer.Viewer = viewer
         self._filename: str = self.file_LineEdit.text()
 
@@ -160,7 +161,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.open_file_button.clicked.connect(self.open_columnpicker)
         # reset what to run
         self.filter_input_data.clicked.connect(self.update_what_to_run_variable)
-        self.open_file_button.clicked.connect(stored_variables.clear_what_to_run)
+        self.open_file_button.clicked.connect(self.what_to_run.clear)
         # callbackfor filtering data
         self.filter_input_data.clicked.connect(self.filter_data)
         self.update_arcos.clicked.connect(self.reset_contrast)
@@ -314,8 +315,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.position.clear()
         for i in positions:
             self.position.addItem(str(i), i)
-        stored_variables.positions = positions
-        stored_variables.current_position = self.position.currentData()
 
         # hides position choice if no position column exists in the raw data
         # i.e. during columnpicker position was set to None.
@@ -387,7 +386,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         that is used in arcos_widget to check if what to run
         when certain field have updated values
         """
-        stored_variables.update_what_to_run("all")
+        self.what_to_run.append("all")
 
     def open_columnpicker(self):
         """
@@ -402,6 +401,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 getattr(columnpicker, i).del_choice(str(j))
         csv_file = self.file_LineEdit.text()
         if str(csv_file).endswith(".csv"):
+            self.layers_to_create.clear()
             stored_variables.data = pd.read_csv(csv_file)
             columns = list(stored_variables.data.columns)
             columnpicker.frame.choices = columns
@@ -457,19 +457,18 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 min_meas = min(dataframe[columnpicker.dicCols.value["measurment"]])
                 stored_variables.min_max = (min_meas, max_meas)
             stored_variables.dataframe = dataframe
-            stored_variables.current_position = self.position.currentData()
             show_info("Data Filtered!")
 
     # several functions to update the 'what to run' variable in stored_variables
 
     def update_what_to_run_all(self):
-        stored_variables.update_what_to_run("all")
+        self.what_to_run.append("all")
 
     def update_what_to_run_tracking(self):
-        stored_variables.update_what_to_run("from_tracking")
+        self.what_to_run.append("from_tracking")
 
     def update_what_to_run_filtering(self):
-        stored_variables.update_what_to_run("from_filtering")
+        self.what_to_run.append("from_filtering")
 
     def toggle_bias_method_parameter_visibility(self):
         """
@@ -609,7 +608,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         if stored_variables.dataframe.empty:
             show_info("No Data Loaded, Use arcos_widget to load and filter data first")
         else:
-            if "all" in stored_variables.arcos_what_to_run:
+            if "all" in self.what_to_run:
 
                 # get point_size
                 size = self.point_size.value()
@@ -652,13 +651,13 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     return_dataframe=True,
                 )
                 stored_variables.ts_data = ts
-                stored_variables.update_what_to_run("from_tracking")
+                self.what_to_run.append("from_tracking")
 
                 self.Progress.setValue(12)
 
             # if statement checks if this part of the function has to be run
             # depends on the parameters changed in arcos widget
-            if "from_tracking" in stored_variables.arcos_what_to_run:
+            if "from_tracking" in self.what_to_run:
                 arcos = stored_variables.arcos  # type: ignore
                 ts = stored_variables.ts_data
                 # if active cells were detected, run this
@@ -684,10 +683,10 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                 # update stored variables
                 stored_variables.arcos = arcos
-                stored_variables.update_what_to_run("from_filtering")
+                self.what_to_run.append("from_filtering")
 
             # depending on the parameters changed in arcos widget
-            if "from_filtering" in stored_variables.arcos_what_to_run:
+            if "from_filtering" in self.what_to_run:
 
                 # get most recent data from stored_variables
                 arcos = stored_variables.arcos  # type: ignore
@@ -797,7 +796,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         },
                         "points",
                     )
-
                     self.Progress.setValue(24)
 
                     # check if collective events were detected and add layer,
@@ -885,7 +883,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                             "No collective events detected, consider adjusting parameters"  # NOQA
                         )
                     self.Progress.setValue(40)
-
+                    self.layers_to_create.clear()
+                    
                     # update layers
                     # check which layers need to be added, add these layers
                     if return_collev and return_points:
@@ -897,6 +896,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         ]
                     elif not return_collev and return_points:
                         self.layers_to_create = [all_cells, active_cells]
+                    self.what_to_run.clear()
 
     def make_layers(self):
         layers_names = [layer.name for layer in self.viewer.layers]
@@ -911,7 +911,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     self.viewer.layers.remove(layer)
             for result in self.layers_to_create:
                 self.viewer.add_layer(napari.layers.Layer.create(*result))
-            self.layers_to_create.clear()
 
     def callback_file_Linedit_text(self, value):
         self.file_LineEdit.setText(value)
@@ -927,7 +926,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.arcos_function()
         self.make_layers()
         self.change_cell_size()
-        stored_variables.clear_what_to_run()
 
 
 class CollevPlotter(QtWidgets.QWidget):

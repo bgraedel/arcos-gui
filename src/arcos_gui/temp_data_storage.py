@@ -11,7 +11,6 @@ class data_storage:
         self.layer_names: list = []
         self.data_merged: pd.DataFrame = pd.DataFrame()
         self.arcos: ARCOS = None  # type: ignore
-        self.arcos_what_to_run: list = []
         self.ts_data: pd.DataFrame = pd.DataFrame()
         self.colormaps = list(AVAILABLE_COLORMAPS)
         self.current_position = None
@@ -20,13 +19,6 @@ class data_storage:
         self.lut = "RdYlBu_r"
         self.colormaps.append("RdYlBu_r")
         self._callbacks = []
-
-    def update_what_to_run(self, to_update: str):
-        if to_update not in self.arcos_what_to_run:
-            self.arcos_what_to_run.append(to_update)
-
-    def clear_what_to_run(self):
-        self.arcos_what_to_run.clear()
 
     @property
     def filename_for_sample_data(self):
