@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import final
+
 import matplotlib.pyplot as plt
 import numpy as np
 from magicgui import magicgui
@@ -7,7 +7,7 @@ from magicgui.tqdm import tqdm
 
 
 def resize_napari(final_shape, viewer):
-    """Iterate over window size until screenshot size matches given shape.
+    """Iterate over window until screenshot size matches given shape.
     Center the camera and set zoom to 1 (1 canvas pixel == 1 data pixel)"""
     shape = final_shape  # init with good guess
     viewer.window.resize(shape[0].astype(int), shape[1].astype(int))
@@ -23,8 +23,8 @@ def resize_napari(final_shape, viewer):
     viewer.reset_view()
     rgt, rgy, rgx = deepcopy(viewer.dims.range)
     # Napari uses float64 for dims
-    maxx, maxy, maxt = rgx[1], rgy[1], rgt[1] - 1
-    zoom_factor = [final_shape[0]/maxx,final_shape[1]/maxy]
+    maxx, maxy = rgx[1], rgy[1]
+    zoom_factor = [final_shape[0] / maxx, final_shape[1] / maxy]
     viewer.camera.zoom = min(zoom_factor)
     viewer.screenshot()
 

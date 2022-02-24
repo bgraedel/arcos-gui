@@ -3,7 +3,7 @@ from arcos_gui.arcos_module import ARCOS
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 
 
-# class to store and retrive a number of variables
+# store and retrive a number of variables
 class data_storage:
     def __init__(self):
         self.data: pd.DataFrame = pd.DataFrame()

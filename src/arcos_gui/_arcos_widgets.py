@@ -1,4 +1,3 @@
-from copy import deepcopy
 from os import sep
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -295,10 +294,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             "field_of_view_id": field_of_view_id,
         }
         self.subtract_timeoffset()
-    
+
     def subtract_timeoffset(self):
         data = stored_variables.data
-        data[columnpicker.dicCols.value["frame"]] -= min(data[columnpicker.dicCols.value["frame"]])
+        data[columnpicker.dicCols.value["frame"]] -= min(
+            data[columnpicker.dicCols.value["frame"]]
+        )
 
     def set_positions(self):
         # get unique positions for filter_widget
@@ -531,7 +532,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def reset_contrast(self):
         """
-        updates values in lut mapping sliders
+        updates values in lut mapping slider
         """
         min_max = stored_variables.min_max
         # change slider values
@@ -755,7 +756,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     datAct = merged_data[merged_data["meas.bin"] > 0][
                         vColsCore
                     ].to_numpy()
-                    
 
                     # get point_size
                     size = self.point_size.value()
@@ -884,7 +884,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         )
                     self.Progress.setValue(40)
                     self.layers_to_create.clear()
-                    
+
                     # update layers
                     # check which layers need to be added, add these layers
                     if return_collev and return_points:
