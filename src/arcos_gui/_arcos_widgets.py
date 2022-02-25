@@ -28,8 +28,11 @@ from arcos_gui.shape_functions import (
     COLOR_CYCLE,
     assign_color_id,
     format_verticesHull,
+    format_verticesHull_3d,
     get_verticesHull,
+    get_verticesHull_3d,
     make_shapes,
+    make_shapes_3d,
     make_timestamp,
 )
 from arcos_gui.temp_data_storage import data_storage
@@ -282,6 +285,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         track_id = columnpicker.track_id.value
         x_coordinates = columnpicker.x_coordinates.value
         y_coordinates = columnpicker.y_coordinates.value
+        z_coordinates = columnpicker.z_coordinates.value
         measurment = columnpicker.measurment.value
         field_of_view_id = columnpicker.field_of_view_id.value
         columnpicker.close()
@@ -289,10 +293,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             "frame": frame,
             "x_coordinates": x_coordinates,
             "y_coordinates": y_coordinates,
+            "z_coordinates": z_coordinates,
             "track_id": track_id,
             "measurment": measurment,
             "field_of_view_id": field_of_view_id,
         }
+        z_coordinates
         self.subtract_timeoffset()
 
     def subtract_timeoffset(self):
@@ -409,9 +415,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             columnpicker.track_id.choices = columns
             columnpicker.x_coordinates.choices = columns
             columnpicker.y_coordinates.choices = columns
+            columnpicker.z_coordinates.choices = columns
             columnpicker.measurment.choices = columns
             columnpicker.field_of_view_id.choices = columns
             columnpicker.field_of_view_id.set_choice("None", "None")
+            columnpicker.z_coordinates.set_choice("None", "None")
             columnpicker.show()
         else:
             show_info("Not a csv file")
@@ -735,12 +743,21 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     )
                     stored_variables.data_merged = merged_data
 
-                    # column list
-                    vColsCore = [
-                        columnpicker.dicCols.value["frame"],
-                        columnpicker.dicCols.value["y_coordinates"],
-                        columnpicker.dicCols.value["x_coordinates"],
-                    ]
+                    if columnpicker.dicCols.value["z_coordinates"] == "None":
+                        # column list
+                        vColsCore = [
+                            columnpicker.dicCols.value["frame"],
+                            columnpicker.dicCols.value["y_coordinates"],
+                            columnpicker.dicCols.value["x_coordinates"],
+                        ]
+                    else:
+                        # column list
+                        vColsCore = [
+                            columnpicker.dicCols.value["frame"],
+                            columnpicker.dicCols.value["y_coordinates"],
+                            columnpicker.dicCols.value["x_coordinates"],
+                            columnpicker.dicCols.value["z_coordinates"],
+                        ]
 
                     # np matrix with all cells
                     datAll = merged_data[vColsCore].to_numpy()
@@ -805,11 +822,20 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         df_gb = merged_data[~np.isnan(merged_data["collid"])].groupby(
                             [columnpicker.dicCols.value["frame"], "collid"]
                         )
-                        datChull = df_gb.apply(
-                            get_verticesHull,
-                            col_x=columnpicker.dicCols.value["x_coordinates"],
-                            col_y=columnpicker.dicCols.value["y_coordinates"],
-                        ).reset_index(drop=True)
+                        if columnpicker.dicCols.value["z_coordinates"] == "None":
+                            datChull = df_gb.apply(
+                                get_verticesHull,
+                                col_x=columnpicker.dicCols.value["x_coordinates"],
+                                col_y=columnpicker.dicCols.value["y_coordinates"],
+                            ).reset_index(drop=True)
+                        else:
+                            datChull = df_gb.apply(
+                                get_verticesHull_3d,
+                                col_x=columnpicker.dicCols.value["x_coordinates"],
+                                col_y=columnpicker.dicCols.value["y_coordinates"],
+                                col_z=columnpicker.dicCols.value["z_coordinates"],
+                            ).reset_index(drop=True)
+
                         # check if error Qhullerror was raised in get_verticesHull
                         # shows column info that was passed on to the function
                         if type(datChull) == list:
@@ -818,14 +844,23 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                                 correct x/y columns selected? \n \
                                 x, y columns: {datChull}"
                             )
-
-                        datChull = format_verticesHull(
-                            datChull,
-                            columnpicker.dicCols.value["frame"],
-                            columnpicker.dicCols.value["x_coordinates"],
-                            columnpicker.dicCols.value["y_coordinates"],
-                            "collid",
-                        )
+                        if columnpicker.dicCols.value["z_coordinates"] == "None":
+                            datChull = format_verticesHull(
+                                datChull,
+                                columnpicker.dicCols.value["frame"],
+                                columnpicker.dicCols.value["x_coordinates"],
+                                columnpicker.dicCols.value["y_coordinates"],
+                                "collid",
+                            )
+                        else:
+                            datChull = format_verticesHull_3d(
+                                datChull,
+                                col_t=columnpicker.dicCols.value["frame"],
+                                col_z=columnpicker.dicCols.value["z_coordinates"],
+                                col_x=columnpicker.dicCols.value["x_coordinates"],
+                                col_y=columnpicker.dicCols.value["y_coordinates"],
+                                col_collid="collid",
+                            )
 
                         self.Progress.setValue(28)
 
@@ -836,8 +871,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                         datChull = datChull.merge(df_collid_colors, on="collid")
 
-                        # creates actuall shapes
-                        kw_shapes = make_shapes(datChull, col_text="collid")
+                        # creates actuall shapes, do 3d if z_coordinates is not None
+                        if columnpicker.dicCols.value["z_coordinates"] == "None":
+                            kw_shapes = make_shapes(datChull, col_text="collid")
+                        else:
+                            kw_shapes = make_shapes_3d(datChull, col_text="collid")
 
                         self.Progress.setValue(32)
 
@@ -919,6 +957,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         columnpicker.track_id.value = "id"
         columnpicker.x_coordinates.value = "x"
         columnpicker.y_coordinates.value = "y"
+        columnpicker.z_coordinates.value = "None"
         columnpicker.measurment.value = "m"
         columnpicker.field_of_view_id.value = "Position"
 

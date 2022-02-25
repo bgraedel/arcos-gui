@@ -82,6 +82,44 @@ def make_shapes(
     return out
 
 
+def make_shapes_3d(
+    df,
+    col_id="index",
+    col_x="axis-3",
+    col_y="axis-2",
+    col_z="axis-1",
+    col_t="axis-0",
+    col_colors="color",
+    col_text=None,
+):
+    """
+    Take a pandas df with the coordinates of polygons vertices in "long"
+    format and turn them into a list of numpy arrays, one for each polygon.
+    Outputs a dictionary suitable for napari viewer.add_shapes
+    """
+    all_cols = [col_id, col_t, col_z, col_y, col_x, col_colors]
+    if col_text:
+        all_cols.append(col_text)
+    # Drop irrelevant columns, check columns are ordered according to napari's format
+    df = df[df.columns.intersection(all_cols)]
+    df = df.reindex(columns=all_cols)
+
+    out = {}
+    # List of 2 tuples (index, df_subset)
+    l_shapes = [tup[1] for tup in list(df.groupby(col_id))]
+    # The color is duplicated for each point in the polygon, take only first value
+    out["face_color"] = [dff[col_colors].values[0] for dff in l_shapes]
+    if col_text:
+        out["properties"] = {}
+        out["properties"]["label"] = [dff[col_text].values[0] for dff in l_shapes]
+    l_shapes = [
+        dff.drop(columns=[col_id, col_colors, col_text], errors="ignore")
+        for dff in l_shapes
+    ]
+    out["data"] = [dff.to_numpy() for dff in l_shapes]
+    return out
+
+
 def make_timestamp(
     viewer,
     start_time=0,
@@ -168,7 +206,37 @@ def get_verticesHull(df, col_x, col_y):
         return df_xy.columns
 
 
-def format_verticesHull(df, col_time, col_x, col_y, col_collid):
+def get_verticesHull_3d(df, col_x, col_y, col_z):
+    """From a set of point coordinates (XY), return the points
+    coordinates which form the vertices of the convex hull.
+
+    Args:
+        df (pd.DataFrame): A dataframe with at least 2 columns
+        containing the XY coordinates of a set of points.
+    """
+
+    df_xyz = df[[col_x, col_y, col_z]].copy(deep=True)
+    df_xyz.dropna(inplace=True)
+    # try except statement to test if Qhullerror is thrown
+    # returns column names as a list of df_xyz
+    # instead of pd.DataFrame to check if correct columns were selected
+    try:
+        if df_xyz.shape[0] >= 3:
+            hull = ConvexHull(df_xyz)
+            df_out = df_xyz.iloc[hull.vertices]
+            # Add back the columns that do not contain the XYZ coords
+            df_out = pd.merge(df_out, df, how="left")
+        elif df_xyz.shape[0] == 2:
+            df_out = df
+        else:
+            df_out = pd.DataFrame(columns=list(df.columns))
+        return df_out
+
+    except QhullError:
+        return df_xyz.columns
+
+
+def format_verticesHull(df, col_t, col_x, col_y, col_collid):
     """
     Format the output of get_verticesHull() applied to group
 
@@ -176,14 +244,14 @@ def format_verticesHull(df, col_time, col_x, col_y, col_collid):
         df (pd.DataFrame): A DataFrame with the coordinates
         of the vertices of collective events.
     """
-    all_cols = [col_time, col_x, col_y, col_collid]
+    all_cols = [col_t, col_x, col_y, col_collid]
     df = df.loc[:, all_cols]
     df["shape-type"] = "polygon"
-    df["index"] = df.groupby([col_time, col_collid]).ngroup()
+    df["index"] = df.groupby([col_t, col_collid]).ngroup()
     df["vertex-index"] = df.groupby("index").cumcount()
     df.rename(
         columns={
-            col_time: "axis-0",
+            col_t: "axis-0",
             col_y: "axis-1",
             col_x: "axis-2",
             col_collid: "collid",
@@ -199,6 +267,45 @@ def format_verticesHull(df, col_time, col_x, col_y, col_collid):
             "axis-0",
             "axis-1",
             "axis-2",
+            "collid",
+        ]
+    )
+    return df
+
+
+def format_verticesHull_3d(df, col_t, col_x, col_y, col_z, col_collid):
+    """
+    Format the output of get_verticesHull() applied to group
+
+    Args:
+        df (pd.DataFrame): A DataFrame with the coordinates
+        of the vertices of collective events.
+    """
+    all_cols = [col_t, col_x, col_y, col_z, col_collid]
+    df = df.loc[:, all_cols]
+    df["shape-type"] = "polygon"
+    df["index"] = df.groupby([col_t, col_collid]).ngroup()
+    df["vertex-index"] = df.groupby("index").cumcount()
+    df.rename(
+        columns={
+            col_t: "axis-0",
+            col_z: "axis-1",
+            col_y: "axis-2",
+            col_x: "axis-3",
+            col_collid: "collid",
+        },
+        inplace=True,
+    )
+
+    df = df.reindex(
+        columns=[
+            "index",
+            "shape-type",
+            "vertex-index",
+            "axis-0",
+            "axis-1",
+            "axis-2",
+            "axis-3",
             "collid",
         ]
     )

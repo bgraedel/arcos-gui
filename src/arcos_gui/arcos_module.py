@@ -22,12 +22,14 @@ class ARCOS:
     class to calculate collective events with arcos algroithm.
     requires r installation and the r packages arcos and data.table
     column argument requires a dictionarry of columns:
-    "frame","x_coordinates","y_coordinates","track_id", "measurment", 'field_of_view_id'
+    "frame","x_coordinates","y_coordinates", "z_coordinates", "track_id",
+    "measurment", 'field_of_view_id'
     e.g.
     dicCols = {
         'frame': frame,
         'x_coordinates': x_coordinates,
         'y_coordinates': y_coordinates,
+        'z_coordinates': z_coordinates,
         'track_id': track_id,
         'measurment': measurment,
         'field_of_view_id': field_of_view_id
@@ -56,7 +58,7 @@ class ARCOS:
             print(
                 "not all required keys are in the dict, requires: \n \
                 'frame','x_coordinates','y_coordinates','track_id',  \
-                'measurment', 'field_of_view_id'"
+                'measurment', 'field_of_view_id'. z_coordinates is optional"
             )
             raise WrongColumnsSpecified("dic requires specific column names")
 
@@ -78,9 +80,24 @@ class ARCOS:
         lista = ro.vectors.ListVector(
             {"Frame": self.columns["frame"], "IDobj": self.columns["track_id"]}
         )
-        pos_variables_r = ro.StrVector(
-            [self.columns["x_coordinates"], self.columns["y_coordinates"]]
-        )
+
+        try:
+            self.columns["z_coordinates"]
+        except KeyError:
+            self.columns["z_coordinates"] = "none"
+
+        if self.columns["z_coordinates"] in ["none", "None"]:
+            pos_variables_r = ro.StrVector(
+                [self.columns["x_coordinates"], self.columns["y_coordinates"]]
+            )
+        else:
+            pos_variables_r = ro.StrVector(
+                [
+                    self.columns["x_coordinates"],
+                    self.columns["y_coordinates"],
+                    self.columns["z_coordinates"],
+                ]
+            )
 
         self.datatable = arcos.arcosTS(
             self.datatable,
@@ -202,6 +219,7 @@ class process_input:
                     "frame",
                     "x_coordinates",
                     "y_coordinates",
+                    "z_coordinates",
                     "track_id",
                     "measurment",
                     "field_of_view_id",
@@ -210,7 +228,7 @@ class process_input:
         ):
             print(
                 "not all required keys are in the dict, requires: \n  \
-                'frame','x_coordinates','y_coordinates','track_id',  \
+                'frame','x_coordinates','y_coordinates','z_coordinates', 'track_id',  \
                 'measurment', 'field_of_view_id'"
             )
             raise WrongColumnsSpecified("dic requires specific column names")
