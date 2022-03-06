@@ -15,7 +15,7 @@ This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookie
 
 ## Installation
 
-prior to installing arcos-gui it requires a working R installation with the ARCOS libary github.com/dmattek/ARCOS installed.
+prior to installing arcos-gui a working R installation is required with the ARCOS libary github.com/dmattek/ARCOS installed.
 
 You can install `arcos-gui` via [pip]:
 
