@@ -46,6 +46,30 @@ def dock_arcos_widget(make_napari_viewer, qtbot):
     gc.collect()
 
 
+@pytest.fixture()
+def set_columnpicker():
+    def method(col_names: list):
+        columnpicker.frame.choices = col_names
+        columnpicker.x_coordinates.choices = col_names
+        columnpicker.y_coordinates.choices = col_names
+        columnpicker.z_coordinates.choices = col_names
+        columnpicker.track_id.choices = col_names
+        columnpicker.measurment.choices = col_names
+        columnpicker.field_of_view_id.choices = col_names
+        columnpicker.field_of_view_id.set_choice("None", "None")
+        columnpicker.z_coordinates.set_choice("None", "None")
+
+        columnpicker.frame.set_value = col_names[0]
+        columnpicker.x_coordinates.value = col_names[1]
+        columnpicker.y_coordinates.value = col_names[2]
+        columnpicker.z_coordinates.value = col_names[3]
+        columnpicker.track_id.value = col_names[4]
+        columnpicker.measurment.value = col_names[5]
+        columnpicker.field_of_view_id.value = col_names[6]
+
+    return method
+
+
 def test_add_timestamp_no_layers(make_napari_viewer, capsys, qtbot):
     viewer = make_napari_viewer()
     mywidget = add_timestamp()
@@ -127,7 +151,7 @@ def test_arcos_widget_choose_file(dock_arcos_widget, qtbot):
     )
     test_data = stored_variables.data
     direct_test_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
-    direct_test_data['t'] -= 1
+    direct_test_data["t"] -= 1
     # manually trigger button press
     QTest.mouseClick(columnpicker.Ok.native, Qt.LeftButton)
     assert columnpicker.frame.value == "t"
@@ -149,16 +173,10 @@ def test_filter_no_data(dock_arcos_widget, capsys, qtbot):
     viewer.close()
 
 
-def test_filterwidget_data(dock_arcos_widget, capsys, qtbot):
+def test_filterwidget_data(dock_arcos_widget, capsys, qtbot, set_columnpicker):
+    cols = ["Frame", "X", "Y", "None", "track_id", "Measurment", "Position"]
     # set choices needed for test
-    columnpicker.dicCols.value = {
-        "frame": "Frame",
-        "x_coordinates": "X",
-        "y_coordinates": "Y",
-        "track_id": "track_id",
-        "measurment": "Measurment",
-        "field_of_view_id": "Position",
-    }
+    set_columnpicker(cols)
     df_1 = pd.read_csv("src/arcos_gui/_tests/test_data/filter_test.csv")
     stored_variables.data = df_1
     df_1 = df_1[df_1["Position"] == 1]
@@ -190,14 +208,23 @@ def test_arcos_widget_no_data(dock_arcos_widget, capsys, qtbot):
 
 
 def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys, qtbot):
-    columnpicker.dicCols.value = {
-        "frame": "t",
-        "x_coordinates": "x",
-        "y_coordinates": "y",
-        "track_id": "id",
-        "measurment": "m",
-        "field_of_view_id": "Position",
-    }
+    columnpicker.frame.choices = "t"
+    columnpicker.track_id.choices = "id"
+    columnpicker.x_coordinates.choices = "x"
+    columnpicker.y_coordinates.choices = "y"
+    columnpicker.z_coordinates.choices = "None"
+    columnpicker.measurment.choices = "m"
+    columnpicker.field_of_view_id.choices = "Position"
+    columnpicker.field_of_view_id.set_choice("None", "None")
+    columnpicker.z_coordinates.set_choice("None", "None")
+
+    columnpicker.frame.set_value = "t"
+    columnpicker.x_coordinates.value = "x"
+    columnpicker.y_coordinates.value = "y"
+    columnpicker.track_id.value = "id"
+    columnpicker.measurment.value = "m"
+    columnpicker.field_of_view_id.value = "Position"
+
     stored_variables.dataframe = pd.read_csv(
         "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )

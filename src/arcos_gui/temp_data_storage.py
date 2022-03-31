@@ -1,5 +1,5 @@
 import pandas as pd
-from arcos_gui.arcos_module import ARCOS
+from arcos4py import ARCOS
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 
 

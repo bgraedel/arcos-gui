@@ -21,23 +21,14 @@ def fixture_columns():
 def import_data(fixture_columns):
     my_input = arcos_module.process_input(
         csv_file="src/arcos_gui/_tests/test_data/filter_test.csv",
-        columns=fixture_columns,
+        frame_column="frame",
+        pos_columns=["X", "Y"],
+        track_id_column="track_id",
+        measurement_column="Measurment",
+        field_of_view_column="Position",
     )
     my_input.read_csv()
     return my_input
-
-
-@pytest.fixture
-def create_arocs_testfixture(fixture_columns):
-    my_input = arcos_module.process_input(
-        csv_file="src/arcos_gui/_tests/test_data/arcos_test.csv",
-        columns=fixture_columns,
-    )
-    my_input.read_csv()
-    data = my_input.return_pd_df()
-    arcos = arcos_module.ARCOS(dataframe=data, columns=fixture_columns)
-    arcos.create_arcosTS()
-    return arcos
 
 
 def is_unique(s):
@@ -93,61 +84,3 @@ def test_rescale_measurment(import_data):
     ]
     test_df = pd.DataFrame(data=data, columns=cols)
     assert_frame_equal(out, test_df)
-
-
-def test_interpolate_measurements(create_arocs_testfixture, fixture_columns):
-    out = create_arocs_testfixture.interpolate_measurements(return_dataframe=True)
-    assert len(out[fixture_columns["measurment"]].dropna()) == len(
-        out[fixture_columns["measurment"]]
-    )
-
-
-def test_clip_measurments(create_arocs_testfixture, fixture_columns):
-    create_arocs_testfixture.interpolate_measurements()
-    clipped = create_arocs_testfixture.clip_measurements(
-        clip_low=1, clip_high=1, return_dataframe=True
-    )
-    assert is_unique(clipped[fixture_columns["measurment"]])
-
-
-def test_bin_measurments(create_arocs_testfixture):
-    create_arocs_testfixture.interpolate_measurements()
-    out = create_arocs_testfixture.bin_measurements(
-        biasmethod="none", peak_thr=0.15, bin_thr=0.15, return_dataframe=True
-    )
-    assert out.iloc[3, 7] == 1
-
-
-def test_track_events(create_arocs_testfixture):
-    create_arocs_testfixture.interpolate_measurements()
-    create_arocs_testfixture.bin_measurements(
-        biasmethod="none", peak_thr=0.15, bin_thr=0.15
-    )
-    out = create_arocs_testfixture.track_events(
-        min_clustersize=1, return_dataframe=True
-    )
-    assert (out.columns == "collid").any()
-
-
-def test_filter_events(create_arocs_testfixture):
-    create_arocs_testfixture.interpolate_measurements()
-    create_arocs_testfixture.bin_measurements(
-        biasmethod="none", peak_thr=0.15, bin_thr=0.15
-    )
-    create_arocs_testfixture.track_events(min_clustersize=1, return_dataframe=True)
-    out = create_arocs_testfixture.filter_tracked_events(
-        min_duration=3, total_event_size=3, as_pd_dataframe=True
-    )
-    assert len(out) == 6
-
-
-def test_calculate_stats(create_arocs_testfixture):
-    create_arocs_testfixture.interpolate_measurements()
-    create_arocs_testfixture.bin_measurements(
-        biasmethod="none", peak_thr=0.15, bin_thr=0.15
-    )
-    create_arocs_testfixture.track_events(min_clustersize=1, return_dataframe=True)
-    create_arocs_testfixture.filter_tracked_events(min_duration=3, total_event_size=3)
-    out = create_arocs_testfixture.calculate_stats()
-    out_int = out["clDur"].squeeze()
-    assert out_int == 3
