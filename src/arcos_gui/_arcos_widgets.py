@@ -737,7 +737,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         self.min_dur.value(),
                         self.total_event_size.value(),
                     )
-
                     self.Progress.setValue(20)
 
                     # merge tracked and original data
@@ -827,7 +826,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         "points",
                     )
                     self.Progress.setValue(24)
-
                     # check if collective events were detected and add layer,
                     # if yes calculate convex hulls for collective events
                     if datColl.size != 0:
@@ -941,6 +939,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         show_info(
                             "No collective events detected, consider adjusting parameters"  # NOQA
                         )
+
                     self.Progress.setValue(40)
                     self.layers_to_create.clear()
 
@@ -1071,7 +1070,7 @@ class CollevPlotter(QtWidgets.QWidget):
         # if no calculation was run so far (i.e. when the widget is initialized)
         # populate it with no data
         if arcos is not None:
-            stats = collev_stats.calculate(arcos, self.frame, self.collid_name)
+            stats = collev_stats.calculate(arcos.data, self.frame, self.collid_name)
         else:
             stats = pd.DataFrame(data={"tot_size": [], "duration": []})
         self.ax.cla()
