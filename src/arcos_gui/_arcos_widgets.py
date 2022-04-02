@@ -83,7 +83,6 @@ class _MainUI:
     clip_meas: QtWidgets.QCheckBox
     clip_low: QtWidgets.QDoubleSpinBox
     clip_high: QtWidgets.QDoubleSpinBox
-    interval_type: QtWidgets.QComboBox
     bias_method: QtWidgets.QComboBox
     smooth_k: QtWidgets.QComboBox
     bias_k: QtWidgets.QSpinBox
@@ -211,7 +210,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.clip_low.valueChanged.connect(self.update_what_to_run_all)
         self.clip_high.valueChanged.connect(self.update_what_to_run_all)
         self.smooth_k.valueChanged.connect(self.update_what_to_run_all)
-        self.interval_type.currentIndexChanged.connect(self.update_what_to_run_all)
         self.bias_k.valueChanged.connect(self.update_what_to_run_all)
         self.bin_threshold.valueChanged.connect(self.update_what_to_run_all)
         self.neighbourhood_size.valueChanged.connect(self.update_what_to_run_tracking)
