@@ -12,6 +12,7 @@ from matplotlib.figure import Figure
 from napari.types import LayerDataTuple
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
+from qtpy.QtGui import QIcon
 from qtpy.QtCore import Qt
 from scipy.stats import gaussian_kde
 from superqt import QDoubleRangeSlider, QRangeSlider
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 # local imports
 from arcos4py import ARCOS
 from arcos4py.tools import calcCollevStats, filterCollev
-from arcos_gui.arcos_module import process_input
+from arcos_gui.data_module import process_input
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
 from arcos_gui.magic_guis import columnpicker, show_timestamp_options, timestamp_options
 from arcos_gui.shape_functions import (
@@ -36,6 +37,10 @@ from arcos_gui.shape_functions import (
     make_timestamp,
 )
 from arcos_gui.temp_data_storage import data_storage
+
+# icons
+ICONS = Path(__file__).parent / "_icons"
+browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
 
 # initalize class
 stored_variables = data_storage()
@@ -139,6 +144,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._filename: str = self.file_LineEdit.text()
 
         self._init_ranged_sliderts()
+        self.browse_file.setIcon(browse_file_icon)
         self._set_default_visible()
 
         self._init_callbacks_for_whattorun()
