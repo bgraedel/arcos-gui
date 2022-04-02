@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from arcos_gui import arcos_module
+from arcos_gui import data_module
 from pandas.testing import assert_frame_equal
 
 
@@ -19,7 +19,7 @@ def fixture_columns():
 
 @pytest.fixture
 def import_data(fixture_columns):
-    my_input = arcos_module.process_input(
+    my_input = data_module.process_input(
         csv_file="src/arcos_gui/_tests/test_data/filter_test.csv",
         frame_column="frame",
         pos_columns=["X", "Y"],
