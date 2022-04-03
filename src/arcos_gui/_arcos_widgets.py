@@ -2,24 +2,18 @@ from os import sep
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import napari
 import numpy as np
 import pandas as pd
 from magicgui import magic_factory, magicgui
-from matplotlib.backends.backend_qt5agg import FigureCanvas
-from matplotlib.figure import Figure
+
 from napari.types import LayerDataTuple
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 from qtpy.QtGui import QIcon
 from qtpy.QtCore import Qt
-from scipy.stats import gaussian_kde
+
 from superqt import QDoubleRangeSlider, QRangeSlider
-
-from napari.qt import get_stylesheet
-from napari.utils.theme import get_theme
-
 
 if TYPE_CHECKING:
     import napari.layers
@@ -27,7 +21,7 @@ if TYPE_CHECKING:
 
 # local imports
 from arcos4py import ARCOS
-from arcos4py.tools import calcCollevStats, filterCollev
+from arcos4py.tools import filterCollev
 from arcos_gui.data_module import process_input
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
 from arcos_gui.magic_guis import columnpicker, show_timestamp_options, timestamp_options
@@ -42,6 +36,7 @@ from arcos_gui.shape_functions import (
     make_timestamp,
 )
 from arcos_gui.temp_data_storage import data_storage
+from arcos_gui._plots import CollevPlotter, TimeSeriesPlots
 
 # icons
 ICONS = Path(__file__).parent / "_icons"
@@ -49,7 +44,6 @@ browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
 
 # initalize class
 stored_variables = data_storage()
-
 
 class _MainUI:
 
@@ -122,6 +116,12 @@ class _MainUI:
     layer_properties: QtWidgets.QGroupBox
     horizontalLayout_lut: QtWidgets.QHBoxLayout
 
+    collevplot_goupbox: QtWidgets.QGroupBox
+    timeseriesplot_groupbox: QtWidgets.QGroupBox
+    evplot_layout: QtWidgets.QVBoxLayout
+    tsplot_layout: QtWidgets.QVBoxLayout
+    nbr_collev_display: QtWidgets.QLCDNumber
+
     def setup_ui(self):
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
 
@@ -148,7 +148,10 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.layers_to_create: list = []
         self.what_to_run: list = []
         self.data: pd.DataFrame = pd.DataFrame()
-
+        self.arcos_filtered: pd.DataFrame = pd.DataFrame()
+        self.timeseriesplot = TimeSeriesPlots(parent=self)
+        self.collevplot = CollevPlotter(parent=self)
+        self._add_plot_widgets()
         self._init_ranged_sliderts()
         self.browse_file.setIcon(browse_file_icon)
         self._set_default_visible()
@@ -160,8 +163,24 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._connect_ranged_sliders_to_spinboxes()
         self._connect_pushbutton_callbacks()
         self._init_callbacks_visible_arcosparameters()
+        self._init_ts_plot_callbacks()
         self._init_columns()
 
+    def _add_plot_widgets(self):
+        self.evplot_layout.addWidget(self.collevplot)
+        self.tsplot_layout.addWidget(self.timeseriesplot)
+
+    def _ts_plot_update(self):
+        self.timeseriesplot.update_plot(columnpicker, stored_variables.dataframe)
+
+    def _init_ts_plot_callbacks(self):
+        self.timeseriesplot.combo_box.currentIndexChanged.connect(self._ts_plot_update)
+        self.timeseriesplot.button.clicked.connect(self._ts_plot_update)
+
+    def collev_plot_update(self):
+        self.collevplot.update_plot(columnpicker, self.arcos_filtered)
+        self.nbr_collev_display.display(self.collevplot.nbr_collev)
+        
     def _init_callbacks_visible_arcosparameters(self):
         # callback for changing available options of bias method
         self.bias_method.currentIndexChanged.connect(
@@ -279,6 +298,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.lut_slider.setValue((slider_vals[0], value))
 
     def _set_default_visible(self):
+        self.clip_meas.setChecked(False)
         self.position.setVisible(False)
         self.position_label.setVisible(False)
         self.polyDeg.setVisible(False)
@@ -369,15 +389,15 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def subtract_timeoffset(self):
         """Method to subtract the timeoffset in the frame column of data"""
-        data = stored_variables.data
+        data = self.data
         data[self.frame] -= min(data[self.frame])
-        stored_variables.data = data
+        self.data = data
 
     def set_point_size(self):
         """
         updates values in lut mapping sliders
         """
-        data = stored_variables.data
+        data = self.data
         if not data.empty:
             minx = min(data[self.x_coordinates])
             maxx = max(data[self.x_coordinates])
@@ -464,8 +484,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         csv_file = self.file_LineEdit.text()
         if str(csv_file).endswith(".csv"):
             self.layers_to_create.clear()
-            stored_variables.data = pd.read_csv(csv_file)
-            columns = list(stored_variables.data.columns)
+            self.data = pd.read_csv(csv_file)
+            columns = list(self.data.columns)
             columnpicker.frame.choices = columns
             columnpicker.track_id.choices = columns
             columnpicker.x_coordinates.choices = columns
@@ -519,7 +539,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         """get unique positions from data, empty positions dialog
         for preveious data and append new positions."""
         if self.field_of_view_id != "None":
-            positions = list(stored_variables.data[self.field_of_view_id].unique())
+            positions = list(self.data[self.field_of_view_id].unique())
         else:
             positions = ["None"]
 
@@ -555,17 +575,17 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         Updates min and max tracklenght in 
         the widget spinbox and sliders.
         """
-        data = stored_variables.data
+        data = self.data
         if not data.empty:
             if self.field_of_view_id != "None":
-                track_lenths = stored_variables.data.groupby(
+                track_lenths = self.data.groupby(
                     [
                         self.field_of_view_id,
                         self.track_id,
                     ]
                 ).size()
             else:
-                track_lenths = stored_variables.data.groupby([self.track_id]).size()
+                track_lenths = self.data.groupby([self.track_id]).size()
             minmax = (min(track_lenths), max(track_lenths))
 
             if minmax[1] - minmax[0] > 1:
@@ -591,14 +611,14 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         # and columns from columnpicker value
         posCols = self.set_posCol()
         in_data = process_input(
-            df=stored_variables.data,
+            df=self.data,
             field_of_view_column=self.field_of_view_id,
             frame_column=self.frame,
             pos_columns=posCols,
             track_id_column=self.track_id,
             measurement_column=self.measurement,
         )
-        if stored_variables.data.empty or self.field_of_view_id == self.measurement:
+        if self.data.empty or self.field_of_view_id == self.measurement:
             show_info("No data loaded, or not loaded correctly")
         else:
             # if the position column was not chosen in columnpicker,
@@ -625,6 +645,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 min_meas = min(dataframe[self.measurement])
                 stored_variables.min_max = (min_meas, max_meas)
             stored_variables.dataframe = dataframe
+            self._ts_plot_update()
             show_info("Data Filtered!")
 
     def run_arcos(self) -> LayerDataTuple:
@@ -763,7 +784,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     return_collev = False
                     return_points = True
                     filterer = filterCollev(arcos.data, self.frame, collid_name)
-                    out = filterer.filter(
+                    self.arcos_filtered = filterer.filter(
                         self.min_dur.value(),
                         self.total_event_size.value(),
                     )
@@ -772,7 +793,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # merge tracked and original data
                     merged_data = pd.merge(
                         ts,
-                        out[
+                        self.arcos_filtered[
                             [
                                 self.frame,
                                 self.track_id,
@@ -1006,247 +1027,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         """main function to run arcos, add layers and change cell size"""
         self.run_arcos()
         self.make_layers()
+        self.collev_plot_update()
         self.change_cell_size()
-
-
-class CollevPlotter(QtWidgets.QWidget):
-    """
-    QWidget for plotting.
-    Class to make a matplotlib figure canvas and add it to a Qwidget.
-    Canvas, figure and axis objects can be acessed by self.canvas,
-    self.fig and self.ax. This plots duration of Collective events over their size as
-    returned by arcos.
-    """
-
-    def __init__(self, viewer: "napari.viewer.Viewer", parent=None):
-        """Initialise instance.
-        :param viewer: Napari viewer instance
-        :type viewer: napari.viewer.Viewer
-        :param parent: Parent widget, optional
-        :type parent: qtpy.QtWidgets.QWidget
-        """
-        super().__init__(parent)
-        self.viewer = viewer
-
-        self.frame = columnpicker.frame.value
-        self.collid_name = "collid"
-
-        self._init_mpl_widgets()
-        self.update_plot()
-
-        # connect callbacks
-        self.viewer.layers.events.inserted.connect(self.update_plot)
-        self.viewer.layers.events.removed.connect(self.update_plot)
-
-    def _init_mpl_widgets(self):
-        """
-        Method to initialise a matplotlib figure canvas, to generate,
-        set plot style and axis, and populate it with a matplotlib.figure.Figure.
-        """
-        # set up figure and axe objects
-        with plt.style.context("dark_background"):
-            plt.rcParams["figure.dpi"] = 110
-            plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2))
-            self.canvas = FigureCanvas(self.fig)
-            self.ax = self.fig.add_subplot(111)
-            self.ax.scatter([], [])
-            self.ax.set_xlabel("Total Size")
-            self.ax.set_ylabel("Event Duration")
-            self.canvas.figure.tight_layout()
-
-        # construct layout
-        layout = QtWidgets.QVBoxLayout()
-        # layout.addWidget(self.toolbar)
-        layout.addWidget(self.canvas)
-        self.setLayout(layout)
-        self.setWindowTitle("Collective Events")
-
-    def update_plot(self):
-        """
-        Method to update the matplotlibl axis object self.ax with new values from
-        the stored_variables object
-        """
-        arcos = stored_variables.arcos
-        collev_stats = calcCollevStats()
-        # if no calculation was run so far (i.e. when the widget is initialized)
-        # populate it with no data
-        if arcos is not None:
-            stats = collev_stats.calculate(arcos.data, self.frame, self.collid_name)
-        else:
-            stats = pd.DataFrame(data={"tot_size": [], "duration": []})
-        self.ax.cla()
-        self.ax.spines["bottom"].set_color("white")
-        self.ax.spines["top"].set_color("white")
-        self.ax.spines["right"].set_color("white")
-        self.ax.spines["left"].set_color("white")
-        self.ax.xaxis.label.set_color("white")
-        self.ax.yaxis.label.set_color("white")
-        self.ax.tick_params(colors="white", which="both")
-        self.ax.axis("on")
-        stats = stats[["tot_size", "duration"]]
-        self.ax.scatter(stats[["tot_size"]], stats[["duration"]], alpha=0.8)
-        self.ax.set_xlabel("Total Size")
-        self.ax.set_ylabel("Event Duration")
-        self.fig.canvas.draw_idle()
-
-
-class TimeSeriesPlots(QtWidgets.QWidget):
-    """
-    QWidget for plotting.
-    Class to make a matplotlib figure canvas and add it to a Qwidget.
-    Canvas, figure and axis objects can be acessed by self.canvas, self.fig and self.ax.
-    This plots several different Timeseries plots such as Position/t plots,
-    tracklength histogram and a measurment density plot.
-    """
-
-    def __init__(self, napari_viewer, parent=None):
-        """
-        Initialise instance.
-        :param viewer: Napari viewer instance
-        :type viewer: napari.viewer.Viewer
-        :param parent: Parent widget, optional
-        :type parent: qtpy.QtWidgets.QWidget
-        """
-        super().__init__(parent)
-        self.viewer = napari_viewer
-        # available plots
-        self.plot_list = [
-            "tracklength histogram",
-            "measurment density plot",
-            "x/t-plot",
-            "y/t-plot",
-        ]
-        self._init_widgets()
-
-    def _init_widgets(self):
-        """
-        Method to initialise a matplotlib figure canvas as well as a spinbox,
-        Button and label widgets. Additionally, generates a
-        matplotlib.backends.backend_qt5agg.FigureCanvas, a set plot style and axis,
-        and populates it with a matplotlib.figure.Figure.
-        These are the added to a QVboxlayout.
-        """
-        # creating spinbox widget
-        self.sample_number = QtWidgets.QSpinBox()
-        self.sample_number.setMinimum(1)
-        self.sample_number.setMaximum(200)
-        self.sample_number.setValue(20)
-
-        self.button = QtWidgets.QPushButton("Update Plot")
-        self.button.clicked.connect(self.update_plot)
-
-        # label
-        self.spinbox_title = QtWidgets.QLabel("Sample Size")
-
-        # creating a combo box widget
-        self.combo_box = QtWidgets.QComboBox(self)
-        self.combo_box.addItems(self.plot_list)
-        self.combo_box.currentIndexChanged.connect(self.update_plot)
-
-        # set up figure and axe objects
-        with plt.style.context("dark_background"):
-            plt.rcParams["figure.dpi"] = 110
-            plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2))
-            self.canvas = FigureCanvas(self.fig)
-            self.ax = self.fig.add_subplot(111)
-            self.ax.scatter([], [])
-            self.ax.set_xlabel("X Axis")
-            self.ax.set_ylabel("Y Axis")
-            self.canvas.figure.tight_layout()
-
-        # construct layout
-        layout = QtWidgets.QVBoxLayout()
-        layout_combobox = QtWidgets.QVBoxLayout()
-        layout_spinbox = QtWidgets.QHBoxLayout()
-
-        # add widgets to sub_layouts
-        layout_combobox.addWidget(self.button)
-        layout_combobox.addWidget(self.combo_box)
-        layout_spinbox.addWidget(self.spinbox_title)
-        layout_spinbox.addWidget(self.sample_number)
-
-        # add sublayouts together
-        layout.addLayout(layout_combobox)
-        layout.addLayout(layout_spinbox)
-        layout.addWidget(self.canvas)
-        self.setLayout(layout)
-        self.setWindowTitle("Collective Events")
-
-    def update_plot(self):
-        """
-        Method to update the from the dropdown menu chosen
-        matplotlibl plot with values from
-        the stored_variables object dataframe.
-        """
-        # return plottype that should be plotted
-        plottype = self.combo_box.currentText()
-        # sample number for position/t-plots
-        n = self.sample_number.value()
-
-        # get column values and dataframe
-        frame = columnpicker.frame.value
-        track_id = columnpicker.track_id.value
-        x_coordinates = columnpicker.x_coordinates.value
-        y_coordinates = columnpicker.y_coordinates.value
-        measurement = columnpicker.measurment.value
-        dataframe = stored_variables.dataframe
-
-        # check if some data was loaded already, otherwise do nothing
-        if not dataframe.empty:
-            self.ax.cla()
-            self.ax.spines["bottom"].set_color("white")
-            self.ax.spines["top"].set_color("white")
-            self.ax.spines["right"].set_color("white")
-            self.ax.spines["left"].set_color("white")
-            self.ax.xaxis.label.set_color("white")
-            self.ax.yaxis.label.set_color("white")
-            self.ax.tick_params(colors="white", which="both")
-            self.ax.axis("on")
-
-            # tracklength histogram
-            if plottype == "tracklength histogram":
-                track_length = dataframe.groupby(track_id).size()
-                self.ax.hist(track_length)
-                self.ax.set_xlabel("tracklength")
-                self.ax.set_ylabel("counts")
-
-            # measurment density plot, kde
-            elif plottype == "measurment density plot":
-                density = gaussian_kde(dataframe[measurement].interpolate())
-                x = np.linspace(
-                    min(dataframe[measurement]),
-                    max(dataframe[measurement]),
-                    100,
-                )
-                y = density(x)
-                self.ax.plot(x, y)
-                self.ax.set_xlabel("measurement values")
-                self.ax.set_ylabel("density")
-
-            # xy/t plots
-            elif plottype == "x/t-plot":
-                sample = pd.Series(dataframe[track_id].unique()).sample(n, replace=True)
-                pd_from_r_df = dataframe.loc[dataframe[track_id].isin(sample)]
-                df_grp = pd_from_r_df.groupby(track_id)
-                for label, df in df_grp:
-                    self.ax.plot(df[frame], df[x_coordinates])
-                self.ax.set_xlabel("Frame")
-                self.ax.set_ylabel("Position X")
-
-            elif plottype == "y/t-plot":
-                sample = pd.Series(dataframe[track_id].unique()).sample(n, replace=True)
-                pd_from_r_df = dataframe.loc[dataframe[track_id].isin(sample)]
-                df_grp = pd_from_r_df.groupby(track_id)
-                for label, df in df_grp:
-                    self.ax.plot(df[frame], df[y_coordinates])
-                self.ax.set_xlabel("Frame")
-                self.ax.set_ylabel("Position Y")
-            self.fig.canvas.draw_idle()
-        else:
-            show_info("No Data to plot")
-
 
 # function to export csv to specified path
 def export_csv(merged_data):

@@ -11,12 +11,6 @@ contributions:
     - id: arcos-gui.MainWindow
       python_name: arcos_gui._arcos_widgets:MainWindow
       title: Opens filedialog to import csv
-    - id: arcos-gui.CollevPlotter
-      python_name: arcos_gui._arcos_widgets:CollevPlotter
-      title: Plots Collective Events
-    - id: arcos-gui.TimeSeriesPlots
-      python_name: arcos_gui._arcos_widgets:TimeSeriesPlots
-      title: Timeseries plots
     - id: arcos-gui.data.arcos_sample_data
       title: Import sample data
       python_name: arcos_gui._sample_data:load_sample_data
@@ -25,13 +19,9 @@ contributions:
       display_name: ARCOS Sample Data
       command: arcos-gui.data.arcos_sample_data
   widgets:
-    - command: arcos-gui.export_data
-      display_name: Data Export
-    - command: arcos-gui.add_timestamp
-      display_name: Timestamp
     - command: arcos-gui.MainWindow
       display_name: ARCOS Main Widget
-    - command: arcos-gui.CollevPlotter
-      display_name: Collective Events Plot
-    - command: arcos-gui.TimeSeriesPlots
-      display_name: Timeseries plots
+    - command: arcos-gui.add_timestamp
+      display_name: Timestamp
+    - command: arcos-gui.export_data
+      display_name: Data Export
