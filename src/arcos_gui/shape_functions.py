@@ -244,3 +244,23 @@ def make_surface_3d(df, col_t, col_x, col_y, col_z, col_id):
     )
     hull_np = datChull.to_numpy()
     return (hull_np, dataFaces, np_color_values)
+
+def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
+
+        arr_size = vertices.shape[0]
+        empty_vertex = []
+        empty_faces = []
+        empty_colors = []
+
+        for i in df[col_t].unique():
+            if i not in vertices[:, :1]:
+                empty_vertex.append([i, 0, 0, 0])
+                empty_faces.append([arr_size, arr_size, arr_size])
+                arr_size = arr_size + 1
+                empty_colors.append(0)
+
+        surface_tuple_0 = np.concatenate((vertices, np.array(empty_vertex)), axis=0)
+        surface_tuple_1 = np.concatenate((faces, np.array(empty_faces)), axis=0)
+        surface_tuple_2 = np.concatenate((colors, np.array(empty_colors)), axis=0)
+
+        return (surface_tuple_0, surface_tuple_1, surface_tuple_2)

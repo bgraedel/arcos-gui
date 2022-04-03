@@ -17,6 +17,10 @@ from qtpy.QtCore import Qt
 from scipy.stats import gaussian_kde
 from superqt import QDoubleRangeSlider, QRangeSlider
 
+from napari.qt import get_stylesheet
+from napari.utils.theme import get_theme
+
+
 if TYPE_CHECKING:
     import napari.layers
     import napari.viewer
@@ -34,6 +38,7 @@ from arcos_gui.shape_functions import (
     get_verticesHull,
     make_shapes,
     make_surface_3d,
+    fix_3d_convex_hull,
     make_timestamp,
 )
 from arcos_gui.temp_data_storage import data_storage
@@ -137,11 +142,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def __init__(self, viewer: napari.viewer.Viewer, remote=True):
         super().__init__()
+        self.viewer: napari.viewer.Viewer = viewer
         self.setup_ui()
+        self._filename: str = self.file_LineEdit.text()
         self.layers_to_create: list = []
         self.what_to_run: list = []
-        self.viewer: napari.viewer.Viewer = viewer
-        self._filename: str = self.file_LineEdit.text()
+        self.data: pd.DataFrame = pd.DataFrame()
 
         self._init_ranged_sliderts()
         self.browse_file.setIcon(browse_file_icon)
@@ -168,7 +174,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         # callback for updating what to run in arcos_widget
         self.open_file_button.clicked.connect(self.open_columnpicker)
         # reset what to run
-        self.filter_input_data.clicked.connect(self.update_what_to_run_variable)
+        self.filter_input_data.clicked.connect(self.update_what_to_run_all)
         self.open_file_button.clicked.connect(self.what_to_run.clear)
         # callbackfor filtering data
         self.filter_input_data.clicked.connect(self.filter_data)
@@ -278,213 +284,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.polyDeg.setVisible(False)
         self.polyDeg_label.setVisible(False)
 
-    def browse_files(self):
-        self.filename = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Load CSV file", str(Path.home()), "csv(*.csv)"
-        )
-        self.file_LineEdit.setText(self.filename[0])
-
-    def close_columnpicker(self):
-        """
-        gets the chosen columns to be stored inside of a dictionnary
-        as a parameter of the columnpicker widget. Additionally,
-        determines minimum and maximum tracklength and unique positoins
-        for filtering the TimeSeries later on via sliders in filter_widget
-        and updates these variables in the stored_variables object.
-        Function also initializes callbacks for when new layers are inserted
-        and removes layers once new data gets loaded.
-        """
-        # populate column dictionnary
-        self.frame = columnpicker.frame.value
-        self.track_id = columnpicker.track_id.value
-        self.x_coordinates = columnpicker.x_coordinates.value
-        self.y_coordinates = columnpicker.y_coordinates.value
-        self.z_coordinates = columnpicker.z_coordinates.value
-        self.measurement = columnpicker.measurment.value
-        self.field_of_view_id = columnpicker.field_of_view_id.value
-        columnpicker.close()
-        self.subtract_timeoffset()
-
-    def subtract_timeoffset(self):
-        data = stored_variables.data
-        data[self.frame] -= min(data[self.frame])
-
-    def set_positions(self):
-        # get unique positions for filter_widget
-        if self.field_of_view_id != "None":
-            positions = list(stored_variables.data[self.field_of_view_id].unique())
-        else:
-            positions = ["None"]
-
-        # set positions in filter widget, filter data
-        self.position.clear()
-        for i in positions:
-            self.position.addItem(str(i), i)
-
-        # hides position choice if no position column exists in the raw data
-        # i.e. during columnpicker position was set to None.
-        # Also hides it if there is only one position available.
-        # Updates everytime when new data is read in
-        if self.position.count() <= 1:
-            self.position.setVisible(False)
-            self.position_label.setVisible(False)
-        else:
-            self.position.setVisible(True)
-            self.position_label.setVisible(True)
-
-    def get_tracklengths(self):
-        """
-        Groups filtered data by track_id and
-        returns minimum and maximum tracklenght.
-        Updates min and max tracklenght in the arcos_widget.
-        """
-        data = stored_variables.data
-        if not data.empty:
-            if self.field_of_view_id != "None":
-                track_lenths = stored_variables.data.groupby(
-                    [
-                        self.field_of_view_id,
-                        self.track_id,
-                    ]
-                ).size()
-            else:
-                track_lenths = stored_variables.data.groupby([self.track_id]).size()
-            minmax = (min(track_lenths), max(track_lenths))
-
-            if minmax[1] - minmax[0] > 1:
-                self.tracklenght_slider.setMinimum(minmax[0])
-                self.tracklenght_slider.setMaximum(minmax[1])
-
-            self.min_tracklength_spinbox.setMinimum(minmax[0])
-            self.max_tracklength_spinbox.setMinimum(minmax[0])
-
-            self.min_tracklength_spinbox.setMaximum(minmax[1])
-            self.max_tracklength_spinbox.setMaximum(minmax[1])
-
-            self.min_tracklength_spinbox.setValue(minmax[0])
-            self.max_tracklength_spinbox.setValue(minmax[1])
-
-    def remove_layers_after_columnpicker(self):
-        """
-        removes existing arcos layers before loading new data
-        """
-        layer_list = self.get_layer_list()
-        for layer in [
-            "coll cells",
-            "coll events",
-            "active cells",
-            "all_cells",
-            "Timestamp",
-        ]:
-            if layer in layer_list:
-                self.viewer.layers.remove(layer)
-
-    def get_layer_list(self):
-        layer_list = [layer.name for layer in self.viewer.layers]
-        return layer_list
-
-    def update_what_to_run_variable(self):
-        """
-        updates a 'what to run' variable in the stored_variables object,
-        that is used in arcos_widget to check if what to run
-        when certain field have updated values
-        """
-        self.what_to_run.append("all")
-
-    def open_columnpicker(self):
-        """
-        Take a filename and if it is a csv file,
-        open it and stores it in the stored_variables_object.
-        Shows columnpicker dialog.
-        """
-        columns = columnpicker.frame.choices
-        column_keys = [
-            "frame",
-            "x_coordinates",
-            "y_coordinates",
-            "z_coordinates",
-            "track_id",
-            "measurment",
-            "field_of_view_id",
-        ]
-        for i in column_keys:
-            for index, j in enumerate(columns):
-                getattr(columnpicker, i).del_choice(str(j))
-        csv_file = self.file_LineEdit.text()
-        if str(csv_file).endswith(".csv"):
-            self.layers_to_create.clear()
-            stored_variables.data = pd.read_csv(csv_file)
-            columns = list(stored_variables.data.columns)
-            columnpicker.frame.choices = columns
-            columnpicker.track_id.choices = columns
-            columnpicker.x_coordinates.choices = columns
-            columnpicker.y_coordinates.choices = columns
-            columnpicker.z_coordinates.choices = columns
-            columnpicker.measurment.choices = columns
-            columnpicker.field_of_view_id.choices = columns
-            columnpicker.field_of_view_id.set_choice("None", "None")
-            columnpicker.z_coordinates.set_choice("None", "None")
-            columnpicker.show()
-        else:
-            show_info("Not a csv file")
-
-    def filter_data(self):
-        """
-        Used to filter the input datato contain a single position.
-        filter options also include minimum and maximum tracklength.
-        Allows for rescaling of measurment variable.
-        """
-        # gets raw data read in by arcos_widget from stored_variables object
-        # and columns from columnpicker value
-        posCols = self.set_posCol()
-        in_data = process_input(
-            df=stored_variables.data,
-            field_of_view_column=self.field_of_view_id,
-            frame_column=self.frame,
-            pos_columns=posCols,
-            track_id_column=self.track_id,
-            measurement_column=self.measurement,
-        )
-        if stored_variables.data.empty or self.field_of_view_id == self.measurement:
-            show_info("No data loaded, or not loaded correctly")
-        else:
-            # if the position column was not chosen in columnpicker,
-            # dont filter by position
-            if self.field_of_view_id != "None":
-                # hast to be done before .filter_tracklenght otherwise code could break
-                # if track ids are not unique to positions
-                in_data.filter_position(self.position.currentData())
-            # filter by tracklenght
-            in_data.filter_tracklength(
-                self.min_tracklength_spinbox.value(),
-                self.max_tracklength_spinbox.value(),
-            )
-            # option to rescale the measurment column
-            in_data.rescale_measurment(rescale_factor=self.rescale_measurment.value())
-            # option to set frame interval
-            in_data.frame_interval(self.frame_interval.value())
-
-            dataframe = in_data.return_pd_df()
-
-            # get min and max values
-            if not dataframe.empty:
-                max_meas = max(dataframe[self.measurement])
-                min_meas = min(dataframe[self.measurement])
-                stored_variables.min_max = (min_meas, max_meas)
-            stored_variables.dataframe = dataframe
-            show_info("Data Filtered!")
-
-    # several functions to update the 'what to run' variable in stored_variables
-
-    def update_what_to_run_all(self):
-        self.what_to_run.append("all")
-
-    def update_what_to_run_tracking(self):
-        self.what_to_run.append("from_tracking")
-
-    def update_what_to_run_filtering(self):
-        self.what_to_run.append("from_filtering")
-
     def toggle_bias_method_parameter_visibility(self):
         """
         based on the seleciton of bias method:
@@ -525,6 +324,54 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self.bin_peak_threshold_label.setVisible(False)
             self.bin_threshold.setVisible(True)
             self.bin_threshold_label.setVisible(True)
+
+    def callback_file_Linedit_text(self, value):
+        """Used to load sample data from test_data.
+        and set columnpicker to indicated values"""
+        self.file_LineEdit.setText(value)
+        self.open_columnpicker()
+        columnpicker.frame.value = "t"
+        columnpicker.track_id.value = "id"
+        columnpicker.x_coordinates.value = "x"
+        columnpicker.y_coordinates.value = "y"
+        columnpicker.z_coordinates.value = "None"
+        columnpicker.measurment.value = "m"
+        columnpicker.field_of_view_id.value = "Position"
+
+
+    def update_what_to_run_all(self):
+        """
+        sets 'what to run' attribute to 'all' in the what_to_run attirbute,
+        that is used in the main function to check if what to run
+        when certain field have updated values.
+        """
+        self.what_to_run.append("all")
+
+    def update_what_to_run_tracking(self):
+        """sets 'what to run' attribute to 'from_tracking' in the what_to_run attirbute,
+        that is used in the main function to check if what to run
+        when certain field have updated values."""
+        self.what_to_run.append("from_tracking")
+
+    def update_what_to_run_filtering(self):
+        """sets 'what to run' attribute to 'from_filtering' 
+        in the what_to_run attirbute,
+        that is used in the main function to check if what to run
+        when certain field have updated values."""
+        self.what_to_run.append("from_filtering")
+
+    def browse_files(self):
+        """Opens a filedialog and saves path as a string in self.filename"""
+        self.filename = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load CSV file", str(Path.home()), "csv(*.csv)"
+        )
+        self.file_LineEdit.setText(self.filename[0])
+
+    def subtract_timeoffset(self):
+        """Method to subtract the timeoffset in the frame column of data"""
+        data = stored_variables.data
+        data[self.frame] -= min(data[self.frame])
+        stored_variables.data = data
 
     def set_point_size(self):
         """
@@ -595,6 +442,104 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self.viewer.layers["coll events"].edge_width = size / 5
             self.viewer.layers["coll events"].refresh()
 
+    def open_columnpicker(self):
+        """
+        Take a filename and if it is a csv file,
+        opens it and stores it in the stored_variables_object.
+        Shows columnpicker dialog.
+        """
+        columns = columnpicker.frame.choices
+        column_keys = [
+            "frame",
+            "x_coordinates",
+            "y_coordinates",
+            "z_coordinates",
+            "track_id",
+            "measurment",
+            "field_of_view_id",
+        ]
+        for i in column_keys:
+            for index, j in enumerate(columns):
+                getattr(columnpicker, i).del_choice(str(j))
+        csv_file = self.file_LineEdit.text()
+        if str(csv_file).endswith(".csv"):
+            self.layers_to_create.clear()
+            stored_variables.data = pd.read_csv(csv_file)
+            columns = list(stored_variables.data.columns)
+            columnpicker.frame.choices = columns
+            columnpicker.track_id.choices = columns
+            columnpicker.x_coordinates.choices = columns
+            columnpicker.y_coordinates.choices = columns
+            columnpicker.z_coordinates.choices = columns
+            columnpicker.measurment.choices = columns
+            columnpicker.field_of_view_id.choices = columns
+            columnpicker.field_of_view_id.set_choice("None", "None")
+            columnpicker.z_coordinates.set_choice("None", "None")
+            columnpicker.show()
+        else:
+            show_info("Not a csv file")
+
+    def close_columnpicker(self):
+        """
+        gets the chosen columns to be stored inside of
+        class attributes and closes the columnpicker dialog.
+        Additionally subtracts the frame-offset from the frame
+        column in data.
+        """
+        # populate column dictionnary
+        self.frame = columnpicker.frame.value
+        self.track_id = columnpicker.track_id.value
+        self.x_coordinates = columnpicker.x_coordinates.value
+        self.y_coordinates = columnpicker.y_coordinates.value
+        self.z_coordinates = columnpicker.z_coordinates.value
+        self.measurement = columnpicker.measurment.value
+        self.field_of_view_id = columnpicker.field_of_view_id.value
+        columnpicker.close()
+        self.subtract_timeoffset()
+    
+    def remove_layers_after_columnpicker(self):
+        """removes existing arcos layers before loading new data"""
+        layer_list = self.get_layer_list()
+        for layer in [
+            "coll cells",
+            "coll events",
+            "active cells",
+            "all_cells",
+            "Timestamp",
+        ]:
+            if layer in layer_list:
+                self.viewer.layers.remove(layer)
+    
+    def get_layer_list(self):
+        """Get list of open layers"""
+        layer_list = [layer.name for layer in self.viewer.layers]
+        return layer_list
+
+    def set_positions(self):
+        """get unique positions from data, empty positions dialog
+        for preveious data and append new positions."""
+        if self.field_of_view_id != "None":
+            positions = list(stored_variables.data[self.field_of_view_id].unique())
+        else:
+            positions = ["None"]
+
+        # delete position values is position dialog self.positions
+        self.position.clear()
+        # add new positions
+        for i in positions:
+            self.position.addItem(str(i), i)
+
+        # hides position choice if no position column exists in the raw data
+        # i.e. during columnpicker position was set to None.
+        # Also hides it if there is only one position available.
+        # is updated everytime when new data is read in
+        if self.position.count() <= 1:
+            self.position.setVisible(False)
+            self.position_label.setVisible(False)
+        else:
+            self.position.setVisible(True)
+            self.position_label.setVisible(True)
+
     def set_posCol(self) -> list:
         if self.z_coordinates != "None":
             posCols = [self.x_coordinates, self.y_coordinates, self.z_coordinates]
@@ -603,9 +548,88 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         posCols = [self.x_coordinates, self.y_coordinates]
         return posCols
 
-    def arcos_function(self) -> LayerDataTuple:
+    def get_tracklengths(self):
         """
-        ARCOS function to execute R code and detect collective events.
+        Groups filtered data by track_id and
+        returns minimum and maximum tracklenght.
+        Updates min and max tracklenght in 
+        the widget spinbox and sliders.
+        """
+        data = stored_variables.data
+        if not data.empty:
+            if self.field_of_view_id != "None":
+                track_lenths = stored_variables.data.groupby(
+                    [
+                        self.field_of_view_id,
+                        self.track_id,
+                    ]
+                ).size()
+            else:
+                track_lenths = stored_variables.data.groupby([self.track_id]).size()
+            minmax = (min(track_lenths), max(track_lenths))
+
+            if minmax[1] - minmax[0] > 1:
+                self.tracklenght_slider.setMinimum(minmax[0])
+                self.tracklenght_slider.setMaximum(minmax[1])
+
+            self.min_tracklength_spinbox.setMinimum(minmax[0])
+            self.max_tracklength_spinbox.setMinimum(minmax[0])
+
+            self.min_tracklength_spinbox.setMaximum(minmax[1])
+            self.max_tracklength_spinbox.setMaximum(minmax[1])
+
+            self.min_tracklength_spinbox.setValue(minmax[0])
+            self.max_tracklength_spinbox.setValue(minmax[1])
+
+    def filter_data(self):
+        """
+        Used to filter the input datato contain a single position.
+        filter options also include minimum and maximum tracklength.
+        Allows for rescaling of measurment variable.
+        """
+        # gets raw data read in by arcos_widget from stored_variables object
+        # and columns from columnpicker value
+        posCols = self.set_posCol()
+        in_data = process_input(
+            df=stored_variables.data,
+            field_of_view_column=self.field_of_view_id,
+            frame_column=self.frame,
+            pos_columns=posCols,
+            track_id_column=self.track_id,
+            measurement_column=self.measurement,
+        )
+        if stored_variables.data.empty or self.field_of_view_id == self.measurement:
+            show_info("No data loaded, or not loaded correctly")
+        else:
+            # if the position column was not chosen in columnpicker,
+            # dont filter by position
+            if self.field_of_view_id != "None":
+                # hast to be done before .filter_tracklenght otherwise code could break
+                # if track ids are not unique to positions
+                in_data.filter_position(self.position.currentData())
+            # filter by tracklenght
+            in_data.filter_tracklength(
+                self.min_tracklength_spinbox.value(),
+                self.max_tracklength_spinbox.value(),
+            )
+            # option to rescale the measurment column
+            in_data.rescale_measurment(rescale_factor=self.rescale_measurment.value())
+            # option to set frame interval
+            in_data.frame_interval(self.frame_interval.value())
+
+            dataframe = in_data.return_pd_df()
+
+            # get min and max values
+            if not dataframe.empty:
+                max_meas = max(dataframe[self.measurement])
+                min_meas = min(dataframe[self.measurement])
+                stored_variables.min_max = (min_meas, max_meas)
+            stored_variables.dataframe = dataframe
+            show_info("Data Filtered!")
+
+    def run_arcos(self) -> LayerDataTuple:
+        """
+        ARCOS method to detect collective events.
 
         Returned data can contain:
         all_cells:
@@ -623,15 +647,17 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         to the calculation done by arcos part of a collective event
 
         coll events:
-        returns polycons representing the convex hulls of individual collective
-        events, color coded accoring to a color_cycle attribute
+        returns convex hulls of individual collective
+        events, in 2D case, color is coded accoring to a color_cycle attribute.
+        in 3D case according to a LUT.
         """
-        # checks if this part of the function has to be run,
-        # depends on the parameters changed in arcos widget
 
         posCols = self.set_posCol()
         measbin_col = f"{self.measurement}.bin"
         collid_name = "collid"
+
+        # checks if this part of the function has to be run,
+        # depends on the parameters changed in arcos widget
 
         if stored_variables.dataframe.empty:
             show_info("No Data Loaded, Use arcos_widget to load and filter data first")
@@ -898,7 +924,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                                 "collid",
                             )
 
-                            event_surfaces = self._fix_3d_convex_hull(
+                            event_surfaces = fix_3d_convex_hull(
                                 merged_data[vColsCore],
                                 event_surfaces[0],
                                 event_surfaces[1],
@@ -960,27 +986,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         self.layers_to_create = [all_cells, active_cells]
                     self.what_to_run.clear()
 
-    def _fix_3d_convex_hull(self, df, vertices, faces, colors, col_t):
-
-        arr_size = vertices.shape[0]
-        empty_vertex = []
-        empty_faces = []
-        empty_colors = []
-
-        for i in df[col_t].unique():
-            if i not in vertices[:, :1]:
-                empty_vertex.append([i, 0, 0, 0])
-                empty_faces.append([arr_size, arr_size, arr_size])
-                arr_size = arr_size + 1
-                empty_colors.append(0)
-
-        surface_tuple_0 = np.concatenate((vertices, np.array(empty_vertex)), axis=0)
-        surface_tuple_1 = np.concatenate((faces, np.array(empty_faces)), axis=0)
-        surface_tuple_2 = np.concatenate((colors, np.array(empty_colors)), axis=0)
-
-        return (surface_tuple_0, surface_tuple_1, surface_tuple_2)
-
     def make_layers(self):
+        """adds layers from self.layers_to_create, 
+        whitch itself is upated from run_arcos method"""
         layers_names = [layer.name for layer in self.viewer.layers]
         if self.layers_to_create:
             for layer in [
@@ -994,19 +1002,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             for result in self.layers_to_create:
                 self.viewer.add_layer(napari.layers.Layer.create(*result))
 
-    def callback_file_Linedit_text(self, value):
-        self.file_LineEdit.setText(value)
-        self.open_columnpicker()
-        columnpicker.frame.value = "t"
-        columnpicker.track_id.value = "id"
-        columnpicker.x_coordinates.value = "x"
-        columnpicker.y_coordinates.value = "y"
-        columnpicker.z_coordinates.value = "None"
-        columnpicker.measurment.value = "m"
-        columnpicker.field_of_view_id.value = "Position"
-
     def run(self):
-        self.arcos_function()
+        """main function to run arcos, add layers and change cell size"""
+        self.run_arcos()
         self.make_layers()
         self.change_cell_size()
 
