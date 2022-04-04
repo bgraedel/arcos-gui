@@ -8,4 +8,3 @@ viewer.window.add_plugin_dock_widget(
 
 
 napari.run()
- 

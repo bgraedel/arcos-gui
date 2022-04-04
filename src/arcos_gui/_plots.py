@@ -1,14 +1,12 @@
-from typing import Union
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
+import numpy as np
+import pandas as pd
+from arcos4py.tools import calcCollevStats
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from qtpy import QtWidgets
-from arcos4py.tools import calcCollevStats
-import pandas as pd
-import numpy as np
+from matplotlib.figure import Figure
 from napari.utils.notifications import show_info
-
+from qtpy import QtWidgets
 from scipy.stats import gaussian_kde
 
 
@@ -43,7 +41,7 @@ class CollevPlotter(QtWidgets.QWidget):
         with plt.style.context("dark_background"):
             plt.rcParams["figure.dpi"] = 110
             plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2),tight_layout=True)
+            self.fig = Figure(figsize=(3, 2), tight_layout=True)
             self.canvas = FigureCanvas(self.fig)
             self.ax = self.fig.add_subplot(111)
             self.ax.scatter([], [])
@@ -72,7 +70,9 @@ class CollevPlotter(QtWidgets.QWidget):
         if arcos.empty:
             stats = pd.DataFrame(data={"tot_size": [], "duration": []})
         else:
-            stats = collev_stats.calculate(arcos, columnpicker_widget.frame.value, self.collid_name)
+            stats = collev_stats.calculate(
+                arcos, columnpicker_widget.frame.value, self.collid_name
+            )
         self.ax.cla()
         self.ax.spines["bottom"].set_color("white")
         self.ax.spines["top"].set_color("white")
@@ -88,6 +88,7 @@ class CollevPlotter(QtWidgets.QWidget):
         self.ax.set_ylabel("Event Duration")
         self.fig.canvas.draw_idle()
         self.nbr_collev = stats.shape[0]
+
 
 class TimeSeriesPlots(QtWidgets.QWidget):
     """
@@ -174,7 +175,7 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         self.setLayout(layout)
         self.setWindowTitle("Collective Events")
 
-    def update_plot(self, columnpicker_widget, dataframe: Union[pd.DataFrame, None]):
+    def update_plot(self, columnpicker_widget, dataframe: pd.DataFrame):
         """
         Method to update the from the dropdown menu chosen
         matplotlibl plot with values from

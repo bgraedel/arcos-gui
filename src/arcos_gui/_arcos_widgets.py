@@ -6,13 +6,11 @@ import napari
 import numpy as np
 import pandas as pd
 from magicgui import magic_factory, magicgui
-
 from napari.types import LayerDataTuple
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
-from qtpy.QtGui import QIcon
 from qtpy.QtCore import Qt
-
+from qtpy.QtGui import QIcon
 from superqt import QDoubleRangeSlider, QRangeSlider
 
 if TYPE_CHECKING:
@@ -22,21 +20,21 @@ if TYPE_CHECKING:
 # local imports
 from arcos4py import ARCOS
 from arcos4py.tools import filterCollev
+from arcos_gui._plots import CollevPlotter, TimeSeriesPlots
 from arcos_gui.data_module import process_input
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
 from arcos_gui.magic_guis import columnpicker, show_timestamp_options, timestamp_options
 from arcos_gui.shape_functions import (
     COLOR_CYCLE,
     assign_color_id,
+    fix_3d_convex_hull,
     format_verticesHull,
     get_verticesHull,
     make_shapes,
     make_surface_3d,
-    fix_3d_convex_hull,
     make_timestamp,
 )
 from arcos_gui.temp_data_storage import data_storage
-from arcos_gui._plots import CollevPlotter, TimeSeriesPlots
 
 # icons
 ICONS = Path(__file__).parent / "_icons"
@@ -44,6 +42,7 @@ browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
 
 # initalize class
 stored_variables = data_storage()
+
 
 class _MainUI:
 
@@ -180,7 +179,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
     def collev_plot_update(self):
         self.collevplot.update_plot(columnpicker, self.arcos_filtered)
         self.nbr_collev_display.display(self.collevplot.nbr_collev)
-        
+
     def _init_callbacks_visible_arcosparameters(self):
         # callback for changing available options of bias method
         self.bias_method.currentIndexChanged.connect(
@@ -358,7 +357,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         columnpicker.measurment.value = "m"
         columnpicker.field_of_view_id.value = "Position"
 
-
     def update_what_to_run_all(self):
         """
         sets 'what to run' attribute to 'all' in the what_to_run attirbute,
@@ -374,7 +372,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.what_to_run.append("from_tracking")
 
     def update_what_to_run_filtering(self):
-        """sets 'what to run' attribute to 'from_filtering' 
+        """sets 'what to run' attribute to 'from_filtering'
         in the what_to_run attirbute,
         that is used in the main function to check if what to run
         when certain field have updated values."""
@@ -516,7 +514,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.field_of_view_id = columnpicker.field_of_view_id.value
         columnpicker.close()
         self.subtract_timeoffset()
-    
+
     def remove_layers_after_columnpicker(self):
         """removes existing arcos layers before loading new data"""
         layer_list = self.get_layer_list()
@@ -529,7 +527,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         ]:
             if layer in layer_list:
                 self.viewer.layers.remove(layer)
-    
+
     def get_layer_list(self):
         """Get list of open layers"""
         layer_list = [layer.name for layer in self.viewer.layers]
@@ -572,7 +570,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         """
         Groups filtered data by track_id and
         returns minimum and maximum tracklenght.
-        Updates min and max tracklenght in 
+        Updates min and max tracklenght in
         the widget spinbox and sliders.
         """
         data = self.data
@@ -1008,7 +1006,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     self.what_to_run.clear()
 
     def make_layers(self):
-        """adds layers from self.layers_to_create, 
+        """adds layers from self.layers_to_create,
         whitch itself is upated from run_arcos method"""
         layers_names = [layer.name for layer in self.viewer.layers]
         if self.layers_to_create:
@@ -1029,6 +1027,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.make_layers()
         self.collev_plot_update()
         self.change_cell_size()
+
 
 # function to export csv to specified path
 def export_csv(merged_data):
