@@ -4,26 +4,22 @@ on:
   push:
     branches:
       - main
-      - npe2
     tags:
       - "v*"
   pull_request:
     branches:
       - main
-      - npe2
   workflow_dispatch:
 
 jobs:
   test:
     name: py${{ matrix.python-version }} ${{ matrix.backend }} ${{ matrix.platform }}
     runs-on: ${{ matrix.platform }}
-    env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       matrix:
         platform: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10']
-        ld_libpath: ["export LD_LIBRARY_PATH=$(python -m rpy2.situation LD_LIBRARY_PATH):${LD_LIBRARY_PATH}"]
+        backend: [pyside2, pyqt5]
 
     steps:
       - uses: actions/checkout@v2
@@ -32,7 +28,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          backend: [pyside2, pyqt5]
 
       - uses: tlambert03/setup-qt-libs@v1
 
