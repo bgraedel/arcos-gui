@@ -149,7 +149,7 @@ def test_arcos_widget_choose_file(dock_arcos_widget, qtbot):
     stored_variables.filename_for_sample_data = str(
         Path("src/arcos_gui/_tests/test_data/arcos_data.csv")
     )
-    test_data = stored_variables.data
+    test_data = mywidget.data
     direct_test_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     direct_test_data["t"] -= 1
     # manually trigger button press
@@ -166,7 +166,7 @@ def test_arcos_widget_choose_file(dock_arcos_widget, qtbot):
 
 def test_filter_no_data(dock_arcos_widget, capsys, qtbot):
     viewer, mywidget = dock_arcos_widget
-    stored_variables.data = pd.DataFrame()
+    mywidget.data = pd.DataFrame()
     QTest.mouseClick(mywidget.filter_input_data, Qt.LeftButton)
     catptured = capsys.readouterr()
     assert catptured.out == "INFO: No data loaded, or not loaded correctly\n"
@@ -174,6 +174,7 @@ def test_filter_no_data(dock_arcos_widget, capsys, qtbot):
 
 
 def test_filterwidget_data(dock_arcos_widget, capsys, qtbot, set_columnpicker):
+    viewer, mywidget = dock_arcos_widget
     columnpicker.frame.choices = ["Frame"]
     columnpicker.track_id.choices = ["track_id"]
     columnpicker.x_coordinates.choices = ["X"]
@@ -192,14 +193,13 @@ def test_filterwidget_data(dock_arcos_widget, capsys, qtbot, set_columnpicker):
     columnpicker.field_of_view_id.value = "Position"
 
     df_1 = pd.read_csv("src/arcos_gui/_tests/test_data/filter_test.csv")
-    stored_variables.data = df_1
+    mywidget.data = df_1
     df_1 = df_1[df_1["Position"] == 1]
-    viewer, mywidget = dock_arcos_widget
     mywidget.close_columnpicker()
     mywidget.position.addItem("1", 1)
     mywidget.position.setCurrentText("1")
     QTest.mouseClick(mywidget.filter_input_data, Qt.LeftButton)
-    df = stored_variables.dataframe
+    df = mywidget.filtered_data
     # capture output
     catptured = capsys.readouterr()
     # assert output
@@ -209,7 +209,8 @@ def test_filterwidget_data(dock_arcos_widget, capsys, qtbot, set_columnpicker):
 
 
 def test_arcos_widget_no_data(dock_arcos_widget, capsys, qtbot):
-    stored_variables.dataframe = pd.DataFrame()
+    viewer, mywidget = dock_arcos_widget
+    mywidget.filtered_data = pd.DataFrame()
     viewer, mywidget = dock_arcos_widget
     QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
     # capture output
@@ -244,14 +245,14 @@ def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys, qtbot):
 
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     df = df[df["Position"] == 1]
-    stored_variables.data = df
-    stored_variables.dataframe = stored_variables.data
+    mywidget.data = df
+    mywidget.filtered_data = mywidget.data
     mywidget.close_columnpicker()
 
     stored_variables.positions = [0, 1]
     stored_variables.current_position = 0
     mywidget.total_event_size.setValue(70)
-    mywidget.update_what_to_run_variable()
+    mywidget.update_what_to_run_all()
     QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
     # capture output
     catptured = capsys.readouterr()
@@ -266,6 +267,7 @@ def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys, qtbot):
 
 
 def test_arcos_widget_data_all(dock_arcos_widget, capsys, qtbot):
+    viewer, mywidget = dock_arcos_widget
     columnpicker.frame.choices = ["t"]
     columnpicker.track_id.choices = ["id"]
     columnpicker.x_coordinates.choices = ["x"]
@@ -283,16 +285,16 @@ def test_arcos_widget_data_all(dock_arcos_widget, capsys, qtbot):
     columnpicker.measurment.value = "m"
     columnpicker.field_of_view_id.value = "Position"
 
-    stored_variables.dataframe = pd.read_csv(
+    mywidget.data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
+    mywidget.filtered_data = pd.read_csv(
         "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
 
-    viewer, mywidget = dock_arcos_widget
     mywidget.close_columnpicker()
     stored_variables.positions = [0, 1]
     stored_variables.current_position = 0
     mywidget.total_event_size.setValue(5)
-    mywidget.update_what_to_run_variable()
+    mywidget.update_what_to_run_all()
     QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
     assert viewer.layers["all_cells"]
     assert viewer.layers["active cells"]
@@ -309,25 +311,28 @@ def test_toggle_biasmethod_visibility(dock_arcos_widget, qtbot):
     viewer.close()
 
 
-def test_collev_plot_widget(make_napari_viewer):
+def test_add_widget(make_napari_viewer):
     viewer = make_napari_viewer()
     num_dw = len(viewer.window._dock_widgets)
     viewer.window.add_plugin_dock_widget(
-        plugin_name="arcos-gui", widget_name="Collective Events Plot"
+        plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
     )
     assert len(viewer.window._dock_widgets) == num_dw + 1
     viewer.close()
 
 
-def test_TimeSeriesPlots_widget(dock_arcos_widget, qtbot):
-    # dock arcos
-    viewer, mywidget = dock_arcos_widget
+def test_TimeSeriesPlots_widget(make_napari_viewer, qtbot):
+    viewer = make_napari_viewer()
     num_dw = len(viewer.window._dock_widgets)
-    # dock TimeSeriesPlots plot
-    widget_info = viewer.window.add_plugin_dock_widget(
-        plugin_name="arcos-gui", widget_name="Timeseries plots"
+    widget = viewer.window.add_plugin_dock_widget(
+        plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
     )
-    plot = widget_info[1]
+    mywidget = widget[1]
+    plot = mywidget
+    mywidget.data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
+    mywidget.filtered_data = pd.read_csv(
+        "src/arcos_gui/_tests/test_data/arcos_data.csv"
+    )
     columnpicker.frame.choices = ["t"]
     columnpicker.track_id.choices = ["id"]
     columnpicker.x_coordinates.choices = ["x"]
@@ -345,23 +350,20 @@ def test_TimeSeriesPlots_widget(dock_arcos_widget, qtbot):
     columnpicker.measurment.value = "m"
     columnpicker.field_of_view_id.value = "Position"
     mywidget.close_columnpicker()
-    stored_variables.dataframe = pd.read_csv(
-        "src/arcos_gui/_tests/test_data/arcos_data.csv"
-    )
 
     stored_variables.positions = [0, 1]
     stored_variables.current_position = 0
     mywidget.total_event_size.setValue(5)
-    mywidget.update_what_to_run_variable()
+    mywidget.update_what_to_run_all()
     QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
-    plot.update_plot()
-    plot.combo_box.setCurrentText("tracklength histogram")
-    plot.update_plot()
-    plot.combo_box.setCurrentText("measurment density plot")
-    plot.update_plot()
-    plot.combo_box.setCurrentText("x/t-plot")
-    plot.update_plot()
-    plot.combo_box.setCurrentText("y/t-plot")
+    plot._ts_plot_update()
+    plot.timeseriesplot.combo_box.setCurrentText("tracklength histogram")
+    plot._ts_plot_update()
+    plot.timeseriesplot.combo_box.setCurrentText("measurment density plot")
+    plot._ts_plot_update()
+    plot.timeseriesplot.combo_box.setCurrentText("x/t-plot")
+    plot._ts_plot_update()
+    plot.timeseriesplot.combo_box.setCurrentText("y/t-plot")
 
     assert len(viewer.window._dock_widgets) == num_dw + 1
     viewer.close()

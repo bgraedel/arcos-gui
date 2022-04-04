@@ -6,8 +6,6 @@ from napari.utils.colormaps import AVAILABLE_COLORMAPS
 # store and retrive a number of variables
 class data_storage:
     def __init__(self):
-        self.data: pd.DataFrame = pd.DataFrame()
-        self.dataframe: pd.DataFrame = pd.DataFrame()
         self.layer_names: list = []
         self.data_merged: pd.DataFrame = pd.DataFrame()
         self.arcos: ARCOS = None  # type: ignore

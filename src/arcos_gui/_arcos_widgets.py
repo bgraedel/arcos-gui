@@ -147,6 +147,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.layers_to_create: list = []
         self.what_to_run: list = []
         self.data: pd.DataFrame = pd.DataFrame()
+        self.filtered_data: pd.DataFrame = pd.DataFrame()
         self.arcos_filtered: pd.DataFrame = pd.DataFrame()
         self.timeseriesplot = TimeSeriesPlots(parent=self)
         self.collevplot = CollevPlotter(parent=self)
@@ -170,7 +171,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.tsplot_layout.addWidget(self.timeseriesplot)
 
     def _ts_plot_update(self):
-        self.timeseriesplot.update_plot(columnpicker, stored_variables.dataframe)
+        self.timeseriesplot.update_plot(columnpicker, self.filtered_data)
 
     def _init_ts_plot_callbacks(self):
         self.timeseriesplot.combo_box.currentIndexChanged.connect(self._ts_plot_update)
@@ -635,14 +636,14 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             # option to set frame interval
             in_data.frame_interval(self.frame_interval.value())
 
-            dataframe = in_data.return_pd_df()
+            filtered_data = in_data.return_pd_df()
 
             # get min and max values
-            if not dataframe.empty:
-                max_meas = max(dataframe[self.measurement])
-                min_meas = min(dataframe[self.measurement])
+            if not filtered_data.empty:
+                max_meas = max(filtered_data[self.measurement])
+                min_meas = min(filtered_data[self.measurement])
                 stored_variables.min_max = (min_meas, max_meas)
-            stored_variables.dataframe = dataframe
+            self.filtered_data = filtered_data
             self._ts_plot_update()
             show_info("Data Filtered!")
 
@@ -678,7 +679,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         # checks if this part of the function has to be run,
         # depends on the parameters changed in arcos widget
 
-        if stored_variables.dataframe.empty:
+        if self.filtered_data.empty:
             show_info("No Data Loaded, Use arcos_widget to load and filter data first")
         else:
             if "all" in self.what_to_run:
@@ -690,7 +691,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 self.Progress.reset()
                 # create arcos object, run arcos
                 arcos = ARCOS(
-                    data=stored_variables.dataframe,
+                    data=self.filtered_data,
                     posCols=posCols,
                     frame_column=self.frame,
                     id_column=self.track_id,
