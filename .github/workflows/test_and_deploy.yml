@@ -13,13 +13,12 @@ on:
 
 jobs:
   test:
-    name: py${{ matrix.python-version }} ${{ matrix.backend }} ${{ matrix.platform }}
+    name: py${{ matrix.python-version }} ${{ matrix.platform }}
     runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
         platform: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10']
-        backend: [pyside2, pyqt5]
 
     steps:
       - uses: actions/checkout@v2
