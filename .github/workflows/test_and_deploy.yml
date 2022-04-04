@@ -4,26 +4,21 @@ on:
   push:
     branches:
       - main
-      - npe2
     tags:
-      - "v*" 
+      - "v*"
   pull_request:
     branches:
       - main
-      - npe2
   workflow_dispatch:
 
 jobs:
   test:
-    name: ${{ matrix.platform }} py${{ matrix.python-version }}
+    name: py${{ matrix.python-version }} ${{ matrix.platform }}
     runs-on: ${{ matrix.platform }}
-    env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest]
-        python-version: [3.8, 3.9]
-        ld_libpath: ["export LD_LIBRARY_PATH=$(python -m rpy2.situation LD_LIBRARY_PATH):${LD_LIBRARY_PATH}"]
+        platform: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10']
 
     steps:
       - uses: actions/checkout@v2
@@ -33,40 +28,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: r-lib/actions/setup-r@v2
-        with:
-          r-version: '4.1.2'
-      - run: Rscript -e 'print("r installed")'
-
       - uses: tlambert03/setup-qt-libs@v1
 
       - name: Install Windows OpenGL
         if: runner.os == 'Windows'
         run: |
-          git clone --depth 1 git://github.com/pyvista/gl-ci-helpers.git
+          git clone --depth 1 https://github.com/pyvista/gl-ci-helpers.git
           powershell gl-ci-helpers/appveyor/install_opengl.ps1
-
-      - name: install devtools dependencies mac
-        if: runner.os == 'macOS'
-        run: |
-          brew install openssl
-
-      - name: install devtools dependencies ubuntu
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt update
-          sudo apt install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev
-          sudo apt install -y r-base-dev
-
-      - name: install required_packages
-        run: |
-          sudo Rscript install_r_packages.r dplyr lazyeval data.table devtools
-          sudo Rscript install_ARCOS.r
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install setuptools tox tox-gh-actions
+          pip install setuptools tox tox-gh-actions ${{ matrix.backend }}
 
       - name: Test with tox
         uses: GabrielBB/xvfb-action@v1

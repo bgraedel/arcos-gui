@@ -2,18 +2,15 @@ from os import sep
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import napari
 import numpy as np
 import pandas as pd
 from magicgui import magic_factory, magicgui
-from matplotlib.backends.backend_qt5agg import FigureCanvas
-from matplotlib.figure import Figure
 from napari.types import LayerDataTuple
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 from qtpy.QtCore import Qt
-from scipy.stats import gaussian_kde
+from qtpy.QtGui import QIcon
 from superqt import QDoubleRangeSlider, QRangeSlider
 
 if TYPE_CHECKING:
@@ -21,18 +18,27 @@ if TYPE_CHECKING:
     import napari.viewer
 
 # local imports
-from arcos_gui.arcos_module import ARCOS, process_input
+from arcos4py import ARCOS
+from arcos4py.tools import filterCollev
+from arcos_gui._plots import CollevPlotter, TimeSeriesPlots
+from arcos_gui.data_module import process_input
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
 from arcos_gui.magic_guis import columnpicker, show_timestamp_options, timestamp_options
 from arcos_gui.shape_functions import (
     COLOR_CYCLE,
     assign_color_id,
+    fix_3d_convex_hull,
     format_verticesHull,
     get_verticesHull,
     make_shapes,
+    make_surface_3d,
     make_timestamp,
 )
 from arcos_gui.temp_data_storage import data_storage
+
+# icons
+ICONS = Path(__file__).parent / "_icons"
+browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
 
 # initalize class
 stored_variables = data_storage()
@@ -80,7 +86,6 @@ class _MainUI:
     clip_meas: QtWidgets.QCheckBox
     clip_low: QtWidgets.QDoubleSpinBox
     clip_high: QtWidgets.QDoubleSpinBox
-    interval_type: QtWidgets.QComboBox
     bias_method: QtWidgets.QComboBox
     smooth_k: QtWidgets.QComboBox
     bias_k: QtWidgets.QSpinBox
@@ -110,6 +115,12 @@ class _MainUI:
     layer_properties: QtWidgets.QGroupBox
     horizontalLayout_lut: QtWidgets.QHBoxLayout
 
+    collevplot_goupbox: QtWidgets.QGroupBox
+    timeseriesplot_groupbox: QtWidgets.QGroupBox
+    evplot_layout: QtWidgets.QVBoxLayout
+    tsplot_layout: QtWidgets.QVBoxLayout
+    nbr_collev_display: QtWidgets.QLCDNumber
+
     def setup_ui(self):
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
 
@@ -130,13 +141,19 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def __init__(self, viewer: napari.viewer.Viewer, remote=True):
         super().__init__()
+        self.viewer: napari.viewer.Viewer = viewer
         self.setup_ui()
+        self._filename: str = self.file_LineEdit.text()
         self.layers_to_create: list = []
         self.what_to_run: list = []
-        self.viewer: napari.viewer.Viewer = viewer
-        self._filename: str = self.file_LineEdit.text()
-
+        self.data: pd.DataFrame = pd.DataFrame()
+        self.filtered_data: pd.DataFrame = pd.DataFrame()
+        self.arcos_filtered: pd.DataFrame = pd.DataFrame()
+        self.timeseriesplot = TimeSeriesPlots(parent=self)
+        self.collevplot = CollevPlotter(parent=self)
+        self._add_plot_widgets()
         self._init_ranged_sliderts()
+        self.browse_file.setIcon(browse_file_icon)
         self._set_default_visible()
 
         self._init_callbacks_for_whattorun()
@@ -146,6 +163,23 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._connect_ranged_sliders_to_spinboxes()
         self._connect_pushbutton_callbacks()
         self._init_callbacks_visible_arcosparameters()
+        self._init_ts_plot_callbacks()
+        self._init_columns()
+
+    def _add_plot_widgets(self):
+        self.evplot_layout.addWidget(self.collevplot)
+        self.tsplot_layout.addWidget(self.timeseriesplot)
+
+    def _ts_plot_update(self):
+        self.timeseriesplot.update_plot(columnpicker, self.filtered_data)
+
+    def _init_ts_plot_callbacks(self):
+        self.timeseriesplot.combo_box.currentIndexChanged.connect(self._ts_plot_update)
+        self.timeseriesplot.button.clicked.connect(self._ts_plot_update)
+
+    def collev_plot_update(self):
+        self.collevplot.update_plot(columnpicker, self.arcos_filtered)
+        self.nbr_collev_display.display(self.collevplot.nbr_collev)
 
     def _init_callbacks_visible_arcosparameters(self):
         # callback for changing available options of bias method
@@ -159,7 +193,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         # callback for updating what to run in arcos_widget
         self.open_file_button.clicked.connect(self.open_columnpicker)
         # reset what to run
-        self.filter_input_data.clicked.connect(self.update_what_to_run_variable)
+        self.filter_input_data.clicked.connect(self.update_what_to_run_all)
         self.open_file_button.clicked.connect(self.what_to_run.clear)
         # callbackfor filtering data
         self.filter_input_data.clicked.connect(self.filter_data)
@@ -207,7 +241,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.clip_low.valueChanged.connect(self.update_what_to_run_all)
         self.clip_high.valueChanged.connect(self.update_what_to_run_all)
         self.smooth_k.valueChanged.connect(self.update_what_to_run_all)
-        self.interval_type.currentIndexChanged.connect(self.update_what_to_run_all)
         self.bias_k.valueChanged.connect(self.update_what_to_run_all)
         self.bin_threshold.valueChanged.connect(self.update_what_to_run_all)
         self.neighbourhood_size.valueChanged.connect(self.update_what_to_run_tracking)
@@ -228,6 +261,15 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.tracklenght_slider.setRange(0, 10)
         self.tracklenght_slider.setValue((0, 10))
         self.lut_slider.setValue((0, 10))
+
+    def _init_columns(self):
+        self.frame = "None"
+        self.track_id = "None"
+        self.x_coordinates = "None"
+        self.y_coordinates = "None"
+        self.z_coordinates = "None"
+        self.measurement = "None"
+        self.field_of_view_id = "None"
 
     def handleSlider_tracklength_ValueChange(self):
         slider_vals = self.tracklenght_slider.value()
@@ -256,220 +298,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.lut_slider.setValue((slider_vals[0], value))
 
     def _set_default_visible(self):
+        self.clip_meas.setChecked(False)
         self.position.setVisible(False)
         self.position_label.setVisible(False)
         self.polyDeg.setVisible(False)
         self.polyDeg_label.setVisible(False)
-
-    def browse_files(self):
-        self.filename = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Load CSV file", str(Path.home()), "csv(*.csv)"
-        )
-        self.file_LineEdit.setText(self.filename[0])
-
-    def close_columnpicker(self):
-        """
-        gets the chosen columns to be stored inside of a dictionnary
-        as a parameter of the columnpicker widget. Additionally,
-        determines minimum and maximum tracklength and unique positoins
-        for filtering the TimeSeries later on via sliders in filter_widget
-        and updates these variables in the stored_variables object.
-        Function also initializes callbacks for when new layers are inserted
-        and removes layers once new data gets loaded.
-        """
-        # populate column dictionnary
-        frame = columnpicker.frame.value
-        track_id = columnpicker.track_id.value
-        x_coordinates = columnpicker.x_coordinates.value
-        y_coordinates = columnpicker.y_coordinates.value
-        measurment = columnpicker.measurment.value
-        field_of_view_id = columnpicker.field_of_view_id.value
-        columnpicker.close()
-        columnpicker.dicCols.value = {
-            "frame": frame,
-            "x_coordinates": x_coordinates,
-            "y_coordinates": y_coordinates,
-            "track_id": track_id,
-            "measurment": measurment,
-            "field_of_view_id": field_of_view_id,
-        }
-        self.subtract_timeoffset()
-
-    def subtract_timeoffset(self):
-        data = stored_variables.data
-        data[columnpicker.dicCols.value["frame"]] -= min(
-            data[columnpicker.dicCols.value["frame"]]
-        )
-
-    def set_positions(self):
-        # get unique positions for filter_widget
-        if columnpicker.dicCols.value["field_of_view_id"] != "None":
-            positions = list(
-                stored_variables.data[
-                    columnpicker.dicCols.value["field_of_view_id"]
-                ].unique()
-            )
-        else:
-            positions = ["None"]
-
-        # set positions in filter widget, filter data
-        self.position.clear()
-        for i in positions:
-            self.position.addItem(str(i), i)
-
-        # hides position choice if no position column exists in the raw data
-        # i.e. during columnpicker position was set to None.
-        # Also hides it if there is only one position available.
-        # Updates everytime when new data is read in
-        if self.position.count() <= 1:
-            self.position.setVisible(False)
-            self.position_label.setVisible(False)
-        else:
-            self.position.setVisible(True)
-            self.position_label.setVisible(True)
-
-    def get_tracklengths(self):
-        """
-        Groups filtered data by track_id and
-        returns minimum and maximum tracklenght.
-        Updates min and max tracklenght in the arcos_widget.
-        """
-        data = stored_variables.data
-        if not data.empty:
-            if columnpicker.dicCols.value["field_of_view_id"] != "None":
-                track_lenths = stored_variables.data.groupby(
-                    [
-                        columnpicker.dicCols.value["field_of_view_id"],
-                        columnpicker.dicCols.value["track_id"],
-                    ]
-                ).size()
-            else:
-                track_lenths = stored_variables.data.groupby(
-                    [columnpicker.dicCols.value["track_id"]]
-                ).size()
-            minmax = (min(track_lenths), max(track_lenths))
-
-            if minmax[1] - minmax[0] > 1:
-                self.tracklenght_slider.setMinimum(minmax[0])
-                self.tracklenght_slider.setMaximum(minmax[1])
-
-            self.min_tracklength_spinbox.setMinimum(minmax[0])
-            self.max_tracklength_spinbox.setMinimum(minmax[0])
-
-            self.min_tracklength_spinbox.setMaximum(minmax[1])
-            self.max_tracklength_spinbox.setMaximum(minmax[1])
-
-            self.min_tracklength_spinbox.setValue(minmax[0])
-            self.max_tracklength_spinbox.setValue(minmax[1])
-
-    def remove_layers_after_columnpicker(self):
-        """
-        removes existing arcos layers before loading new data
-        """
-        layer_list = self.get_layer_list()
-        for layer in [
-            "coll cells",
-            "coll events",
-            "active cells",
-            "all_cells",
-            "Timestamp",
-        ]:
-            if layer in layer_list:
-                self.viewer.layers.remove(layer)
-
-    def get_layer_list(self):
-        layer_list = [layer.name for layer in self.viewer.layers]
-        return layer_list
-
-    def update_what_to_run_variable(self):
-        """
-        updates a 'what to run' variable in the stored_variables object,
-        that is used in arcos_widget to check if what to run
-        when certain field have updated values
-        """
-        self.what_to_run.append("all")
-
-    def open_columnpicker(self):
-        """
-        Take a filename and if it is a csv file,
-        open it and stores it in the stored_variables_object.
-        Shows columnpicker dialog.
-        """
-        columns = columnpicker.frame.choices
-        column_keys = columnpicker.dicCols.value.keys()
-        for i in column_keys:
-            for index, j in enumerate(columns):
-                getattr(columnpicker, i).del_choice(str(j))
-        csv_file = self.file_LineEdit.text()
-        if str(csv_file).endswith(".csv"):
-            self.layers_to_create.clear()
-            stored_variables.data = pd.read_csv(csv_file)
-            columns = list(stored_variables.data.columns)
-            columnpicker.frame.choices = columns
-            columnpicker.track_id.choices = columns
-            columnpicker.x_coordinates.choices = columns
-            columnpicker.y_coordinates.choices = columns
-            columnpicker.measurment.choices = columns
-            columnpicker.field_of_view_id.choices = columns
-            columnpicker.field_of_view_id.set_choice("None", "None")
-            columnpicker.show()
-        else:
-            show_info("Not a csv file")
-
-    def filter_data(self):
-        """
-        Used to filter the input datato contain a single position.
-        filter options also include minimum and maximum tracklength.
-        Allows for rescaling of measurment variable.
-        """
-        # gets raw data read in by arcos_widget from stored_variables object
-        # and columns from columnpicker value
-        in_data = process_input(
-            df=stored_variables.data, columns=columnpicker.dicCols.value
-        )
-        if (
-            stored_variables.data.empty
-            or columnpicker.dicCols.value["field_of_view_id"]
-            == columnpicker.dicCols.value["measurment"]
-        ):
-            show_info("No data loaded, or not loaded correctly")
-        else:
-            # if the position column was not chosen in columnpicker,
-            # dont filter by position
-            if columnpicker.dicCols.value["field_of_view_id"] != "None":
-                # hast to be done before .filter_tracklenght otherwise code could break
-                # if track ids are not unique to positions
-                in_data.filter_position(self.position.currentData())
-            # filter by tracklenght
-            in_data.filter_tracklength(
-                self.min_tracklength_spinbox.value(),
-                self.max_tracklength_spinbox.value(),
-            )
-            # option to rescale the measurment column
-            in_data.rescale_measurment(rescale_factor=self.rescale_measurment.value())
-            # option to set frame interval
-            in_data.frame_interval(self.frame_interval.value())
-
-            dataframe = in_data.return_pd_df()
-
-            # get min and max values
-            if not dataframe.empty:
-                max_meas = max(dataframe[columnpicker.dicCols.value["measurment"]])
-                min_meas = min(dataframe[columnpicker.dicCols.value["measurment"]])
-                stored_variables.min_max = (min_meas, max_meas)
-            stored_variables.dataframe = dataframe
-            show_info("Data Filtered!")
-
-    # several functions to update the 'what to run' variable in stored_variables
-
-    def update_what_to_run_all(self):
-        self.what_to_run.append("all")
-
-    def update_what_to_run_tracking(self):
-        self.what_to_run.append("from_tracking")
-
-    def update_what_to_run_filtering(self):
-        self.what_to_run.append("from_filtering")
 
     def toggle_bias_method_parameter_visibility(self):
         """
@@ -512,22 +345,69 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self.bin_threshold.setVisible(True)
             self.bin_threshold_label.setVisible(True)
 
+    def callback_file_Linedit_text(self, value):
+        """Used to load sample data from test_data.
+        and set columnpicker to indicated values"""
+        self.file_LineEdit.setText(value)
+        self.open_columnpicker()
+        columnpicker.frame.value = "t"
+        columnpicker.track_id.value = "id"
+        columnpicker.x_coordinates.value = "x"
+        columnpicker.y_coordinates.value = "y"
+        columnpicker.z_coordinates.value = "None"
+        columnpicker.measurment.value = "m"
+        columnpicker.field_of_view_id.value = "Position"
+
+    def update_what_to_run_all(self):
+        """
+        sets 'what to run' attribute to 'all' in the what_to_run attirbute,
+        that is used in the main function to check if what to run
+        when certain field have updated values.
+        """
+        self.what_to_run.append("all")
+
+    def update_what_to_run_tracking(self):
+        """sets 'what to run' attribute to 'from_tracking' in the what_to_run attirbute,
+        that is used in the main function to check if what to run
+        when certain field have updated values."""
+        self.what_to_run.append("from_tracking")
+
+    def update_what_to_run_filtering(self):
+        """sets 'what to run' attribute to 'from_filtering'
+        in the what_to_run attirbute,
+        that is used in the main function to check if what to run
+        when certain field have updated values."""
+        self.what_to_run.append("from_filtering")
+
+    def browse_files(self):
+        """Opens a filedialog and saves path as a string in self.filename"""
+        self.filename = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load CSV file", str(Path.home()), "csv(*.csv)"
+        )
+        self.file_LineEdit.setText(self.filename[0])
+
+    def subtract_timeoffset(self):
+        """Method to subtract the timeoffset in the frame column of data"""
+        data = self.data
+        data[self.frame] -= min(data[self.frame])
+        self.data = data
+
     def set_point_size(self):
         """
         updates values in lut mapping sliders
         """
-        data = stored_variables.data
+        data = self.data
         if not data.empty:
-            minx = min(data[columnpicker.dicCols.value["x_coordinates"]])
-            maxx = max(data[columnpicker.dicCols.value["x_coordinates"]])
-            miny = min(data[columnpicker.dicCols.value["y_coordinates"]])
-            maxy = max(data[columnpicker.dicCols.value["y_coordinates"]])
+            minx = min(data[self.x_coordinates])
+            maxx = max(data[self.x_coordinates])
+            miny = min(data[self.y_coordinates])
+            maxy = max(data[self.y_coordinates])
 
             max_coord_diff = max(maxx - minx, maxy - miny)
             self.point_size.setValue(
                 0.75482
                 + 0.00523857 * max_coord_diff
-                + 9.0618311e-6 * max_coord_diff ** 2
+                + 9.0618311e-6 * max_coord_diff**2
             )
 
     def reset_contrast(self):
@@ -581,9 +461,195 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self.viewer.layers["coll events"].edge_width = size / 5
             self.viewer.layers["coll events"].refresh()
 
-    def arcos_function(self) -> LayerDataTuple:
+    def open_columnpicker(self):
         """
-        ARCOS function to execute R code and detect collective events.
+        Take a filename and if it is a csv file,
+        opens it and stores it in the stored_variables_object.
+        Shows columnpicker dialog.
+        """
+        columns = columnpicker.frame.choices
+        column_keys = [
+            "frame",
+            "x_coordinates",
+            "y_coordinates",
+            "z_coordinates",
+            "track_id",
+            "measurment",
+            "field_of_view_id",
+        ]
+        for i in column_keys:
+            for index, j in enumerate(columns):
+                getattr(columnpicker, i).del_choice(str(j))
+        csv_file = self.file_LineEdit.text()
+        if str(csv_file).endswith(".csv"):
+            self.layers_to_create.clear()
+            self.data = pd.read_csv(csv_file)
+            columns = list(self.data.columns)
+            columnpicker.frame.choices = columns
+            columnpicker.track_id.choices = columns
+            columnpicker.x_coordinates.choices = columns
+            columnpicker.y_coordinates.choices = columns
+            columnpicker.z_coordinates.choices = columns
+            columnpicker.measurment.choices = columns
+            columnpicker.field_of_view_id.choices = columns
+            columnpicker.field_of_view_id.set_choice("None", "None")
+            columnpicker.z_coordinates.set_choice("None", "None")
+            columnpicker.show()
+        else:
+            show_info("Not a csv file")
+
+    def close_columnpicker(self):
+        """
+        gets the chosen columns to be stored inside of
+        class attributes and closes the columnpicker dialog.
+        Additionally subtracts the frame-offset from the frame
+        column in data.
+        """
+        # populate column dictionnary
+        self.frame = columnpicker.frame.value
+        self.track_id = columnpicker.track_id.value
+        self.x_coordinates = columnpicker.x_coordinates.value
+        self.y_coordinates = columnpicker.y_coordinates.value
+        self.z_coordinates = columnpicker.z_coordinates.value
+        self.measurement = columnpicker.measurment.value
+        self.field_of_view_id = columnpicker.field_of_view_id.value
+        columnpicker.close()
+        self.subtract_timeoffset()
+
+    def remove_layers_after_columnpicker(self):
+        """removes existing arcos layers before loading new data"""
+        layer_list = self.get_layer_list()
+        for layer in [
+            "coll cells",
+            "coll events",
+            "active cells",
+            "all_cells",
+            "Timestamp",
+        ]:
+            if layer in layer_list:
+                self.viewer.layers.remove(layer)
+
+    def get_layer_list(self):
+        """Get list of open layers"""
+        layer_list = [layer.name for layer in self.viewer.layers]
+        return layer_list
+
+    def set_positions(self):
+        """get unique positions from data, empty positions dialog
+        for preveious data and append new positions."""
+        if self.field_of_view_id != "None":
+            positions = list(self.data[self.field_of_view_id].unique())
+        else:
+            positions = ["None"]
+
+        # delete position values is position dialog self.positions
+        self.position.clear()
+        # add new positions
+        for i in positions:
+            self.position.addItem(str(i), i)
+
+        # hides position choice if no position column exists in the raw data
+        # i.e. during columnpicker position was set to None.
+        # Also hides it if there is only one position available.
+        # is updated everytime when new data is read in
+        if self.position.count() <= 1:
+            self.position.setVisible(False)
+            self.position_label.setVisible(False)
+        else:
+            self.position.setVisible(True)
+            self.position_label.setVisible(True)
+
+    def set_posCol(self) -> list:
+        if self.z_coordinates != "None":
+            posCols = [self.x_coordinates, self.y_coordinates, self.z_coordinates]
+            return posCols
+
+        posCols = [self.x_coordinates, self.y_coordinates]
+        return posCols
+
+    def get_tracklengths(self):
+        """
+        Groups filtered data by track_id and
+        returns minimum and maximum tracklenght.
+        Updates min and max tracklenght in
+        the widget spinbox and sliders.
+        """
+        data = self.data
+        if not data.empty:
+            if self.field_of_view_id != "None":
+                track_lenths = self.data.groupby(
+                    [
+                        self.field_of_view_id,
+                        self.track_id,
+                    ]
+                ).size()
+            else:
+                track_lenths = self.data.groupby([self.track_id]).size()
+            minmax = (min(track_lenths), max(track_lenths))
+
+            if minmax[1] - minmax[0] > 1:
+                self.tracklenght_slider.setMinimum(minmax[0])
+                self.tracklenght_slider.setMaximum(minmax[1])
+
+            self.min_tracklength_spinbox.setMinimum(minmax[0])
+            self.max_tracklength_spinbox.setMinimum(minmax[0])
+
+            self.min_tracklength_spinbox.setMaximum(minmax[1])
+            self.max_tracklength_spinbox.setMaximum(minmax[1])
+
+            self.min_tracklength_spinbox.setValue(minmax[0])
+            self.max_tracklength_spinbox.setValue(minmax[1])
+
+    def filter_data(self):
+        """
+        Used to filter the input datato contain a single position.
+        filter options also include minimum and maximum tracklength.
+        Allows for rescaling of measurment variable.
+        """
+        # gets raw data read in by arcos_widget from stored_variables object
+        # and columns from columnpicker value
+        posCols = self.set_posCol()
+        in_data = process_input(
+            df=self.data,
+            field_of_view_column=self.field_of_view_id,
+            frame_column=self.frame,
+            pos_columns=posCols,
+            track_id_column=self.track_id,
+            measurement_column=self.measurement,
+        )
+        if self.data.empty or self.field_of_view_id == self.measurement:
+            show_info("No data loaded, or not loaded correctly")
+        else:
+            # if the position column was not chosen in columnpicker,
+            # dont filter by position
+            if self.field_of_view_id != "None":
+                # hast to be done before .filter_tracklenght otherwise code could break
+                # if track ids are not unique to positions
+                in_data.filter_position(self.position.currentData())
+            # filter by tracklenght
+            in_data.filter_tracklength(
+                self.min_tracklength_spinbox.value(),
+                self.max_tracklength_spinbox.value(),
+            )
+            # option to rescale the measurment column
+            in_data.rescale_measurment(rescale_factor=self.rescale_measurment.value())
+            # option to set frame interval
+            in_data.frame_interval(self.frame_interval.value())
+
+            filtered_data = in_data.return_pd_df()
+
+            # get min and max values
+            if not filtered_data.empty:
+                max_meas = max(filtered_data[self.measurement])
+                min_meas = min(filtered_data[self.measurement])
+                stored_variables.min_max = (min_meas, max_meas)
+            self.filtered_data = filtered_data
+            self._ts_plot_update()
+            show_info("Data Filtered!")
+
+    def run_arcos(self) -> LayerDataTuple:
+        """
+        ARCOS method to detect collective events.
 
         Returned data can contain:
         all_cells:
@@ -601,12 +667,19 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         to the calculation done by arcos part of a collective event
 
         coll events:
-        returns polycons representing the convex hulls of individual collective
-        events, color coded accoring to a color_cycle attribute
+        returns convex hulls of individual collective
+        events, in 2D case, color is coded accoring to a color_cycle attribute.
+        in 3D case according to a LUT.
         """
+
+        posCols = self.set_posCol()
+        measbin_col = f"{self.measurement}.bin"
+        collid_name = "collid"
+
         # checks if this part of the function has to be run,
         # depends on the parameters changed in arcos widget
-        if stored_variables.dataframe.empty:
+
+        if self.filtered_data.empty:
             show_info("No Data Loaded, Use arcos_widget to load and filter data first")
         else:
             if "all" in self.what_to_run:
@@ -617,9 +690,13 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 # sets Progressbar to 0
                 self.Progress.reset()
                 # create arcos object, run arcos
-                arcos = ARCOS(stored_variables.dataframe, columnpicker.dicCols.value)
-                arcos.create_arcosTS(
-                    interval=1, inter_type=self.interval_type.currentText()
+                arcos = ARCOS(
+                    data=self.filtered_data,
+                    posCols=posCols,
+                    frame_column=self.frame,
+                    id_column=self.track_id,
+                    measurement_column=self.measurement,
+                    clid_column=collid_name,
                 )
 
                 self.Progress.setValue(4)
@@ -630,7 +707,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                 # if corresponding checkbock was selected run clip_measuremnts
                 if self.clip_meas.isChecked:
-                    arcos.clip_measurements(
+                    arcos.clip_meas(
                         clip_low=self.clip_low.value(),
                         clip_high=self.clip_high.value(),
                     )
@@ -643,13 +720,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 # binarize data and update ts variable in stored_variables
                 # update from where to run
                 ts = arcos.bin_measurements(
-                    self.bias_method.currentText(),
-                    self.smooth_k.value(),
-                    self.bias_k.value(),
-                    self.bin_peak_threshold.value(),
-                    self.bin_threshold.value(),
-                    self.polyDeg.value(),
-                    return_dataframe=True,
+                    smoothK=self.smooth_k.value(),
+                    biasK=self.bias_k.value(),
+                    peakThr=self.bin_peak_threshold.value(),
+                    binThr=self.bin_threshold.value(),
+                    polyDeg=self.polyDeg.value(),
+                    biasMet=self.bias_method.currentText(),
                 )
                 stored_variables.ts_data = ts
                 self.what_to_run.append("from_tracking")
@@ -662,9 +738,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 arcos = stored_variables.arcos  # type: ignore
                 ts = stored_variables.ts_data
                 # if active cells were detected, run this
-                if 1 in ts["meas.bin"].values:
+                if 1 in ts[measbin_col].values:
                     # track collective events
-                    arcos.track_events(
+                    arcos.trackCollev(
                         self.neighbourhood_size.value(),
                         self.min_clustersize.value(),
                     )
@@ -701,46 +777,51 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                 # if cells were classifed as being active (represented by a 1)
                 # filter tracked events acording to chosen parameters
-                elif 1 in ts["meas.bin"].values:
+                elif 1 in ts[measbin_col].values:
 
                     # set return varaibles to check which layers have to be created
                     return_collev = False
                     return_points = True
-                    out = arcos.filter_tracked_events(
+                    filterer = filterCollev(arcos.data, self.frame, collid_name)
+                    self.arcos_filtered = filterer.filter(
                         self.min_dur.value(),
                         self.total_event_size.value(),
-                        as_pd_dataframe=True,
                     )
-
                     self.Progress.setValue(20)
-
-                    # update stats variable
-                    arcos.calculate_stats()
 
                     # merge tracked and original data
                     merged_data = pd.merge(
                         ts,
-                        out[
+                        self.arcos_filtered[
                             [
-                                columnpicker.dicCols.value["frame"],
-                                columnpicker.dicCols.value["track_id"],
+                                self.frame,
+                                self.track_id,
                                 "collid",
                             ]
                         ],
                         how="left",
                         on=[
-                            columnpicker.dicCols.value["frame"],
-                            columnpicker.dicCols.value["track_id"],
+                            self.frame,
+                            self.track_id,
                         ],
                     )
                     stored_variables.data_merged = merged_data
 
-                    # column list
-                    vColsCore = [
-                        columnpicker.dicCols.value["frame"],
-                        columnpicker.dicCols.value["y_coordinates"],
-                        columnpicker.dicCols.value["x_coordinates"],
-                    ]
+                    if self.z_coordinates == "None":
+                        # column list
+                        vColsCore = [
+                            self.frame,
+                            self.y_coordinates,
+                            self.x_coordinates,
+                        ]
+                    else:
+                        # column list
+                        vColsCore = [
+                            self.frame,
+                            self.y_coordinates,
+                            self.x_coordinates,
+                            self.z_coordinates,
+                        ]
 
                     # np matrix with all cells
                     datAll = merged_data[vColsCore].to_numpy()
@@ -748,12 +829,10 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # a dictionary with activities;
                     # shown as a color code of all cells
 
-                    datAllProp = {
-                        "act": merged_data[columnpicker.dicCols.value["measurment"]]
-                    }
+                    datAllProp = {"act": merged_data[self.measurement]}
 
                     # np matrix with acvtive cells; shown as black dots
-                    datAct = merged_data[merged_data["meas.bin"] > 0][
+                    datAct = merged_data[merged_data[measbin_col] > 0][
                         vColsCore
                     ].to_numpy()
 
@@ -797,49 +876,90 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         "points",
                     )
                     self.Progress.setValue(24)
-
                     # check if collective events were detected and add layer,
                     # if yes calculate convex hulls for collective events
                     if datColl.size != 0:
                         # convex hulls
                         df_gb = merged_data[~np.isnan(merged_data["collid"])].groupby(
-                            [columnpicker.dicCols.value["frame"], "collid"]
+                            [self.frame, "collid"]
                         )
-                        datChull = df_gb.apply(
-                            get_verticesHull,
-                            col_x=columnpicker.dicCols.value["x_coordinates"],
-                            col_y=columnpicker.dicCols.value["y_coordinates"],
-                        ).reset_index(drop=True)
-                        # check if error Qhullerror was raised in get_verticesHull
-                        # shows column info that was passed on to the function
-                        if type(datChull) == list:
-                            show_info(
-                                f"Error in convex hull creation, \
-                                correct x/y columns selected? \n \
-                                x, y columns: {datChull}"
+                        if self.z_coordinates == "None":
+                            datChull = df_gb.apply(
+                                get_verticesHull,
+                                col_x=self.x_coordinates,
+                                col_y=self.y_coordinates,
+                            ).reset_index(drop=True)
+
+                            # check if error Qhullerror was raised in get_verticesHull
+                            # shows column info that was passed on to the function
+                            if type(datChull) == list:
+                                show_info(
+                                    f"Error in convex hull creation, \
+                                    correct x/y columns selected? \n \
+                                    x, y columns: {datChull}"
+                                )
+
+                            datChull = format_verticesHull(
+                                datChull,
+                                self.frame,
+                                self.x_coordinates,
+                                self.y_coordinates,
+                                "collid",
+                            )
+                            self.Progress.setValue(28)
+
+                            df_collid_colors = assign_color_id(
+                                df=datChull,
+                                palette=COLOR_CYCLE,
                             )
 
-                        datChull = format_verticesHull(
-                            datChull,
-                            columnpicker.dicCols.value["frame"],
-                            columnpicker.dicCols.value["x_coordinates"],
-                            columnpicker.dicCols.value["y_coordinates"],
-                            "collid",
-                        )
+                            self.Progress.setValue(32)
 
-                        self.Progress.setValue(28)
+                            datChull = datChull.merge(df_collid_colors, on="collid")
+                            # create actual shapes
+                            kw_shapes = make_shapes(datChull, col_text="collid")
 
-                        df_collid_colors = assign_color_id(
-                            df=datChull,
-                            palette=COLOR_CYCLE,
-                        )
+                            coll_events = (
+                                kw_shapes["data"],
+                                {
+                                    "face_color": kw_shapes["face_color"],
+                                    "properties": kw_shapes["properties"],
+                                    "shape_type": "polygon",
+                                    "text": None,
+                                    "opacity": 0.5,
+                                    "edge_color": "white",
+                                    "edge_width": round(size / 5, 2),
+                                    "name": "coll events",
+                                },
+                                "shapes",
+                            )
 
-                        datChull = datChull.merge(df_collid_colors, on="collid")
+                        else:
+                            event_surfaces = make_surface_3d(
+                                merged_data[~np.isnan(merged_data["collid"])],
+                                self.frame,
+                                self.x_coordinates,
+                                self.y_coordinates,
+                                self.z_coordinates,
+                                "collid",
+                            )
 
-                        # creates actuall shapes
-                        kw_shapes = make_shapes(datChull, col_text="collid")
-
-                        self.Progress.setValue(32)
+                            event_surfaces = fix_3d_convex_hull(
+                                merged_data[vColsCore],
+                                event_surfaces[0],
+                                event_surfaces[1],
+                                event_surfaces[2],
+                                self.frame,
+                            )
+                            coll_events = (
+                                event_surfaces,
+                                {
+                                    "colormap": "viridis",
+                                    "name": "coll events",
+                                    "opacity": 0.5,
+                                },
+                                "surface",
+                            )
 
                         # get point_size
                         size = self.point_size.value()
@@ -856,20 +976,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                             },
                             "points",
                         )
-                        coll_events = (
-                            kw_shapes["data"],
-                            {
-                                "face_color": kw_shapes["face_color"],
-                                "properties": kw_shapes["properties"],
-                                "shape_type": "polygon",
-                                "text": None,
-                                "opacity": 0.5,
-                                "edge_color": "white",
-                                "edge_width": round(size / 5, 2),
-                                "name": "coll events",
-                            },
-                            "shapes",
-                        )
+
                         return_collev = True
 
                         self.Progress.setValue(36)
@@ -882,6 +989,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         show_info(
                             "No collective events detected, consider adjusting parameters"  # NOQA
                         )
+
                     self.Progress.setValue(40)
                     self.layers_to_create.clear()
 
@@ -899,6 +1007,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     self.what_to_run.clear()
 
     def make_layers(self):
+        """adds layers from self.layers_to_create,
+        whitch itself is upated from run_arcos method"""
         layers_names = [layer.name for layer in self.viewer.layers]
         if self.layers_to_create:
             for layer in [
@@ -912,258 +1022,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             for result in self.layers_to_create:
                 self.viewer.add_layer(napari.layers.Layer.create(*result))
 
-    def callback_file_Linedit_text(self, value):
-        self.file_LineEdit.setText(value)
-        self.open_columnpicker()
-        columnpicker.frame.value = "t"
-        columnpicker.track_id.value = "id"
-        columnpicker.x_coordinates.value = "x"
-        columnpicker.y_coordinates.value = "y"
-        columnpicker.measurment.value = "m"
-        columnpicker.field_of_view_id.value = "Position"
-
     def run(self):
-        self.arcos_function()
+        """main function to run arcos, add layers and change cell size"""
+        self.run_arcos()
         self.make_layers()
+        self.collev_plot_update()
         self.change_cell_size()
-
-
-class CollevPlotter(QtWidgets.QWidget):
-    """
-    QWidget for plotting.
-    Class to make a matplotlib figure canvas and add it to a Qwidget.
-    Canvas, figure and axis objects can be acessed by self.canvas,
-    self.fig and self.ax. This plots duration of Collective events over their size as
-    returned by arcos.
-    """
-
-    def __init__(self, viewer: "napari.viewer.Viewer", parent=None):
-        """Initialise instance.
-        :param viewer: Napari viewer instance
-        :type viewer: napari.viewer.Viewer
-        :param parent: Parent widget, optional
-        :type parent: qtpy.QtWidgets.QWidget
-        """
-        super().__init__(parent)
-        self.viewer = viewer
-        self._init_mpl_widgets()
-        self.update_plot()
-
-        # connect callbacks
-        self.viewer.layers.events.inserted.connect(self.update_plot)
-        self.viewer.layers.events.removed.connect(self.update_plot)
-
-    def _init_mpl_widgets(self):
-        """
-        Method to initialise a matplotlib figure canvas, to generate,
-        set plot style and axis, and populate it with a matplotlib.figure.Figure.
-        """
-        # set up figure and axe objects
-        with plt.style.context("dark_background"):
-            plt.rcParams["figure.dpi"] = 110
-            plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2))
-            self.canvas = FigureCanvas(self.fig)
-            self.ax = self.fig.add_subplot(111)
-            self.ax.scatter([], [])
-            self.ax.set_xlabel("Total Size")
-            self.ax.set_ylabel("Event Duration")
-            self.canvas.figure.tight_layout()
-
-        # construct layout
-        layout = QtWidgets.QVBoxLayout()
-        # layout.addWidget(self.toolbar)
-        layout.addWidget(self.canvas)
-        self.setLayout(layout)
-        self.setWindowTitle("Collective Events")
-
-    def update_plot(self):
-        """
-        Method to update the matplotlibl axis object self.ax with new values from
-        the stored_variables object
-        """
-        arcos = stored_variables.arcos
-        # if no calculation was run so far (i.e. when the widget is initialized)
-        # populate it with no data
-        if arcos is not None:
-            stats = arcos.calculate_stats()
-        else:
-            stats = pd.DataFrame(data={"totSz": [], "clDur": []})
-        self.ax.cla()
-        self.ax.spines["bottom"].set_color("white")
-        self.ax.spines["top"].set_color("white")
-        self.ax.spines["right"].set_color("white")
-        self.ax.spines["left"].set_color("white")
-        self.ax.xaxis.label.set_color("white")
-        self.ax.yaxis.label.set_color("white")
-        self.ax.tick_params(colors="white", which="both")
-        self.ax.axis("on")
-        stats = stats[["totSz", "clDur"]]
-        self.ax.scatter(stats[["totSz"]], stats[["clDur"]], alpha=0.8)
-        self.ax.set_xlabel("Total Size")
-        self.ax.set_ylabel("Event Duration")
-        self.fig.canvas.draw_idle()
-
-
-class TimeSeriesPlots(QtWidgets.QWidget):
-    """
-    QWidget for plotting.
-    Class to make a matplotlib figure canvas and add it to a Qwidget.
-    Canvas, figure and axis objects can be acessed by self.canvas, self.fig and self.ax.
-    This plots several different Timeseries plots such as Position/t plots,
-    tracklength histogram and a measurment density plot.
-    """
-
-    def __init__(self, napari_viewer, parent=None):
-        """
-        Initialise instance.
-        :param viewer: Napari viewer instance
-        :type viewer: napari.viewer.Viewer
-        :param parent: Parent widget, optional
-        :type parent: qtpy.QtWidgets.QWidget
-        """
-        super().__init__(parent)
-        self.viewer = napari_viewer
-        # available plots
-        self.plot_list = [
-            "tracklength histogram",
-            "measurment density plot",
-            "x/t-plot",
-            "y/t-plot",
-        ]
-        self._init_widgets()
-
-    def _init_widgets(self):
-        """
-        Method to initialise a matplotlib figure canvas as well as a spinbox,
-        Button and label widgets. Additionally, generates a
-        matplotlib.backends.backend_qt5agg.FigureCanvas, a set plot style and axis,
-        and populates it with a matplotlib.figure.Figure.
-        These are the added to a QVboxlayout.
-        """
-        # creating spinbox widget
-        self.sample_number = QtWidgets.QSpinBox()
-        self.sample_number.setMinimum(1)
-        self.sample_number.setMaximum(200)
-        self.sample_number.setValue(20)
-
-        self.button = QtWidgets.QPushButton("Update Plot")
-        self.button.clicked.connect(self.update_plot)
-
-        # label
-        self.spinbox_title = QtWidgets.QLabel("Sample Size")
-
-        # creating a combo box widget
-        self.combo_box = QtWidgets.QComboBox(self)
-        self.combo_box.addItems(self.plot_list)
-        self.combo_box.currentIndexChanged.connect(self.update_plot)
-
-        # set up figure and axe objects
-        with plt.style.context("dark_background"):
-            plt.rcParams["figure.dpi"] = 110
-            plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2))
-            self.canvas = FigureCanvas(self.fig)
-            self.ax = self.fig.add_subplot(111)
-            self.ax.scatter([], [])
-            self.ax.set_xlabel("X Axis")
-            self.ax.set_ylabel("Y Axis")
-            self.canvas.figure.tight_layout()
-
-        # construct layout
-        layout = QtWidgets.QVBoxLayout()
-        layout_combobox = QtWidgets.QVBoxLayout()
-        layout_spinbox = QtWidgets.QHBoxLayout()
-
-        # add widgets to sub_layouts
-        layout_combobox.addWidget(self.button)
-        layout_combobox.addWidget(self.combo_box)
-        layout_spinbox.addWidget(self.spinbox_title)
-        layout_spinbox.addWidget(self.sample_number)
-
-        # add sublayouts together
-        layout.addLayout(layout_combobox)
-        layout.addLayout(layout_spinbox)
-        layout.addWidget(self.canvas)
-        self.setLayout(layout)
-        self.setWindowTitle("Collective Events")
-
-    def update_plot(self):
-        """
-        Method to update the from the dropdown menu chosen
-        matplotlibl plot with values from
-        the stored_variables object dataframe.
-        """
-        # return plottype that should be plotted
-        plottype = self.combo_box.currentText()
-        # sample number for position/t-plots
-        n = self.sample_number.value()
-
-        # get column values and dataframe
-        columns = columnpicker.dicCols.value
-        dataframe = stored_variables.dataframe
-
-        # check if some data was loaded already, otherwise do nothing
-        if not dataframe.empty:
-            self.ax.cla()
-            self.ax.spines["bottom"].set_color("white")
-            self.ax.spines["top"].set_color("white")
-            self.ax.spines["right"].set_color("white")
-            self.ax.spines["left"].set_color("white")
-            self.ax.xaxis.label.set_color("white")
-            self.ax.yaxis.label.set_color("white")
-            self.ax.tick_params(colors="white", which="both")
-            self.ax.axis("on")
-
-            # tracklength histogram
-            if plottype == "tracklength histogram":
-                track_length = dataframe.groupby(columns["track_id"]).size()
-                self.ax.hist(track_length)
-                self.ax.set_xlabel("tracklength")
-                self.ax.set_ylabel("counts")
-
-            # measurment density plot, kde
-            elif plottype == "measurment density plot":
-                density = gaussian_kde(dataframe[columns["measurment"]].interpolate())
-                x = np.linspace(
-                    min(dataframe[columns["measurment"]]),
-                    max(dataframe[columns["measurment"]]),
-                    100,
-                )
-                y = density(x)
-                self.ax.plot(x, y)
-                self.ax.set_xlabel("measurement values")
-                self.ax.set_ylabel("density")
-
-            # xy/t plots
-            elif plottype == "x/t-plot":
-                sample = pd.Series(dataframe[columns["track_id"]].unique()).sample(
-                    n, replace=True
-                )
-                pd_from_r_df = dataframe.loc[
-                    dataframe[columns["track_id"]].isin(sample)
-                ]
-                df_grp = pd_from_r_df.groupby(columns["track_id"])
-                for label, df in df_grp:
-                    self.ax.plot(df[columns["frame"]], df[columns["x_coordinates"]])
-                self.ax.set_xlabel("Frame")
-                self.ax.set_ylabel("Position X")
-
-            elif plottype == "y/t-plot":
-                sample = pd.Series(dataframe[columns["track_id"]].unique()).sample(
-                    n, replace=True
-                )
-                pd_from_r_df = dataframe.loc[
-                    dataframe[columns["track_id"]].isin(sample)
-                ]
-                df_grp = pd_from_r_df.groupby(columns["track_id"])
-                for label, df in df_grp:
-                    self.ax.plot(df[columns["frame"]], df[columns["y_coordinates"]])
-                self.ax.set_xlabel("Frame")
-                self.ax.set_ylabel("Position Y")
-            self.fig.canvas.draw_idle()
-        else:
-            show_info("No Data to plot")
 
 
 # function to export csv to specified path
@@ -1321,8 +1185,3 @@ def on_export_data_init(new_widget):
 )
 def export_data(Export_ARCOS_as_csv=False, Export_movie=False):
     """Widget to export csv and movie data"""
-
-
-if __name__ == "__main__":
-    hi = MainWindow(viewer=napari.Viewer())
-    no = MainWindow(viewer=napari.Viewer())

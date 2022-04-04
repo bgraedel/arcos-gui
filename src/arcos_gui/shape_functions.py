@@ -168,7 +168,7 @@ def get_verticesHull(df, col_x, col_y):
         return df_xy.columns
 
 
-def format_verticesHull(df, col_time, col_x, col_y, col_collid):
+def format_verticesHull(df, col_t, col_x, col_y, col_collid):
     """
     Format the output of get_verticesHull() applied to group
 
@@ -176,14 +176,14 @@ def format_verticesHull(df, col_time, col_x, col_y, col_collid):
         df (pd.DataFrame): A DataFrame with the coordinates
         of the vertices of collective events.
     """
-    all_cols = [col_time, col_x, col_y, col_collid]
+    all_cols = [col_t, col_x, col_y, col_collid]
     df = df.loc[:, all_cols]
     df["shape-type"] = "polygon"
-    df["index"] = df.groupby([col_time, col_collid]).ngroup()
+    df["index"] = df.groupby([col_t, col_collid]).ngroup()
     df["vertex-index"] = df.groupby("index").cumcount()
     df.rename(
         columns={
-            col_time: "axis-0",
+            col_t: "axis-0",
             col_y: "axis-1",
             col_x: "axis-2",
             col_collid: "collid",
@@ -203,3 +203,65 @@ def format_verticesHull(df, col_time, col_x, col_y, col_collid):
         ]
     )
     return df
+
+
+def make_surface_3d(df, col_t, col_x, col_y, col_z, col_id):
+    """
+    Takes a dataframe and generates a tuple that can be used
+    to add 3d convex hull with the napari add_surface function
+    """
+    datChull = pd.DataFrame()
+    dataFaces = np.array([])
+    vertices_count = 0
+    values = []
+    for event in df[col_id].unique():
+        df_event = df[df[col_id] == event]
+        for i in df_event[col_t].unique():
+            df_filtered = df_event[df_event[col_t] == i]
+            df_xyz = df_filtered[[col_x, col_y, col_z]].copy(deep=True)
+            df_xyz.dropna(inplace=True)
+            hull = ConvexHull(df_xyz)
+            df_out = df_xyz.iloc[hull.vertices]
+            # Add back the columns that do not contain the XY coords
+            df_out = pd.merge(df_out, df_filtered, how="right")
+            datChull = pd.concat([datChull, df_out])
+            values += [event] * len(df_out)
+            faces = hull.simplices
+            faces += vertices_count
+            vertices_count += len(df_out)
+            if dataFaces.size == 0:
+                dataFaces = faces
+            else:
+                dataFaces = np.concatenate((dataFaces, faces))
+    np_color_values = np.array(values)
+    datChull = datChull.reindex(
+        columns=[
+            col_t,
+            col_y,
+            col_x,
+            col_z,
+        ]
+    )
+    hull_np = datChull.to_numpy()
+    return (hull_np, dataFaces, np_color_values)
+
+
+def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
+
+    arr_size = vertices.shape[0]
+    empty_vertex = []
+    empty_faces = []
+    empty_colors = []
+
+    for i in df[col_t].unique():
+        if i not in vertices[:, :1]:
+            empty_vertex.append([i, 0, 0, 0])
+            empty_faces.append([arr_size, arr_size, arr_size])
+            arr_size = arr_size + 1
+            empty_colors.append(0)
+
+    surface_tuple_0 = np.concatenate((vertices, np.array(empty_vertex)), axis=0)
+    surface_tuple_1 = np.concatenate((faces, np.array(empty_faces)), axis=0)
+    surface_tuple_2 = np.concatenate((colors, np.array(empty_colors)), axis=0)
+
+    return (surface_tuple_0, surface_tuple_1, surface_tuple_2)

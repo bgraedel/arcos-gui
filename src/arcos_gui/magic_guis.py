@@ -38,26 +38,19 @@ def show_timestamp_options():
     track_id={"choices": ["None"]},
     x_coordinates={"choices": ["None"]},
     y_coordinates={"choices": ["None"]},
+    z_coordinates={"choices": ["None"]},
     measurment={"choices": ["None"]},
     field_of_view_id={"choices": ["None"]},
-    dicCols={"visible": False},
 )
 def columnpicker(
     frame="None",
     track_id="None",
     x_coordinates="None",
     y_coordinates="None",
+    z_coordinates="None",
     measurment="None",
     field_of_view_id="None",
     Ok=False,
-    dicCols: dict = {
-        "frame": "None",
-        "x_coordinates": "None",
-        "y_coordinates": "None",
-        "track_id": "None",
-        "measurment": "None",
-        "field_of_view_id": "None",
-    },
 ):
     """Dialog with magicgui for selecting columns"""
     columnpicker.Ok.bind(not Ok)
