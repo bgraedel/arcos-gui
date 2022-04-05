@@ -145,7 +145,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.setup_ui()
         self._filename: str = self.file_LineEdit.text()
         self.layers_to_create: list = []
-        self.what_to_run: list = []
+        self.what_to_run: set = set()
         self.data: pd.DataFrame = pd.DataFrame()
         self.filtered_data: pd.DataFrame = pd.DataFrame()
         self.arcos_filtered: pd.DataFrame = pd.DataFrame()
@@ -364,20 +364,20 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         that is used in the main function to check if what to run
         when certain field have updated values.
         """
-        self.what_to_run.append("all")
+        self.what_to_run.add("all")
 
     def update_what_to_run_tracking(self):
         """sets 'what to run' attribute to 'from_tracking' in the what_to_run attirbute,
         that is used in the main function to check if what to run
         when certain field have updated values."""
-        self.what_to_run.append("from_tracking")
+        self.what_to_run.add("from_tracking")
 
     def update_what_to_run_filtering(self):
         """sets 'what to run' attribute to 'from_filtering'
         in the what_to_run attirbute,
         that is used in the main function to check if what to run
         when certain field have updated values."""
-        self.what_to_run.append("from_filtering")
+        self.what_to_run.add("from_filtering")
 
     def browse_files(self):
         """Opens a filedialog and saves path as a string in self.filename"""
@@ -728,7 +728,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     biasMet=self.bias_method.currentText(),
                 )
                 stored_variables.ts_data = ts
-                self.what_to_run.append("from_tracking")
+                self.what_to_run.add("from_tracking")
 
                 self.Progress.setValue(12)
 
@@ -760,7 +760,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                 # update stored variables
                 stored_variables.arcos = arcos
-                self.what_to_run.append("from_filtering")
+                self.what_to_run.add("from_filtering")
 
             # depending on the parameters changed in arcos widget
             if "from_filtering" in self.what_to_run:
