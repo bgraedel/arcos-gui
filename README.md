@@ -14,7 +14,6 @@ A napari plugin to detect and visualize collective signaling events
 This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
 
 ## Installation
-
 You can install `arcos-gui` via [pip]:
 
     pip install arcos-gui
