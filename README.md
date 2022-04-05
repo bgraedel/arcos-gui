@@ -7,25 +7,21 @@
 [![codecov](https://codecov.io/gh/bgraedel/arcos-gui/branch/main/graph/badge.svg)](https://codecov.io/gh/bgraedel/arcos-gui)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/arcos-gui)](https://napari-hub.org/plugins/arcos-gui)
 
-A napari plugin to detect and visualize collective signalling events
+A napari plugin to detect and visualize collective signaling events
 
 ----------------------------------
 
 This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
 
 ## Installation
-
-prior to installing arcos-gui a working R installation is required with the ARCOS libary github.com/dmattek/ARCOS installed.
-
 You can install `arcos-gui` via [pip]:
 
     pip install arcos-gui
 
 ## OS Support
-This package relies on a library called rpy2 that allows exection of R function within python code. It officially only supports UNIX based systems (Linux, MacOS).
-For Windows users to get it to work requires adding a Path system environment variable that points to the R binary.
+As of version 0.0.2 arcos-gui works natively in python with the [arcos4py](https://github.com/bgraedel/arcos4py) package, meaning that R is no longer required.
 
-To install latest development version :
+To install the most recent development version :
 
     pip install git+https://github.com/bgraedel/arcos-gui.git
 
@@ -37,7 +33,7 @@ the coverage at least stays the same before you submit a pull request.
 ## License
 
 Distributed under the terms of the [BSD-3] license,
-"arcos-gui" is free and open source software
+"arcos-gui" is free and open-source software
 
 ## Issues
 
@@ -58,5 +54,5 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 
 [napari]: https://github.com/napari/napari
 [tox]: https://tox.readthedocs.io/en/latest/
-[pip]: https://pypi.org/project/pip/
+[pip]: https://pypi.org/project/arcos-gui/
 [PyPI]: https://pypi.org/
