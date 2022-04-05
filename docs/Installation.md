@@ -1,12 +1,12 @@
 # Installation
 
-To use this plugin, if not installed, first install napari with [pip]:
+If napari is not yet installed, install it with [pip]:
 
 ```
 pip install napari[all]
 ```
 
-It is better to do this in a freshly created virtual environment to avoid dependency issues.
+It is better to do this in a new virtual environment to avoid dependency issues.
 
 If you don't have python or [pip][] installed checkout [anaconda][]/[miniconda][] or this [Python installation guide][]
 which can guide you through the process.

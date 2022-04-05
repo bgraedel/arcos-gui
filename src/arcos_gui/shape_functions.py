@@ -2,7 +2,8 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
-from scipy.spatial import ConvexHull, QhullError
+from scipy.spatial import ConvexHull
+from scipy.spatial.qhull import QhullError
 
 # # Definitions and custom functions
 
