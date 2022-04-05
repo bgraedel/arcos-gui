@@ -10,20 +10,28 @@
 A napari plugin to detect and visualize collective signaling events
 
 ----------------------------------
+- Documentation: <https://bgraedel.github.io/arcos-gui>
 
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
+**A**utomated **R**ecognition of **C**ollective **S**ignalling (ARCOS) is an algorithm to identify collective spatial events in time series data,
+that was written by Maciej Dobrzynski (https://github.com/dmattek). It is available as an R (ARCOS) and python (arcos4py) package.
+ARCOS can identify and visualize collective protein activation in 2- and 3D cell cultures over time.
 
-## Installation
+This plugin relies on this algorithm and integrates it into a napari plugin. Therefore, it allows users to import tracked time-series data in CSV format and provides
+the necessary GUI elements to process this data with the ARCOS algorithm. The plugin adds several layers to the viewer to visually inspect the detected events. Based on that, fine-tune the parameters used by ARCOS.
+
+Following analysis, the user can export the output as a CSV file with the detected collective events or as a sequence of images to generate a movie.
+
+![export_data](docs/screenshots/arcos_gui_preview.png)
+
+# Installation
+
 You can install `arcos-gui` via [pip]:
 
     pip install arcos-gui
 
-## OS Support
-As of version 0.0.2 arcos-gui works natively in python with the [arcos4py](https://github.com/bgraedel/arcos4py) package, meaning that R is no longer required.
+## System Requirements
 
-To install the most recent development version :
-
-    pip install git+https://github.com/bgraedel/arcos-gui.git
+Since version "0.0.2" this plugin is python native with the arcos4py package available.
 
 ## Contributing
 
@@ -56,3 +64,7 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [tox]: https://tox.readthedocs.io/en/latest/
 [pip]: https://pypi.org/project/arcos-gui/
 [PyPI]: https://pypi.org/
+
+# Credits
+
+This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.

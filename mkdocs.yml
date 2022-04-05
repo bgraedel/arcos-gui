@@ -1,11 +1,67 @@
 site_name: arcos-gui
-site_description: Arcos gui is a napari plugin to analyse collective events in timeseries data of tracked cells. It relies on the R package ARCOS.
+site_url: https://bgraedel.github.io/arcos-gui
+repo_url: https://github.com/bgraedel/arcos4py
+repo_name: bgraedel/arcos-gui
 site_author: Benjamin Grädel
 
 theme: readthedocs
 
-
 repo_url: https://github.com/bgraedel/arcos-gui
 
-pages:
-- Home: Documentation.md
+nav:
+- Home: index.md
+- Installation: Installation.md
+- Usage: Usage.md
+- Contributing: Contributing.md
+
+theme:
+  name: material
+  language: en
+  palette:
+    scheme: preference
+    primary: indigo
+    accent: indigo
+  features:
+    - navigation.indexes
+    - navigation.instant
+    - navigation.tabs.sticky
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.tabbed
+  - attr_list
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight:
+      linenums: false
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.details
+  - admonition
+  - toc:
+      baselevel: 2
+      permalink: true
+      slugify: !!python/name:pymdownx.slugs.uslugify
+  - meta
+plugins:
+  - include-markdown
+  - search:
+      lang: en
+extra:
+  social:
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/PertzL
+      name: Twitter
+    - icon: fontawesome/solid/microscope
+      link: https://www.pertzlab.net/
+      name: Lab Website
+    - icon: fontawesome/brands/github
+      link: https://github.com/bgraedel/arcos4py
+      name: Github
+    - icon: material/email
+      link: "mailto:benjamin.graedel@unibe.ch"

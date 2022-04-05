@@ -58,6 +58,16 @@ jobs:
     runs-on: ubuntu-latest
     if: contains(github.ref, 'tags')
     steps:
+
+      - name: build documentation
+        run: |
+          pip install -e .[doc]
+          pip run mkdocs build
+      - name: publish documentation
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          personal_token: ${{ secrets.PERSONAL_TOKEN }}
+          publish_dir: ./site
       - uses: actions/checkout@v2
       - name: Set up Python
         uses: actions/setup-python@v2
