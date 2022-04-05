@@ -16,8 +16,8 @@ A napari plugin to detect and visualize collective signaling events
 that was written by Maciej Dobrzynski (https://github.com/dmattek). It is available as an R (ARCOS) and python (arcos4py) package.
 ARCOS can identify and visualize collective protein activation in 2- and 3D cell cultures over time.
 
-This plugin relies on this algorithm and integrates it into a napari plugin. Therefore, it allows users to import tracked time-series data in CSV format and provides
-the necessary GUI elements to process this data with the ARCOS algorithm. The plugin adds several layers to the viewer to visually inspect the detected events. Based on that, fine-tune the parameters used by ARCOS.
+This plugin integrates ARCOS into napari. Users can import tracked time-series data in CSV format. The plugin
+provides GUI elements to process this data with ARCOS. Layers containing the detected collective events are subsequently added to the viewer.
 
 Following analysis, the user can export the output as a CSV file with the detected collective events or as a sequence of images to generate a movie.
 
