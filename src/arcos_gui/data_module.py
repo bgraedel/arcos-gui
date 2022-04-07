@@ -1,3 +1,6 @@
+import csv
+import gzip
+
 import pandas as pd
 
 
@@ -71,3 +74,17 @@ class process_input:
 
     def return_pd_df(self):
         return self.df
+
+
+def read_data_header(filename: str):
+    if filename.endswith(".csv"):
+        with open(filename) as f:
+            d_reader = csv.DictReader(f)
+            # get fieldnames from DictReader object and store in list
+            headers = d_reader.fieldnames
+    if filename.endswith("csv.gz"):
+        with gzip.open(filename, mode="rt") as f:
+            d_reader = csv.DictReader(f)
+            # get fieldnames from DictReader object and store in list
+            headers = d_reader.fieldnames
+    return headers
