@@ -76,15 +76,24 @@ class process_input:
         return self.df
 
 
+def get_delimiter(file_path, bytes=4096):
+    sniffer = csv.Sniffer()
+    with open(file_path) as f:
+        data = f.read(bytes)
+        delimiter = sniffer.sniff(data).delimiter
+    return delimiter
+
+
 def read_data_header(filename: str):
+    delimiter_value = get_delimiter(filename)
     if filename.endswith(".csv"):
         with open(filename) as f:
-            d_reader = csv.DictReader(f)
+            d_reader = csv.DictReader(f, delimiter=delimiter_value)
             # get fieldnames from DictReader object and store in list
             headers = d_reader.fieldnames
     if filename.endswith("csv.gz"):
         with gzip.open(filename, mode="rt") as f:
-            d_reader = csv.DictReader(f)
+            d_reader = csv.DictReader(f, delimiter_value)
             # get fieldnames from DictReader object and store in list
             headers = d_reader.fieldnames
-    return headers
+    return headers, delimiter_value
