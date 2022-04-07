@@ -155,6 +155,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.data: pd.DataFrame = pd.DataFrame()
         self.filtered_data: pd.DataFrame = pd.DataFrame()
         self.arcos_filtered: pd.DataFrame = pd.DataFrame()
+        self.measurement = "None"
         self.timeseriesplot = TimeSeriesPlots(parent=self)
         self.collevplot = CollevPlotter(parent=self)
         self._add_plot_widgets()
@@ -495,7 +496,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     getattr(columnpicker, i).del_choice(str(j))
             csv_file = self.file_LineEdit.text()
             self.layers_to_create.clear()
-            columns = read_data_header(csv_file)
+            columns, delimiter_value = read_data_header(csv_file)
             columnpicker.frame.choices = columns
             columnpicker.track_id.choices = columns
             columnpicker.x_coordinates.choices = columns
@@ -507,6 +508,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             columnpicker.field_of_view_id.set_choice("None", "None")
             columnpicker.z_coordinates.set_choice("None", "None")
             columnpicker.show()
+            self.data = pd.read_csv(csv_file, delimiter=delimiter_value)
 
     def close_columnpicker(self):
         """
@@ -525,8 +527,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.second_measurement = columnpicker.second_measurment.value
         self.field_of_view_id = columnpicker.field_of_view_id.value
         columnpicker.close()
-        csv_file = self.file_LineEdit.text()
-        self.data = pd.read_csv(csv_file)
         self.calculate_measurment()
         self.subtract_timeoffset()
 
@@ -672,6 +672,15 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self._ts_plot_update()
             show_info("Data Filtered!")
 
+    def check_for_collid_column(
+        self, data: pd.DataFrame, collid_column="collid", suffix="old"
+    ):
+        """If collid_column is present in input data,
+        add suffix to prevent dataframe merge conflic"""
+        if "collid" in data.columns:
+            data.rename(columns={collid_column: f"{collid_column}_{suffix}"})
+        return data
+
     def run_arcos(self) -> LayerDataTuple:
         """
         ARCOS method to detect collective events.
@@ -700,6 +709,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         posCols = self.set_posCol()
         measbin_col = f"{self.measurement}.bin"
         collid_name = "collid"
+        self.filtered_data = self.check_for_collid_column(
+            self.filtered_data, collid_name
+        )
 
         # checks if this part of the function has to be run,
         # depends on the parameters changed in arcos widget
@@ -1053,6 +1065,10 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.make_layers()
         self.collev_plot_update()
         self.change_cell_size()
+        if self.z_coordinates != "None":
+            self.viewer.dims.ndisplay = 3
+        else:
+            self.viewer.dims.ndisplay = 2
 
 
 # function to export csv to specified path
