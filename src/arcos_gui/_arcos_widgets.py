@@ -21,9 +21,15 @@ if TYPE_CHECKING:
 from arcos4py import ARCOS
 from arcos4py.tools import filterCollev
 from arcos_gui._plots import CollevPlotter, TimeSeriesPlots
-from arcos_gui.data_module import process_input
+from arcos_gui.data_module import process_input, read_data_header
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
-from arcos_gui.magic_guis import columnpicker, show_timestamp_options, timestamp_options
+from arcos_gui.magic_guis import (
+    OPERATOR_DICTIONARY,
+    columnpicker,
+    show_timestamp_options,
+    timestamp_options,
+    toggle_visible_second_measurment,
+)
 from arcos_gui.shape_functions import (
     COLOR_CYCLE,
     assign_color_id,
@@ -231,6 +237,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def _init_columnpicker_callbacks(self):
         # callback for updating several variables after OK press in columnpicker widget
+        columnpicker.measurement_math.changed.connect(toggle_visible_second_measurment)
         columnpicker.Ok.changed.connect(self.close_columnpicker)
         columnpicker.Ok.changed.connect(self.set_positions)
         columnpicker.Ok.changed.connect(self.get_tracklengths)
@@ -268,7 +275,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.x_coordinates = "None"
         self.y_coordinates = "None"
         self.z_coordinates = "None"
-        self.measurement = "None"
+        self.first_measurement = "None"
+        self.second_measurement = "None"
         self.field_of_view_id = "None"
 
     def handleSlider_tracklength_ValueChange(self):
@@ -382,7 +390,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
     def browse_files(self):
         """Opens a filedialog and saves path as a string in self.filename"""
         self.filename = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Load CSV file", str(Path.home()), "csv(*.csv)"
+            self, "Load CSV file", str(Path.home()), "csv(*.csv);; csv.gz(*.csv.gz);;"
         )
         self.file_LineEdit.setText(self.filename[0])
 
@@ -467,36 +475,38 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         opens it and stores it in the stored_variables_object.
         Shows columnpicker dialog.
         """
-        columns = columnpicker.frame.choices
-        column_keys = [
-            "frame",
-            "x_coordinates",
-            "y_coordinates",
-            "z_coordinates",
-            "track_id",
-            "measurment",
-            "field_of_view_id",
-        ]
-        for i in column_keys:
-            for index, j in enumerate(columns):
-                getattr(columnpicker, i).del_choice(str(j))
+        extension = [".csv", ".csv.gz"]
         csv_file = self.file_LineEdit.text()
-        if str(csv_file).endswith(".csv"):
+        if not csv_file.endswith(tuple(extension)):
+            show_info("Not a csv file")
+        else:
+            columns = columnpicker.frame.choices
+            column_keys = [
+                "frame",
+                "x_coordinates",
+                "y_coordinates",
+                "z_coordinates",
+                "track_id",
+                "measurment",
+                "field_of_view_id",
+            ]
+            for i in column_keys:
+                for index, j in enumerate(columns):
+                    getattr(columnpicker, i).del_choice(str(j))
+            csv_file = self.file_LineEdit.text()
             self.layers_to_create.clear()
-            self.data = pd.read_csv(csv_file)
-            columns = list(self.data.columns)
+            columns = read_data_header(csv_file)
             columnpicker.frame.choices = columns
             columnpicker.track_id.choices = columns
             columnpicker.x_coordinates.choices = columns
             columnpicker.y_coordinates.choices = columns
             columnpicker.z_coordinates.choices = columns
             columnpicker.measurment.choices = columns
+            columnpicker.second_measurment.choices = columns
             columnpicker.field_of_view_id.choices = columns
             columnpicker.field_of_view_id.set_choice("None", "None")
             columnpicker.z_coordinates.set_choice("None", "None")
             columnpicker.show()
-        else:
-            show_info("Not a csv file")
 
     def close_columnpicker(self):
         """
@@ -511,10 +521,25 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.x_coordinates = columnpicker.x_coordinates.value
         self.y_coordinates = columnpicker.y_coordinates.value
         self.z_coordinates = columnpicker.z_coordinates.value
-        self.measurement = columnpicker.measurment.value
+        self.first_measurement = columnpicker.measurment.value
+        self.second_measurement = columnpicker.second_measurment.value
         self.field_of_view_id = columnpicker.field_of_view_id.value
         columnpicker.close()
+        csv_file = self.file_LineEdit.text()
+        self.data = pd.read_csv(csv_file)
+        self.calculate_measurment()
         self.subtract_timeoffset()
+
+    def calculate_measurment(self):
+        operation = columnpicker.measurement_math.value
+        if operation in OPERATOR_DICTIONARY.keys():
+            self.measurement = OPERATOR_DICTIONARY[operation][1]
+            self.data[self.measurement] = OPERATOR_DICTIONARY[operation][0](
+                self.data[self.first_measurement], self.data[self.second_measurement]
+            )
+
+        else:
+            self.measurement = self.first_measurement
 
     def remove_layers_after_columnpicker(self):
         """removes existing arcos layers before loading new data"""
