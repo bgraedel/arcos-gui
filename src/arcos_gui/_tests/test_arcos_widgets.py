@@ -46,30 +46,6 @@ def dock_arcos_widget(make_napari_viewer, qtbot):
     gc.collect()
 
 
-@pytest.fixture()
-def set_columnpicker():
-    def method(col_names: list):
-        columnpicker.frame.choices = col_names
-        columnpicker.x_coordinates.choices = col_names
-        columnpicker.y_coordinates.choices = col_names
-        columnpicker.z_coordinates.choices = col_names
-        columnpicker.track_id.choices = col_names
-        columnpicker.measurment.choices = col_names
-        columnpicker.field_of_view_id.choices = col_names
-        columnpicker.field_of_view_id.set_choice("None", "None")
-        columnpicker.z_coordinates.set_choice("None", "None")
-
-        columnpicker.frame.set_value = col_names[0]
-        columnpicker.x_coordinates.value = col_names[1]
-        columnpicker.y_coordinates.value = col_names[2]
-        columnpicker.z_coordinates.value = col_names[3]
-        columnpicker.track_id.value = col_names[4]
-        columnpicker.measurment.value = col_names[5]
-        columnpicker.field_of_view_id.value = col_names[6]
-
-    return method
-
-
 def test_add_timestamp_no_layers(make_napari_viewer, capsys, qtbot):
     viewer = make_napari_viewer()
     mywidget = add_timestamp()
@@ -173,7 +149,7 @@ def test_filter_no_data(dock_arcos_widget, capsys, qtbot):
     viewer.close()
 
 
-def test_filterwidget_data(dock_arcos_widget, capsys, qtbot, set_columnpicker):
+def test_filterwidget_data(dock_arcos_widget, capsys, qtbot):
     viewer, mywidget = dock_arcos_widget
     columnpicker.frame.choices = ["Frame"]
     columnpicker.track_id.choices = ["track_id"]
@@ -208,6 +184,77 @@ def test_filterwidget_data(dock_arcos_widget, capsys, qtbot, set_columnpicker):
     viewer.close()
 
 
+def test_check_for_collid_column(dock_arcos_widget):
+    viewer, mywidget = dock_arcos_widget
+    df_1 = pd.read_csv("src/arcos_gui/_tests/test_data/data_clTrackID.csv")
+    out = mywidget.check_for_collid_column(
+        df_1, collid_column="clTrackID", suffix="old"
+    )
+    col_list = out.columns
+    assert "clTrackID" not in col_list
+    assert "clTrackID_old" in col_list
+
+
+def test_measurement_math_none(dock_arcos_widget):
+    viewer, mywidget = dock_arcos_widget
+    df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_test_meas_math.csv")
+    df["Measurment"] = df["Measurment"]
+    columnpicker.measurement_math.value = "None"
+    measurement_out, data_out = mywidget.calculate_measurment(
+        df, "Measurment", "Measurment_2"
+    )
+    assert "Measurment" == measurement_out
+    assert_frame_equal(df, data_out)
+
+
+def test_measurement_math_divide(dock_arcos_widget):
+    viewer, mywidget = dock_arcos_widget
+    df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_test_meas_math.csv")
+    df["Measurement_Ratio"] = df["Measurment"] / df["Measurment_2"]
+    columnpicker.measurement_math.value = "Divide"
+    measurement_out, data_out = mywidget.calculate_measurment(
+        df, "Measurment", "Measurment_2"
+    )
+    assert "Measurement_Ratio" == measurement_out
+    assert_frame_equal(df, data_out)
+
+
+def test_measurement_math_subtract(dock_arcos_widget):
+    viewer, mywidget = dock_arcos_widget
+    df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_test_meas_math.csv")
+    df["Measurement_Ratio"] = df["Measurment"] - df["Measurment_2"]
+    columnpicker.measurement_math.value = "Subtract"
+    measurement_out, data_out = mywidget.calculate_measurment(
+        df, "Measurment", "Measurment_2"
+    )
+    assert "Measurement_Difference" == measurement_out
+    assert_frame_equal(df, data_out)
+
+
+def test_measurement_math_add(dock_arcos_widget):
+    viewer, mywidget = dock_arcos_widget
+    df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_test_meas_math.csv")
+    df["Measurement_Ratio"] = df["Measurment"] + df["Measurment_2"]
+    columnpicker.measurement_math.value = "Add"
+    measurement_out, data_out = mywidget.calculate_measurment(
+        df, "Measurment", "Measurment_2"
+    )
+    assert "Measurement_Sum" == measurement_out
+    assert_frame_equal(df, data_out)
+
+
+def test_measurement_math_multiply(dock_arcos_widget):
+    viewer, mywidget = dock_arcos_widget
+    df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_test_meas_math.csv")
+    df["Measurement_Ratio"] = df["Measurment"] * df["Measurment_2"]
+    columnpicker.measurement_math.value = "Multiply"
+    measurement_out, data_out = mywidget.calculate_measurment(
+        df, "Measurment", "Measurment_2"
+    )
+    assert "Measurement_Product" == measurement_out
+    assert_frame_equal(df, data_out)
+
+
 def test_arcos_widget_no_data(dock_arcos_widget, capsys, qtbot):
     viewer, mywidget = dock_arcos_widget
     mywidget.filtered_data = pd.DataFrame()
@@ -239,6 +286,7 @@ def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys, qtbot):
     columnpicker.y_coordinates.value = "y"
     columnpicker.track_id.value = "id"
     columnpicker.measurment.value = "m"
+    columnpicker.measurement_math.value = "None"
     columnpicker.field_of_view_id.value = "Position"
 
     viewer, mywidget = dock_arcos_widget
@@ -283,6 +331,7 @@ def test_arcos_widget_data_all(dock_arcos_widget, capsys, qtbot):
     columnpicker.y_coordinates.value = "y"
     columnpicker.track_id.value = "id"
     columnpicker.measurment.value = "m"
+    columnpicker.measurement_math.value = "None"
     columnpicker.field_of_view_id.value = "Position"
 
     mywidget.data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
@@ -348,6 +397,7 @@ def test_TimeSeriesPlots_widget(make_napari_viewer, qtbot):
     columnpicker.y_coordinates.value = "y"
     columnpicker.track_id.value = "id"
     columnpicker.measurment.value = "m"
+    columnpicker.measurement_math.value = "None"
     columnpicker.field_of_view_id.value = "Position"
     mywidget.close_columnpicker()
 
