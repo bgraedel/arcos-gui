@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from arcos_gui import data_module
+from arcos_gui.data_module import get_delimiter, process_input, read_data_header
 from pandas.testing import assert_frame_equal
 
 
@@ -19,7 +19,7 @@ def fixture_columns():
 
 @pytest.fixture
 def import_data(fixture_columns):
-    my_input = data_module.process_input(
+    my_input = process_input(
         csv_file="src/arcos_gui/_tests/test_data/filter_test.csv",
         frame_column="frame",
         pos_columns=["X", "Y"],
@@ -84,3 +84,41 @@ def test_rescale_measurment(import_data):
     ]
     test_df = pd.DataFrame(data=data, columns=cols)
     assert_frame_equal(out, test_df)
+
+
+def test_get_delimiter_comma():
+    delimiter = get_delimiter("src/arcos_gui/_tests/test_data/comma_separated.csv")
+    assert delimiter == ","
+
+
+def test_get_delimiter_comma_gz():
+    delimiter = get_delimiter("src/arcos_gui/_tests/test_data/comma_separated.csv.gz")
+    assert delimiter == ","
+
+
+def test_get_delimiter_semicolon():
+    delimiter = get_delimiter("src/arcos_gui/_tests/test_data/semicolon_separated.csv")
+    assert delimiter == ";"
+
+
+def test_get_delimiter_tab():
+    delimiter = get_delimiter("src/arcos_gui/_tests/test_data/tab_separated.csv")
+    assert delimiter == "\t"
+
+
+def test_get_header_gz():
+    df = pd.read_csv("src/arcos_gui/_tests/test_data/comma_separated.csv.gz")
+    cols = df.columns
+    test, delimiter = read_data_header(
+        "src/arcos_gui/_tests/test_data/comma_separated.csv.gz"
+    )
+    assert sorted(cols) == sorted(test)
+
+
+def test_get_header():
+    df = pd.read_csv("src/arcos_gui/_tests/test_data/comma_separated.csv")
+    cols = df.columns
+    test, delimiter = read_data_header(
+        "src/arcos_gui/_tests/test_data/comma_separated.csv"
+    )
+    assert sorted(cols) == sorted(test)

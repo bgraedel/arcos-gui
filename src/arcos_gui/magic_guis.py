@@ -1,3 +1,5 @@
+import operator
+
 from magicgui import magicgui
 
 
@@ -31,6 +33,16 @@ def show_timestamp_options():
     timestamp_options.show()
 
 
+OPERATOR_DICTIONARY = {
+    "Divide": (operator.truediv, "Measurement_Ratio"),
+    "Multiply": (operator.mul, "Measurement_Product"),
+    "Add": (operator.add, "Measurement_Sum"),
+    "Subtract": (operator.sub, "Measurement_Difference"),
+}
+measurement_math_options = list(OPERATOR_DICTIONARY.keys())
+measurement_math_options.append("None")
+
+
 @magicgui(
     call_button=False,
     Ok={"widget_type": "PushButton"},
@@ -41,6 +53,13 @@ def show_timestamp_options():
     z_coordinates={"choices": ["None"]},
     measurment={"choices": ["None"]},
     field_of_view_id={"choices": ["None"]},
+    second_measurment={"choices": ["None"], "visible": False},
+    measurement_math={
+        "widget_type": "RadioButton",
+        "orientation": "horizontal",
+        "choices": measurement_math_options,
+        "label": "Math on first and \n second measurement:",
+    },
 )
 def columnpicker(
     frame="None",
@@ -49,8 +68,18 @@ def columnpicker(
     y_coordinates="None",
     z_coordinates="None",
     measurment="None",
+    second_measurment="None",
     field_of_view_id="None",
+    measurement_math="None",
     Ok=False,
 ):
     """Dialog with magicgui for selecting columns"""
     columnpicker.Ok.bind(not Ok)
+
+
+def toggle_visible_second_measurment():
+    curr_value = columnpicker.measurement_math.value
+    if curr_value in ["None", "1/X"]:
+        columnpicker.second_measurment.hide()
+    else:
+        columnpicker.second_measurment.show()

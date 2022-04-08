@@ -12,9 +12,6 @@ def test_loading_sample_data(make_napari_viewer, qtbot):
         plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
     )
     load_sample_data()
-    # arcos_widget.callback_file_Linedit_text(str(
-    #     Path("src/arcos_gui/_tests/test_data/arcos_data.csv"))
-    # )
     test_data = stored_variables.data
     direct_test_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     assert columnpicker.frame.value == "t"
