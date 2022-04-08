@@ -537,7 +537,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         operation = columnpicker.measurement_math.value
         if operation in OPERATOR_DICTIONARY.keys():
             out_meas_name = OPERATOR_DICTIONARY[operation][1]
-            data_in[self.measurement] = OPERATOR_DICTIONARY[operation][0](
+            data_in[out_meas_name] = OPERATOR_DICTIONARY[operation][0](
                 data[in_meas_1_name], data[in_meas_2_name]
             )
 
@@ -789,7 +789,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     )
 
                     self.Progress.setValue(16)
-
                 # if no active cells were detected remove previous layer,
                 # since this does not correspont to current widget parameters
                 else:
@@ -831,7 +830,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         self.total_event_size.value(),
                     )
                     self.Progress.setValue(20)
-
                     # merge tracked and original data
                     merged_data = pd.merge(
                         ts,
@@ -849,7 +847,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         ],
                     )
                     stored_variables.data_merged = merged_data
-
                     if self.z_coordinates == "None":
                         # column list
                         vColsCore = [
@@ -873,7 +870,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # shown as a color code of all cells
 
                     datAllProp = {"act": merged_data[self.measurement]}
-
                     # np matrix with acvtive cells; shown as black dots
                     datAct = merged_data[merged_data[measbin_col] > 0][
                         vColsCore
@@ -941,7 +937,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                                     correct x/y columns selected? \n \
                                     x, y columns: {datChull}"
                                 )
-
                             datChull = format_verticesHull(
                                 datChull,
                                 self.frame,
