@@ -527,19 +527,23 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.second_measurement = columnpicker.second_measurment.value
         self.field_of_view_id = columnpicker.field_of_view_id.value
         columnpicker.close()
-        self.calculate_measurment()
+        self.measurement, self.data = self.calculate_measurment(
+            self.data, self.first_measurement, self.second_measurement
+        )
         self.subtract_timeoffset()
 
-    def calculate_measurment(self):
+    def calculate_measurment(self, data, in_meas_1_name, in_meas_2_name):
+        data_in = data
         operation = columnpicker.measurement_math.value
         if operation in OPERATOR_DICTIONARY.keys():
-            self.measurement = OPERATOR_DICTIONARY[operation][1]
-            self.data[self.measurement] = OPERATOR_DICTIONARY[operation][0](
-                self.data[self.first_measurement], self.data[self.second_measurement]
+            out_meas_name = OPERATOR_DICTIONARY[operation][1]
+            data_in[self.measurement] = OPERATOR_DICTIONARY[operation][0](
+                data[in_meas_1_name], data[in_meas_2_name]
             )
 
         else:
-            self.measurement = self.first_measurement
+            out_meas_name = in_meas_1_name
+        return out_meas_name, data_in
 
     def remove_layers_after_columnpicker(self):
         """removes existing arcos layers before loading new data"""
@@ -677,8 +681,10 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
     ):
         """If collid_column is present in input data,
         add suffix to prevent dataframe merge conflic"""
-        if "collid" in data.columns:
-            data.rename(columns={collid_column: f"{collid_column}_{suffix}"})
+        if collid_column in data.columns:
+            data.rename(
+                columns={collid_column: f"{collid_column}_{suffix}"}, inplace=True
+            )
         return data
 
     def run_arcos(self) -> LayerDataTuple:
