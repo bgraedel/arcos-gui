@@ -9,6 +9,8 @@ from napari.utils.notifications import show_info
 from qtpy import QtWidgets
 from scipy.stats import gaussian_kde
 
+from .shape_functions import COLOR_CYCLE
+
 
 class CollevPlotter(QtWidgets.QWidget):
     """
@@ -30,7 +32,13 @@ class CollevPlotter(QtWidgets.QWidget):
 
         self.collid_name: str = "collid"
         self.nbr_collev: int = 0
+        self.stats = pd.DataFrame(
+            data={"tot_size": [], "duration": [], self.collid_name: []}
+        )
+        self._callbacks = []
         self._init_mpl_widgets()
+        self.fig.canvas.mpl_connect("motion_notify_event", self.hover)
+        self.fig.canvas.mpl_connect("pick_event", self.on_pick)
 
     def _init_mpl_widgets(self):
         """
@@ -67,12 +75,11 @@ class CollevPlotter(QtWidgets.QWidget):
         collev_stats = calcCollevStats()
         # if no calculation was run so far (i.e. when the widget is initialized)
         # populate it with no data
-        if arcos.empty:
-            stats = pd.DataFrame(data={"tot_size": [], "duration": []})
-        else:
-            stats = collev_stats.calculate(
+        if not arcos.empty:
+            self.stats = collev_stats.calculate(
                 arcos, columnpicker_widget.frame.value, self.collid_name
             )
+
         self.ax.cla()
         self.ax.spines["bottom"].set_color("white")
         self.ax.spines["top"].set_color("white")
@@ -82,12 +89,84 @@ class CollevPlotter(QtWidgets.QWidget):
         self.ax.yaxis.label.set_color("white")
         self.ax.tick_params(colors="white", which="both")
         self.ax.axis("on")
-        stats = stats[["tot_size", "duration"]]
-        self.ax.scatter(stats[["tot_size"]], stats[["duration"]], alpha=0.8)
+        self.ax.scatter(
+            self.stats[["tot_size"]],
+            self.stats[["duration"]],
+            alpha=0.8,
+            cmap=COLOR_CYCLE,
+            picker=True,
+        )
         self.ax.set_xlabel("Total Size")
         self.ax.set_ylabel("Event Duration")
         self.fig.canvas.draw_idle()
-        self.nbr_collev = stats.shape[0]
+        self.nbr_collev = self.stats.shape[0]
+        self.annot = self.ax.annotate(
+            "",
+            xy=(0, 0),
+            xytext=(0, 0),
+            bbox=dict(boxstyle="round", fc="#252932", ec="white", linewidth=0.3),
+            fontsize=7,
+            color="white",
+        )
+        self.annot.set_visible(False)
+
+    def update_annot(self, ind):
+        pos = self.ax.collections[0].get_offsets()[ind["ind"][0]]
+        pos_text = pos.copy()
+        text = f"id: {self.stats[self.collid_name][ind['ind'][0]]}"
+        self.annot.set_text(text)
+
+        bbox = self.annot.get_window_extent()
+        bbox_data = self.ax.transData.inverted().transform(bbox)
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        size_h = bbox_data[1][0] - bbox_data[0][0]
+        size_v = bbox_data[1][1] - bbox_data[0][1]
+        if pos_text[0] < (xlim[0] + size_h):
+            pos_text[0] += size_h
+        if pos_text[0] > (xlim[1] - size_h * 2):
+            pos_text[0] -= size_h
+        if pos_text[1] < (ylim[0] + size_v):
+            pos_text[1] += size_v
+        if pos_text[1] > (ylim[1] - size_v * 1.5):
+            pos_text[1] -= size_v
+        self.annot.xy = pos
+        self.annot.set_position(pos_text)
+        # self.annot.get_bbox_patch().set_facecolor(cmap(norm(c[ind["ind"][0]])))
+        self.annot.get_bbox_patch().set_alpha(1)
+
+    def hover(self, event):
+        vis = self.annot.get_visible()
+        if event.inaxes == self.ax:
+            cont, ind = self.ax.collections[0].contains(event)
+            if cont:
+                self.update_annot(ind)
+                self.annot.set_visible(True)
+                self.fig.canvas.draw_idle()
+            else:
+                if vis:
+                    self.annot.set_visible(False)
+                    self.fig.canvas.draw_idle()
+
+    def on_pick(self, event):
+        ind = event.ind
+        print("onpick3 scatter:", ind, self.stats.iloc[ind[0]])
+
+    @property
+    def picked_collid(self):
+        return self._picked_collid
+
+    @picked_collid.setter
+    def picked_collid(self, new_value):
+        self._picked_collid = new_value
+        self._notify_observers(new_value)
+
+    def _notify_observers(self, new_value):
+        for callback in self._callbacks:
+            callback(new_value)
+
+    def register_callback_on_collid_pick(self, callback):
+        self._callbacks.append(callback)
 
 
 class TimeSeriesPlots(QtWidgets.QWidget):

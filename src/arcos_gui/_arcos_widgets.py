@@ -170,7 +170,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._connect_ranged_sliders_to_spinboxes()
         self._connect_pushbutton_callbacks()
         self._init_callbacks_visible_arcosparameters()
-        self._init_ts_plot_callbacks()
+        self._init_plot_callbacks()
         self._init_columns()
 
     def _add_plot_widgets(self):
@@ -179,8 +179,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def _ts_plot_update(self):
         self.timeseriesplot.update_plot(columnpicker, self.filtered_data)
+        self.collevplot.register_callback_on_collid_pick(self.set_frame_from_pick)
 
-    def _init_ts_plot_callbacks(self):
+    def set_frame_from_pick(self):
+        print(self.collevplot.picked_collid)
+
+    def _init_plot_callbacks(self):
         self.timeseriesplot.combo_box.currentIndexChanged.connect(self._ts_plot_update)
         self.timeseriesplot.button.clicked.connect(self._ts_plot_update)
 
@@ -771,6 +775,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     biasMet=self.bias_method.currentText(),
                 )
                 stored_variables.ts_data = ts
+                stored_variables.arcos = arcos
                 self.what_to_run.add("from_tracking")
 
                 self.Progress.setValue(12)
