@@ -29,12 +29,14 @@ text_parameters = {
 }
 
 
+# @profile
 def recycle_palette(l_colors, length):
     ntimes = length // len(l_colors)
     remainder = length % len(l_colors)
     return l_colors * ntimes + l_colors[:remainder]
 
 
+# @profile
 def assign_color_id(df, palette, col_id="collid", col_color="color"):
     """
     Assign one color to each unique value in a column.
@@ -46,6 +48,7 @@ def assign_color_id(df, palette, col_id="collid", col_color="color"):
     return df_out
 
 
+# @profile
 def make_shapes(
     df,
     col_id="index",
@@ -53,7 +56,7 @@ def make_shapes(
     col_y="axis-1",
     col_t="axis-0",
     col_colors="color",
-    col_text=None,
+    col_id_text: bool = True,
 ):
     """
     Take a pandas df with the coordinates of polygons vertices in "long"
@@ -61,25 +64,25 @@ def make_shapes(
     Outputs a dictionary suitable for napari viewer.add_shapes
     """
     all_cols = [col_id, col_t, col_y, col_x, col_colors]
-    if col_text:
-        all_cols.append(col_text)
-    # Drop irrelevant columns, check columns are ordered according to napari's format
-    df = df[df.columns.intersection(all_cols)]
-    df = df.reindex(columns=all_cols)
 
+    # Drop irrelevant columns, check columns are ordered according to napari's format
+    df = df[[c for c in df.columns if c in all_cols]]
+    df_np = df[[col_id, col_t, col_y, col_x]].to_numpy()
     out = {}
-    # List of 2 tuples (index, df_subset)
-    l_shapes = [tup[1] for tup in list(df.groupby(col_id))]
+    # np array with collid polygons
+    l_shapes = np.split(
+        df_np[:, 1:], np.unique(df_np[:, 0:2], axis=0, return_index=True)[1][1:]
+    )
     # The color is duplicated for each point in the polygon, take only first value
-    out["face_color"] = [dff[col_colors].values[0] for dff in l_shapes]
-    if col_text:
-        out["properties"] = {}
-        out["properties"]["label"] = [dff[col_text].values[0] for dff in l_shapes]
-    l_shapes = [
-        dff.drop(columns=[col_id, col_colors, col_text], errors="ignore")
-        for dff in l_shapes
-    ]
-    out["data"] = [dff.to_numpy() for dff in l_shapes]
+    out["face_color"] = (
+        df[col_colors].iloc[df[[col_id, col_t]].drop_duplicates().index].to_list()
+    )
+    out["properties"] = {}
+    out["data"] = l_shapes
+    if col_id_text:
+        out["properties"]["label"] = df_np[
+            np.unique(df_np[:, 0:2], axis=0, return_index=True)[1]
+        ][:, 0].reshape(-1)
     return out
 
 
@@ -139,6 +142,7 @@ def make_timestamp(
     return out
 
 
+# @profile
 def get_verticesHull(df, col_x, col_y):
     """From a set of point coordinates (XY), return the points
     coordinates which form the vertices of the convex hull.
@@ -148,27 +152,29 @@ def get_verticesHull(df, col_x, col_y):
         containing the XY coordinates of a set of points.
     """
 
-    df_xy = df[[col_x, col_y]].copy(deep=True)
-    df_xy.dropna(inplace=True)
+    array_xy = df[[col_x, col_y]].to_numpy()
+    array_xy[~np.isnan(array_xy).any(axis=1)]
     # try except statement to test if Qhullerror is thrown
     # returns column names as a list of df_xy
     # instead of pd.DataFrame to check if correct columns were selected
     try:
-        if df_xy.shape[0] >= 3:
-            hull = ConvexHull(df_xy)
-            df_out = df_xy.iloc[hull.vertices]
-            # Add back the columns that do not contain the XY coords
-            df_out = pd.merge(df_out, df, how="left")
-        elif df_xy.shape[0] == 2:
+        if array_xy.shape[0] >= 3:
+            hull = ConvexHull(array_xy)
+            df_out = df.iloc[hull.vertices]
+            # # Add back the columns that do not contain the XY coords
+            # df_out = pd.DataFrame(array_out, columns = [col_x, col_y])
+            # df_out = df_out.join(df, on= col_x, how="left")
+        elif array_xy.shape[0] == 2:
             df_out = df
         else:
             df_out = pd.DataFrame(columns=list(df.columns))
         return df_out
 
     except QhullError:
-        return df_xy.columns
+        return array_xy
 
 
+# @profile
 def format_verticesHull(df, col_t, col_x, col_y, col_collid):
     """
     Format the output of get_verticesHull() applied to group
@@ -206,6 +212,7 @@ def format_verticesHull(df, col_t, col_x, col_y, col_collid):
     return df
 
 
+# @profile
 def make_surface_3d(df, col_t, col_x, col_y, col_z, col_id):
     """
     Takes a dataframe and generates a tuple that can be used
@@ -247,6 +254,7 @@ def make_surface_3d(df, col_t, col_x, col_y, col_z, col_id):
     return (hull_np, dataFaces, np_color_values)
 
 
+# @profile
 def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
 
     arr_size = vertices.shape[0]

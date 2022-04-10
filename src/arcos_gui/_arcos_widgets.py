@@ -681,6 +681,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             )
         return data
 
+    # @profile
     def run_arcos(self) -> LayerDataTuple:
         """
         ARCOS method to detect collective events.
@@ -944,7 +945,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                             datChull = datChull.merge(df_collid_colors, on="collid")
                             # create actual shapes
-                            kw_shapes = make_shapes(datChull, col_text="collid")
+                            kw_shapes = make_shapes(datChull, col_id="collid")
 
                             coll_events = (
                                 kw_shapes["data"],
