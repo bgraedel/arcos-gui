@@ -107,6 +107,7 @@ class CollevPlotter(QtWidgets.QWidget):
             bbox=dict(boxstyle="round", fc="#252932", ec="white", linewidth=0.3),
             fontsize=7,
             color="white",
+            clip_on=True,
         )
         self.annot.set_visible(False)
 
@@ -115,20 +116,23 @@ class CollevPlotter(QtWidgets.QWidget):
         pos_text = pos.copy()
         text = f"id: {self.stats[self.collid_name][ind['ind'][0]]}"
         self.annot.set_text(text)
-
-        bbox = self.annot.get_window_extent()
+        self.fig.canvas.draw()
+        renderer = self.fig.canvas.get_renderer()
+        bbox = self.annot.get_window_extent(renderer)
         bbox_data = self.ax.transData.inverted().transform(bbox)
         xlim = self.ax.get_xlim()
         ylim = self.ax.get_ylim()
         size_h = bbox_data[1][0] - bbox_data[0][0]
+        print(size_h)
         size_v = bbox_data[1][1] - bbox_data[0][1]
+
         if pos_text[0] < (xlim[0] + size_h):
             pos_text[0] += size_h
-        if pos_text[0] > (xlim[1] - size_h * 2):
+        if pos_text[0] > (xlim[1] - size_h):
             pos_text[0] -= size_h
         if pos_text[1] < (ylim[0] + size_v):
             pos_text[1] += size_v
-        if pos_text[1] > (ylim[1] - size_v * 1.5):
+        if pos_text[1] > (ylim[1] - size_v):
             pos_text[1] -= size_v
         self.annot.xy = pos
         self.annot.set_position(pos_text)

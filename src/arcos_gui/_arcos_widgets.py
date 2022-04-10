@@ -1,3 +1,4 @@
+from copy import deepcopy
 from os import sep
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -172,6 +173,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._init_callbacks_visible_arcosparameters()
         self._init_plot_callbacks()
         self._init_columns()
+        self.collevplot.register_callback_on_collid_pick(self.set_frame_from_pick)
 
     def _add_plot_widgets(self):
         self.evplot_layout.addWidget(self.collevplot)
@@ -179,7 +181,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def _ts_plot_update(self):
         self.timeseriesplot.update_plot(columnpicker, self.filtered_data)
-        self.collevplot.register_callback_on_collid_pick(self.set_frame_from_pick)
 
     def set_frame_from_pick(self):
         print(self.collevplot.picked_collid)
@@ -204,12 +205,16 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         # callback for updating what to run in arcos_widget
         self.open_file_button.clicked.connect(self.open_columnpicker)
         # reset what to run
-        self.filter_input_data.clicked.connect(self.update_what_to_run_all)
+        self.filter_input_data.clicked.connect(self.after_filter_input_data)
         self.open_file_button.clicked.connect(self.what_to_run.clear)
-        # callbackfor filtering data
-        self.filter_input_data.clicked.connect(self.filter_data)
         self.update_arcos.clicked.connect(self.reset_contrast)
         self.update_arcos.clicked.connect(self.run)
+
+    def after_filter_input_data(self):
+        self.update_what_to_run_all()
+        self.filter_data()
+        self.reset_contrast()
+        self.set_point_size()
 
     def _connect_ranged_sliders_to_spinboxes(self):
         self.tracklenght_slider.valueChanged.connect(
@@ -226,9 +231,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.max_lut_spinbox.valueChanged.connect(self.handle_max_lut_box_ValueChange)
 
     def _init_size_contrast_callbacks(self):
-        # reset contrast and point size
-        self.filter_input_data.clicked.connect(self.reset_contrast)
-        self.filter_input_data.clicked.connect(self.set_point_size)
         # execute LUT and point functions
         self.reset_lut.clicked.connect(self.reset_contrast)
         # update size and LUT
@@ -247,6 +249,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         columnpicker.Ok.changed.connect(self.set_positions)
         columnpicker.Ok.changed.connect(self.get_tracklengths)
         columnpicker.Ok.changed.connect(self.remove_layers_after_columnpicker)
+        columnpicker.Ok.changed.connect(self.after_filter_input_data)
 
     def _init_callbacks_for_whattorun(self):
         # callback for updating 'what to run' in stored_variables object
@@ -485,19 +488,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         if not csv_file.endswith(tuple(extension)):
             show_info("Not a csv file")
         else:
-            columns = columnpicker.frame.choices
-            column_keys = [
-                "frame",
-                "x_coordinates",
-                "y_coordinates",
-                "z_coordinates",
-                "track_id",
-                "measurment",
-                "field_of_view_id",
-            ]
-            for i in column_keys:
-                for index, j in enumerate(columns):
-                    getattr(columnpicker, i).del_choice(str(j))
             csv_file = self.file_LineEdit.text()
             self.layers_to_create.clear()
             columns, delimiter_value = read_data_header(csv_file)
@@ -761,12 +751,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                 self.Progress.setValue(8)
 
-                # updates arcos object in the stored_variables object
-                stored_variables.arcos = arcos
-
-                # binarize data and update ts variable in stored_variables
+                # binarize data and update self.ts variable in stored_variables
                 # update from where to run
-                ts = arcos.bin_measurements(
+                self.ts = arcos.bin_measurements(
                     smoothK=self.smooth_k.value(),
                     biasK=self.bias_k.value(),
                     peakThr=self.bin_peak_threshold.value(),
@@ -774,8 +761,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     polyDeg=self.polyDeg.value(),
                     biasMet=self.bias_method.currentText(),
                 )
-                stored_variables.ts_data = ts
-                stored_variables.arcos = arcos
+                self.start_arcos = deepcopy(arcos)
                 self.what_to_run.add("from_tracking")
 
                 self.Progress.setValue(12)
@@ -783,10 +769,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             # if statement checks if this part of the function has to be run
             # depends on the parameters changed in arcos widget
             if "from_tracking" in self.what_to_run:
-                arcos = stored_variables.arcos  # type: ignore
-                ts = stored_variables.ts_data
+                arcos = deepcopy(self.start_arcos)  # type: ignore
                 # if active cells were detected, run this
-                if 1 in ts[measbin_col].values:
+                if 1 in self.ts[measbin_col].values:
                     # track collective events
                     arcos.trackCollev(
                         self.neighbourhood_size.value(),
@@ -806,15 +791,14 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     show_info("No active Cells detected, consider adjusting parameters")
 
                 # update stored variables
-                stored_variables.arcos = arcos
+                self.tracking_arcos = deepcopy(arcos)
                 self.what_to_run.add("from_filtering")
 
             # depending on the parameters changed in arcos widget
             if "from_filtering" in self.what_to_run:
 
                 # get most recent data from stored_variables
-                arcos = stored_variables.arcos  # type: ignore
-                ts = stored_variables.ts_data
+                arcos = deepcopy(self.tracking_arcos)  # type: ignore
 
                 # if no data show info to run arcos first
                 # and set the progressbar to 100%
@@ -824,7 +808,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                 # if cells were classifed as being active (represented by a 1)
                 # filter tracked events acording to chosen parameters
-                elif 1 in ts[measbin_col].values:
+                elif 1 in self.ts[measbin_col].values:
 
                     # set return varaibles to check which layers have to be created
                     return_collev = False
@@ -837,7 +821,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     self.Progress.setValue(20)
                     # merge tracked and original data
                     merged_data = pd.merge(
-                        ts,
+                        self.ts,
                         self.arcos_filtered[
                             [
                                 self.frame,

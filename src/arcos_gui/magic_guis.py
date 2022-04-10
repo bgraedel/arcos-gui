@@ -55,7 +55,7 @@ measurement_math_options.append("None")
     field_of_view_id={"choices": ["None"]},
     second_measurment={"choices": ["None"], "visible": False},
     measurement_math={
-        "widget_type": "RadioButton",
+        "widget_type": "RadioButtons",
         "orientation": "horizontal",
         "choices": measurement_math_options,
         "label": "Math on first and \n second measurement:",
