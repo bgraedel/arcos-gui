@@ -681,7 +681,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             )
         return data
 
-    # @profile
     def run_arcos(self) -> LayerDataTuple:
         """
         ARCOS method to detect collective events.
