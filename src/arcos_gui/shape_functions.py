@@ -56,7 +56,6 @@ def make_shapes(
     col_y="axis-1",
     col_t="axis-0",
     col_colors="color",
-    col_id_text: bool = True,
 ):
     """
     Take a pandas df with the coordinates of polygons vertices in "long"
@@ -77,12 +76,7 @@ def make_shapes(
     out["face_color"] = (
         df[col_colors].iloc[df[[col_id, col_t]].drop_duplicates().index].to_list()
     )
-    out["properties"] = {}
     out["data"] = l_shapes
-    if col_id_text:
-        out["properties"]["label"] = df_np[
-            np.unique(df_np[:, 0:2], axis=0, return_index=True)[1]
-        ][:, 0].reshape(-1)
     return out
 
 
@@ -208,7 +202,7 @@ def format_verticesHull(df, col_t, col_x, col_y, col_collid):
             "axis-2",
             "collid",
         ]
-    )
+    ).reset_index(drop=True)
     return df
 
 
