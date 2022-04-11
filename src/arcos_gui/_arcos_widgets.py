@@ -1032,6 +1032,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         self.layers_to_create = [all_cells, active_cells]
                     self.what_to_run.clear()
 
+    # @profile
     def make_layers(self):
         """adds layers from self.layers_to_create,
         whitch itself is upated from run_arcos method"""
