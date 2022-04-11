@@ -66,7 +66,7 @@ def make_shapes(
 
     # Drop irrelevant columns, check columns are ordered according to napari's format
     df = df[[c for c in df.columns if c in all_cols]]
-    df_np = df[[col_id, col_t, col_y, col_x]].to_numpy()
+    df_np = df[[col_id, col_t, col_y, col_x]].to_numpy(dtype=np.float64)
     out = {}
     # np array with collid polygons
     l_shapes = np.split(

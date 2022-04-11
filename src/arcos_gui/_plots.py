@@ -123,7 +123,6 @@ class CollevPlotter(QtWidgets.QWidget):
         xlim = self.ax.get_xlim()
         ylim = self.ax.get_ylim()
         size_h = bbox_data[1][0] - bbox_data[0][0]
-        print(size_h)
         size_v = bbox_data[1][1] - bbox_data[0][1]
 
         if pos_text[0] < (xlim[0] + size_h):
@@ -154,7 +153,7 @@ class CollevPlotter(QtWidgets.QWidget):
 
     def on_pick(self, event):
         ind = event.ind
-        print("onpick3 scatter:", ind, self.stats.iloc[ind[0]])
+        print("onpick3 scatter:", "\n", self.stats.iloc[ind[0]])
 
     @property
     def picked_collid(self):
