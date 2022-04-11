@@ -37,7 +37,7 @@ def test_get_verticesHull(data_frame):
     d = [[0, 5], [9, 6], [5, 10]]
     cols = ["X", "Y"]
     df = pd.DataFrame(data=d, columns=cols)
-    assert_frame_equal(df, hulls.iloc[:, [0, 1]].reset_index(drop=True))
+    assert_frame_equal(df, hulls.iloc[:, [1, 2]].reset_index(drop=True))
 
 
 def test_format_verticesHull(data_frame):
@@ -84,4 +84,6 @@ def test_make_shapes(data_frame):
         "face_color": ["#1f77b4"],
         "data": [np.array([[1, 5, 0], [1, 6, 9], [1, 10, 5]])],
     }
+    print(shapes, "\n")
+    print(dict_exp)
     assert_equal(shapes, dict_exp)

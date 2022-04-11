@@ -950,7 +950,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                                 kw_shapes["data"],
                                 {
                                     "face_color": kw_shapes["face_color"],
-                                    "properties": kw_shapes["properties"],
                                     "shape_type": "polygon",
                                     "text": None,
                                     "opacity": 0.5,
