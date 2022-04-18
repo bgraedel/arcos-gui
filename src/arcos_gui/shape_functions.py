@@ -136,128 +136,128 @@ def make_timestamp(
     return out
 
 
-# @profile
-def get_verticesHull(df, col_x, col_y):
-    """From a set of point coordinates (XY), return the points
-    coordinates which form the vertices of the convex hull.
-
-    Args:
-        df (pd.DataFrame): A dataframe with at least 2 columns
-        containing the XY coordinates of a set of points.
-    """
-
-    array_xy = df[[col_x, col_y]].to_numpy()
-    array_xy[~np.isnan(array_xy).any(axis=1)]
-    # try except statement to test if Qhullerror is thrown
-    # returns column names as a list of df_xy
-    # instead of pd.DataFrame to check if correct columns were selected
+def calculate_convex_hull(array):
     try:
-        if array_xy.shape[0] >= 3:
-            hull = ConvexHull(array_xy)
-            df_out = df.iloc[hull.vertices]
-            # # Add back the columns that do not contain the XY coords
-            # df_out = pd.DataFrame(array_out, columns = [col_x, col_y])
-            # df_out = df_out.join(df, on= col_x, how="left")
-        elif array_xy.shape[0] == 2:
-            df_out = df
-        else:
-            df_out = pd.DataFrame(columns=list(df.columns))
-        return df_out
-
+        if array.shape[0] < 3:
+            return np.array([])
+        hull = ConvexHull(array[:, 2:])
+        array_out = array[hull.vertices]
+        return array_out
     except QhullError:
-        return array_xy
+        return np.array([])
+
+
+def calculate_convex_hull_3d(array):
+    try:
+        if array.shape[0] < 3:
+            return np.array([])
+        hull = ConvexHull(array[:, 2:])
+        array_vertices = array[hull.vertices]
+        array_faces = hull.simplices
+        return array_vertices, array_faces
+    except QhullError:
+        return np.array([])
 
 
 # @profile
-def format_verticesHull(df, col_t, col_x, col_y, col_collid):
-    """
-    Format the output of get_verticesHull() applied to group
+def get_verticesHull(df, frame, colid, col_x, col_y):
+    """From a set of point coordinates (XY), grouped by collid
+    return an array containing arrays of vertices, one for each
+    collective event. Also returns a list of colors, a unique
+    one for each collective event.
 
     Args:
-        df (pd.DataFrame): A DataFrame with the coordinates
-        of the vertices of collective events.
+        df (pd.DataFrame): A dataframe with at least 4 columns
+        containing the XY coordinates of a set of points aswell
+        as frame and collective id columns.
+        frame (st): Name of frame column in df.
+        colid (str): Name of collective id column in df.
+        col_x (str): Name of column x coordinate column in df.
+        col_y (str): Name of column y coordinate column in df.
     """
-    all_cols = [col_t, col_x, col_y, col_collid]
-    df = df.loc[:, all_cols]
-    df["shape-type"] = "polygon"
-    df["index"] = df.groupby([col_t, col_collid]).ngroup()
-    df["vertex-index"] = df.groupby("index").cumcount()
-    df.rename(
-        columns={
-            col_t: "axis-0",
-            col_y: "axis-1",
-            col_x: "axis-2",
-            col_collid: "collid",
-        },
-        inplace=True,
+    df = df.sort_values([colid, frame])
+    array_txy = df[[colid, frame, col_y, col_x]].to_numpy()
+    array_txy = array_txy[~np.isnan(array_txy).any(axis=1)]
+    grouped_array = np.split(
+        array_txy, np.unique(array_txy[:, 0:2], axis=0, return_index=True)[1][1:]
     )
-
-    df = df.reindex(
-        columns=[
-            "index",
-            "shape-type",
-            "vertex-index",
-            "axis-0",
-            "axis-1",
-            "axis-2",
-            "collid",
-        ]
-    ).reset_index(drop=True)
-    return df
+    # map to grouped_array
+    convex_hulls = [calculate_convex_hull(i) for i in grouped_array]
+    color_ids = np.take(
+        np.array(COLOR_CYCLE), [int(i[0, 0]) for i in convex_hulls], mode="wrap"
+    )
+    # color_ids = recycle_palette(COLOR_CYCLE, len(convex_hulls))
+    out = np.array([i[:, 1:] for i in convex_hulls])
+    return out, color_ids
 
 
 # @profile
-def make_surface_3d(df, col_t, col_x, col_y, col_z, col_id):
+def make_surface_3d(df, frame, col_x, col_y, col_z, colid):
     """
     Takes a dataframe and generates a tuple that can be used
     to add 3d convex hull with the napari add_surface function
     """
-    datChull = pd.DataFrame()
-    dataFaces = np.array([])
+    dataFaces = []
     vertices_count = 0
-    values = []
-    for event in df[col_id].unique():
-        df_event = df[df[col_id] == event]
-        for i in df_event[col_t].unique():
-            df_filtered = df_event[df_event[col_t] == i]
-            df_xyz = df_filtered[[col_x, col_y, col_z]].copy(deep=True)
-            df_xyz.dropna(inplace=True)
-            hull = ConvexHull(df_xyz)
-            df_out = df_xyz.iloc[hull.vertices]
-            # Add back the columns that do not contain the XY coords
-            df_out = pd.merge(df_out, df_filtered, how="right")
-            datChull = pd.concat([datChull, df_out])
-            values += [event] * len(df_out)
-            faces = hull.simplices
-            faces += vertices_count
-            vertices_count += len(df_out)
-            if dataFaces.size == 0:
-                dataFaces = faces
-            else:
-                dataFaces = np.concatenate((dataFaces, faces))
-    np_color_values = np.array(values)
-    datChull = datChull.reindex(
-        columns=[
-            col_t,
-            col_y,
-            col_x,
-            col_z,
-        ]
+
+    df = df.sort_values([colid, frame])
+    array_txyz = df[[colid, frame, col_y, col_x, col_z]].to_numpy()
+    array_txyz = array_txyz[~np.isnan(array_txyz).any(axis=1)]
+    grouped_array = np.split(
+        array_txyz, np.unique(array_txyz[:, 0:2], axis=0, return_index=True)[1][1:]
     )
-    hull_np = datChull.to_numpy()
-    return (hull_np, dataFaces, np_color_values)
+    convex_hulls = [calculate_convex_hull_3d(i) for i in grouped_array]
+    color_ids = np.concatenate([i[0][:, 0].astype(np.int64) for i in convex_hulls])
+    out_vertices = np.concatenate([i[0][:, 1:] for i in convex_hulls])
+    for i, value in enumerate(convex_hulls):
+        dataFaces.append(np.add(value[1], vertices_count))
+        vertices_count += len(value[0])
+    out_faces = np.concatenate(dataFaces)
+    # map to grouped_array
+
+    # for event in df[col_id].unique():
+    #     df_event = df[df[col_id] == event]
+    #     for i in df_event[col_t].unique():
+    #         df_filtered = df_event[df_event[col_t] == i]
+    #         df_xyz = df_filtered[[col_x, col_y, col_z]].copy(deep=True)
+    #         df_xyz.dropna(inplace=True)
+    #         hull = ConvexHull(df_xyz)
+    #         df_out = df_xyz.iloc[hull.vertices]
+    #         # Add back the columns that do not contain the XY coords
+    #         df_out = pd.merge(df_out, df_filtered, how="right")
+    #         datChull = pd.concat([datChull, df_out])
+    #         values += [event] * len(df_out)
+    #         faces = hull.simplices
+    #         faces += vertices_count
+    #         vertices_count += len(df_out)
+    #         if dataFaces.size == 0:
+    #             dataFaces = faces
+    #         else:
+    #             dataFaces = np.concatenate((dataFaces, faces))
+    # np_color_values = np.array(values)
+    # datChull = datChull.reindex(
+    #     columns=[
+    #         col_t,
+    #         col_y,
+    #         col_x,
+    #         col_z,
+    #     ]
+    # )
+    # hull_np = datChull.to_numpy()
+    return (out_vertices, out_faces, color_ids)
 
 
 # @profile
 def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
 
-    arr_size = vertices.shape[0]
+    # arr_size = vertices.shape[0]
     empty_vertex = []
     empty_faces = []
     empty_colors = []
-
+    time_points = np.unique(vertices[:, 0])
+    arr_size = vertices.shape[0]
     for i in df[col_t].unique():
-        if i not in vertices[:, :1]:
+        if i not in time_points:
             empty_vertex.append([i, 0, 0, 0])
             empty_faces.append([arr_size, arr_size, arr_size])
             arr_size = arr_size + 1

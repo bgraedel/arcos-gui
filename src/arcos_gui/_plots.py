@@ -33,7 +33,7 @@ class CollevPlotter(QtWidgets.QWidget):
         self.collid_name: str = "collid"
         self.nbr_collev: int = 0
         self.stats = pd.DataFrame(
-            data={"tot_size": [], "duration": [], self.collid_name: []}
+            data={"total_size": [], "duration": [], self.collid_name: []}
         )
         self._callbacks = []
         self._init_mpl_widgets()
@@ -77,7 +77,10 @@ class CollevPlotter(QtWidgets.QWidget):
         # populate it with no data
         if not arcos.empty:
             self.stats = collev_stats.calculate(
-                arcos, columnpicker_widget.frame.value, self.collid_name
+                arcos,
+                columnpicker_widget.frame.value,
+                self.collid_name,
+                columnpicker_widget.track_id.value,
             )
 
         self.ax.cla()
@@ -90,7 +93,7 @@ class CollevPlotter(QtWidgets.QWidget):
         self.ax.tick_params(colors="white", which="both")
         self.ax.axis("on")
         self.ax.scatter(
-            self.stats[["tot_size"]],
+            self.stats[["total_size"]],
             self.stats[["duration"]],
             alpha=0.8,
             cmap=COLOR_CYCLE,
