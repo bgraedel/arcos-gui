@@ -6,7 +6,7 @@ viewer, mywidget = viewer.window.add_plugin_dock_widget(
     plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
 )
 file = "C:/Users/benig/Documents/\
-    tracks_191021_wt_curated_smoothedXYZ_interpolated_binarised.csv.gz"
+tracks_191021_wt_curated_smoothedXYZ_interpolated_binarised.csv.gz"
 mywidget.file_LineEdit.setText(file)
 mywidget.open_columnpicker()
 

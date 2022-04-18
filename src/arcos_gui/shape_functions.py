@@ -149,14 +149,13 @@ def calculate_convex_hull(array):
 
 def calculate_convex_hull_3d(array):
     try:
-        if array.shape[0] < 3:
-            return np.array([])
+        if array.shape[0] < 4:
+            return
         hull = ConvexHull(array[:, 2:])
-        array_vertices = array[hull.vertices]
         array_faces = hull.simplices
-        return array_vertices, array_faces
+        return array_faces
     except QhullError:
-        return np.array([])
+        return
 
 
 # @profile
@@ -192,65 +191,42 @@ def get_verticesHull(df, frame, colid, col_x, col_y):
 
 
 # @profile
-def make_surface_3d(df, frame, col_x, col_y, col_z, colid):
+def make_surface_3d(df: pd.DataFrame, frame, col_x, col_y, col_z, colid):
     """
     Takes a dataframe and generates a tuple that can be used
-    to add 3d convex hull with the napari add_surface function
+    to add 3d convex hull with the napari add_surface function.
+    Output has to be appended with empy vertices and surfaces for the
+    timepoints where no surface should be drawn. Otherwise will
+    result in a nontype subscription error.
     """
     dataFaces = []
     vertices_count = 0
-
-    df = df.sort_values([colid, frame])
-    array_txyz = df[[colid, frame, col_y, col_x, col_z]].to_numpy()
-    array_txyz = array_txyz[~np.isnan(array_txyz).any(axis=1)]
+    # sort needed for np.split
+    df = df.sort_values([frame, colid])
+    array_idtyxz = df[[colid, frame, col_y, col_x, col_z]].to_numpy()
+    array_idtyxz = array_idtyxz[~np.isnan(array_idtyxz).any(axis=1)]
+    # split array into list of arrays, one for each collid/timepoint combination
     grouped_array = np.split(
-        array_txyz, np.unique(array_txyz[:, 0:2], axis=0, return_index=True)[1][1:]
+        array_idtyxz, np.unique(array_idtyxz[:, 0:2], axis=0, return_index=True)[1][1:]
     )
-    convex_hulls = [calculate_convex_hull_3d(i) for i in grouped_array]
-    color_ids = np.concatenate([i[0][:, 0].astype(np.int64) for i in convex_hulls])
-    out_vertices = np.concatenate([i[0][:, 1:] for i in convex_hulls])
+    # calc convex hull for every array in the list
+    convex_hulls = [
+        calculate_convex_hull_3d(i) for i in grouped_array if i.shape[0] > 3
+    ]
+    # generates color ids (integers for LUT in napari)
+    color_ids = np.concatenate([i[:, 0].astype(np.int64) for i in grouped_array])
+    out_vertices = array_idtyxz[:, 1:]
+    # merge convex hull face list and shift indexes according to groups
     for i, value in enumerate(convex_hulls):
-        dataFaces.append(np.add(value[1], vertices_count))
-        vertices_count += len(value[0])
+        dataFaces.append(np.add(value, vertices_count))
+        vertices_count += len(grouped_array[i])
     out_faces = np.concatenate(dataFaces)
-    # map to grouped_array
-
-    # for event in df[col_id].unique():
-    #     df_event = df[df[col_id] == event]
-    #     for i in df_event[col_t].unique():
-    #         df_filtered = df_event[df_event[col_t] == i]
-    #         df_xyz = df_filtered[[col_x, col_y, col_z]].copy(deep=True)
-    #         df_xyz.dropna(inplace=True)
-    #         hull = ConvexHull(df_xyz)
-    #         df_out = df_xyz.iloc[hull.vertices]
-    #         # Add back the columns that do not contain the XY coords
-    #         df_out = pd.merge(df_out, df_filtered, how="right")
-    #         datChull = pd.concat([datChull, df_out])
-    #         values += [event] * len(df_out)
-    #         faces = hull.simplices
-    #         faces += vertices_count
-    #         vertices_count += len(df_out)
-    #         if dataFaces.size == 0:
-    #             dataFaces = faces
-    #         else:
-    #             dataFaces = np.concatenate((dataFaces, faces))
-    # np_color_values = np.array(values)
-    # datChull = datChull.reindex(
-    #     columns=[
-    #         col_t,
-    #         col_y,
-    #         col_x,
-    #         col_z,
-    #     ]
-    # )
-    # hull_np = datChull.to_numpy()
     return (out_vertices, out_faces, color_ids)
 
 
 # @profile
 def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
-
-    # arr_size = vertices.shape[0]
+    """Generate empty vertex and faces to fix napari subset error."""
     empty_vertex = []
     empty_faces = []
     empty_colors = []
