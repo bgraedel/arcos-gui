@@ -32,12 +32,8 @@ from arcos_gui.magic_guis import (
     toggle_visible_second_measurment,
 )
 from arcos_gui.shape_functions import (
-    COLOR_CYCLE,
-    assign_color_id,
     fix_3d_convex_hull,
-    format_verticesHull,
     get_verticesHull,
-    make_shapes,
     make_surface_3d,
     make_timestamp,
 )
@@ -681,6 +677,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             )
         return data
 
+    # @profile
     def run_arcos(self) -> LayerDataTuple:
         """
         ARCOS method to detect collective events.
@@ -813,7 +810,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # set return varaibles to check which layers have to be created
                     return_collev = False
                     return_points = True
-                    filterer = filterCollev(arcos.data, self.frame, collid_name)
+                    filterer = filterCollev(
+                        arcos.data, self.frame, collid_name, self.track_id
+                    )
                     self.arcos_filtered = filterer.filter(
                         self.min_dur.value(),
                         self.total_event_size.value(),
@@ -908,48 +907,23 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # if yes calculate convex hulls for collective events
                     if datColl.size != 0:
                         # convex hulls
-                        df_gb = merged_data[~np.isnan(merged_data["collid"])].groupby(
-                            [self.frame, "collid"]
-                        )
                         if self.z_coordinates == "None":
-                            datChull = df_gb.apply(
-                                get_verticesHull,
+                            datChull, color_ids = get_verticesHull(
+                                merged_data[~np.isnan(merged_data["collid"])],
+                                frame=self.frame,
+                                colid=collid_name,
                                 col_x=self.x_coordinates,
                                 col_y=self.y_coordinates,
-                            ).reset_index(drop=True)
-
-                            # check if error Qhullerror was raised in get_verticesHull
-                            # shows column info that was passed on to the function
-                            if type(datChull) == list:
-                                show_info(
-                                    f"Error in convex hull creation, \
-                                    correct x/y columns selected? \n \
-                                    x, y columns: {datChull}"
-                                )
-                            datChull = format_verticesHull(
-                                datChull,
-                                self.frame,
-                                self.x_coordinates,
-                                self.y_coordinates,
-                                "collid",
                             )
+
                             self.Progress.setValue(28)
-
-                            df_collid_colors = assign_color_id(
-                                df=datChull,
-                                palette=COLOR_CYCLE,
-                            )
 
                             self.Progress.setValue(32)
 
-                            datChull = datChull.merge(df_collid_colors, on="collid")
-                            # create actual shapes
-                            kw_shapes = make_shapes(datChull, col_id="collid")
-
                             coll_events = (
-                                kw_shapes["data"],
+                                datChull,
                                 {
-                                    "face_color": kw_shapes["face_color"],
+                                    "face_color": color_ids,
                                     "shape_type": "polygon",
                                     "text": None,
                                     "opacity": 0.5,
