@@ -29,57 +29,6 @@ text_parameters = {
 }
 
 
-# @profile
-def recycle_palette(l_colors, length):
-    ntimes = length // len(l_colors)
-    remainder = length % len(l_colors)
-    return l_colors * ntimes + l_colors[:remainder]
-
-
-# @profile
-def assign_color_id(df, palette, col_id="collid", col_color="color"):
-    """
-    Assign one color to each unique value in a column.
-    Returns a DF with the assignment.
-    """
-    unique_id = df[col_id].unique()
-    palette_val = recycle_palette(palette, len(unique_id))
-    df_out = pd.DataFrame.from_dict({col_id: unique_id, col_color: palette_val})
-    return df_out
-
-
-# @profile
-def make_shapes(
-    df,
-    col_id="index",
-    col_x="axis-2",
-    col_y="axis-1",
-    col_t="axis-0",
-    col_colors="color",
-):
-    """
-    Take a pandas df with the coordinates of polygons vertices in "long"
-    format and turn them into a list of numpy arrays, one for each polygon.
-    Outputs a dictionary suitable for napari viewer.add_shapes
-    """
-    all_cols = [col_id, col_t, col_y, col_x, col_colors]
-
-    # Drop irrelevant columns, check columns are ordered according to napari's format
-    df = df[[c for c in df.columns if c in all_cols]]
-    df_np = df[[col_id, col_t, col_y, col_x]].to_numpy(dtype=np.float64)
-    out = {}
-    # np array with collid polygons
-    l_shapes = np.split(
-        df_np[:, 1:], np.unique(df_np[:, 0:2], axis=0, return_index=True)[1][1:]
-    )
-    # The color is duplicated for each point in the polygon, take only first value
-    out["face_color"] = (
-        df[col_colors].iloc[df[[col_id, col_t]].drop_duplicates().index].to_list()
-    )
-    out["data"] = l_shapes
-    return out
-
-
 def make_timestamp(
     viewer,
     start_time=0,
