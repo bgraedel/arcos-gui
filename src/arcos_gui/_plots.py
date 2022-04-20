@@ -1,7 +1,16 @@
+from typing import TYPE_CHECKING
+
 import matplotlib.pyplot as plt
+import napari
 import numpy as np
 import pandas as pd
 from arcos4py.tools import calcCollevStats
+from arcos_gui.shape_functions import (
+    COLOR_CYCLE,
+    fix_3d_convex_hull,
+    get_bbox,
+    get_bbox_3d,
+)
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -9,7 +18,9 @@ from napari.utils.notifications import show_info
 from qtpy import QtWidgets
 from scipy.stats import gaussian_kde
 
-from .shape_functions import COLOR_CYCLE
+if TYPE_CHECKING:
+    import napari.layers
+    import napari.viewer
 
 
 class CollevPlotter(QtWidgets.QWidget):
@@ -21,7 +32,7 @@ class CollevPlotter(QtWidgets.QWidget):
     returned by arcos.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, viewer: napari.viewer.Viewer, parent=None):
         """Initialise instance.
         :param viewer: Napari viewer instance
         :type viewer: napari.viewer.Viewer
@@ -29,13 +40,13 @@ class CollevPlotter(QtWidgets.QWidget):
         :type parent: qtpy.QtWidgets.QWidget
         """
         super().__init__(parent)
-
+        self.viewer = viewer
         self.collid_name: str = "collid"
         self.nbr_collev: int = 0
         self.stats = pd.DataFrame(
             data={"total_size": [], "duration": [], self.collid_name: []}
         )
-        self._callbacks = []
+        self._callbacks: list = []
         self._init_mpl_widgets()
         self.fig.canvas.mpl_connect("motion_notify_event", self.hover)
         self.fig.canvas.mpl_connect("pick_event", self.on_pick)
@@ -66,18 +77,23 @@ class CollevPlotter(QtWidgets.QWidget):
         self.setLayout(self.layout_collevplot)
         self.setWindowTitle("Collective Events")
 
-    def update_plot(self, columnpicker_widget, arcos_data):
+    def update_plot(self, columnpicker_widget, arcos_data, point_size=10):
         """
         Method to update the matplotlibl axis object self.ax with new values from
         the stored_variables object
         """
-        arcos = arcos_data
+        self.arcos = arcos_data
+        self.point_size = point_size
         collev_stats = calcCollevStats()
+        self.frame_col = columnpicker_widget.frame.value
+        self.posx = columnpicker_widget.x_coordinates.value
+        self.posy = columnpicker_widget.y_coordinates.value
+        self.posz = columnpicker_widget.z_coordinates.value
         # if no calculation was run so far (i.e. when the widget is initialized)
         # populate it with no data
-        if not arcos.empty:
+        if not self.arcos.empty:
             self.stats = collev_stats.calculate(
-                arcos,
+                self.arcos,
                 columnpicker_widget.frame.value,
                 self.collid_name,
                 columnpicker_widget.track_id.value,
@@ -138,7 +154,6 @@ class CollevPlotter(QtWidgets.QWidget):
             pos_text[1] -= size_v
         self.annot.xy = pos
         self.annot.set_position(pos_text)
-        # self.annot.get_bbox_patch().set_facecolor(cmap(norm(c[ind["ind"][0]])))
         self.annot.get_bbox_patch().set_alpha(1)
 
     def hover(self, event):
@@ -156,7 +171,40 @@ class CollevPlotter(QtWidgets.QWidget):
 
     def on_pick(self, event):
         ind = event.ind
-        print("onpick3 scatter:", "\n", self.stats.iloc[ind[0]])
+        clid = self.stats.iloc[ind[0]][0]
+        current_colev = self.arcos[self.arcos["collid"] == clid]
+        edge_size = self.point_size.value() / 5
+        frame = self.stats.iloc[ind[0]][5]
+        if "event_boundingbox" in self.viewer.layers:
+            self.viewer.layers.remove("event_boundingbox")
+        if self.posz == "None":
+            bbox, bbox_param = get_bbox(
+                current_colev, clid, self.frame_col, self.posx, self.posy, edge_size
+            )
+            self.viewer.add_shapes(bbox, **bbox_param)
+        else:
+            timepoints = [i for i in range(0, int(self.viewer.dims.range[0][1]))]
+            df_tp = pd.DataFrame(timepoints, columns=[self.frame_col])
+            bbox_tuple = get_bbox_3d(
+                current_colev, self.frame_col, self.posx, self.posy, self.posz
+            )
+            bbox_tuple = fix_3d_convex_hull(
+                df_tp, bbox_tuple[0], bbox_tuple[1], bbox_tuple[2], self.frame_col
+            )
+            self.viewer.add_surface(
+                bbox_tuple,
+                colormap="red",
+                opacity=0.15,
+                name="event_boundingbox",
+                shading="none",
+            )
+
+        if len(self.viewer.dims.current_step) == 3:
+            t, y, x = self.viewer.dims.current_step
+            self.viewer.dims.current_step = (frame, y, x)
+        elif len(self.viewer.dims.current_step) == 4:
+            t, y, x, z = self.viewer.dims.current_step
+            self.viewer.dims.current_step = (frame, y, x, z)
 
     @property
     def picked_collid(self):

@@ -154,7 +154,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.arcos_filtered: pd.DataFrame = pd.DataFrame()
         self.measurement = "None"
         self.timeseriesplot = TimeSeriesPlots(parent=self)
-        self.collevplot = CollevPlotter(parent=self)
+        self.collevplot = CollevPlotter(parent=self, viewer=self.viewer)
         self._add_plot_widgets()
         self._init_ranged_sliderts()
         self.browse_file.setIcon(browse_file_icon)
@@ -186,7 +186,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.timeseriesplot.button.clicked.connect(self._ts_plot_update)
 
     def collev_plot_update(self):
-        self.collevplot.update_plot(columnpicker, self.arcos_filtered)
+        self.collevplot.update_plot(
+            columnpicker, self.arcos_filtered, point_size=self.point_size
+        )
         self.nbr_collev_display.display(self.collevplot.nbr_collev)
 
     def _init_callbacks_visible_arcosparameters(self):
@@ -473,6 +475,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self.viewer.layers["coll events"].edge_width = size / 5
             self.viewer.layers["coll events"].refresh()
 
+        if "event_boundingbox" in self.viewer.layers:
+            self.viewer.layers["coll events"].edge_width = size / 5
+
     def open_columnpicker(self):
         """
         Take a filename and if it is a csv file,
@@ -544,6 +549,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             "active cells",
             "all_cells",
             "Timestamp",
+            "event_boundingbox",
         ]:
             if layer in layer_list:
                 self.viewer.layers.remove(layer)
@@ -1017,6 +1023,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 "coll events",
                 "active cells",
                 "all_cells",
+                "event_boundingbox",
             ]:
                 if layer in layers_names:
                     self.viewer.layers.remove(layer)

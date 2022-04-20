@@ -130,7 +130,7 @@ def get_verticesHull(df, frame, colid, col_x, col_y):
         array_txy, np.unique(array_txy[:, 0:2], axis=0, return_index=True)[1][1:]
     )
     # map to grouped_array
-    convex_hulls = [calculate_convex_hull(i) for i in grouped_array]
+    convex_hulls = [calculate_convex_hull(i) for i in grouped_array if i.shape[0] > 4]
     color_ids = np.take(
         np.array(COLOR_CYCLE), [int(i[0, 0]) for i in convex_hulls], mode="wrap"
     )
@@ -193,3 +193,110 @@ def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
     surface_tuple_2 = np.concatenate((colors, np.array(empty_colors)), axis=0)
 
     return (surface_tuple_0, surface_tuple_1, surface_tuple_2)
+
+
+def calc_bbox(array: np.ndarray):
+    t = array[0, 0]
+    pos_array = array[:, 1:]
+    # 3d case
+    if pos_array.shape[1] == 3:
+
+        miny, minx, minz = np.min(pos_array, axis=0)
+        maxy, maxx, maxz = np.max(pos_array, axis=0)
+        return np.array(
+            [
+                [t, miny, minx, minz],
+                [t, miny, minx, maxz],
+                [t, miny, maxx, maxz],
+                [t, miny, maxx, minz],
+                [t, maxy, maxx, minz],
+                [t, maxy, minx, minz],
+                [t, maxy, minx, maxz],
+                [t, maxy, maxx, maxz],
+            ]
+        )
+    # 2d case
+    miny, minx = np.min(pos_array, axis=0)
+    maxy, maxx = np.max(pos_array, axis=0)
+    return np.array(
+        [[t, miny, minx], [t, miny, maxx], [t, maxy, maxx], [t, maxy, minx]]
+    )
+
+
+def get_bbox(
+    df: pd.DataFrame, clid: int, frame: str, xcol: str, ycol: str, edge_size: float = 10
+):
+    """Get bounding box of dataframe in long format with position columns.
+
+    Returns: nd.array that can be added to napari with add_shapes function aswell
+    as dictionary that can be unpacked containing kwargs for shapes layer.
+    """
+    df = df.sort_values([frame])
+    array_tpos = df[[frame, ycol, xcol]].to_numpy()
+    array_tpos = array_tpos[~np.isnan(array_tpos).any(axis=1)]
+    # split array into list of arrays, one for each collid/timepoint combination
+    grouped_array = np.split(
+        array_tpos, np.unique(array_tpos[:, 0], axis=0, return_index=True)[1][1:]
+    )
+    # calc bbox for every array in the list
+    bbox = [calc_bbox(i) for i in grouped_array]
+    text_parameters = {
+        "text": "Event Nbr: {label}",
+        "size": edge_size,
+        "color": "white",
+        "anchor": "upper_left",
+        "translation": [-3, 0],
+    }
+    bbox_layer: dict = {}
+    bbox_layer["properties"] = {}
+    bbox_layer["properties"]["label"] = clid
+    bbox_layer["text"] = text_parameters
+    bbox_layer["face_color"] = "transparent"
+    bbox_layer["edge_color"] = "red"
+    bbox_layer["edge_width"] = edge_size
+    bbox_layer["name"] = "event_boundingbox"
+
+    return bbox, bbox_layer
+
+
+def get_bbox_3d(df: pd.DataFrame, frame: str, xcol: str, ycol: str, zcol: str):
+    """get bounding box of a 3d collective event retunrs tuple that
+    can be added to napari with the add_surfaces function."""
+    df = df.sort_values([frame])
+    array_tpos = df[[frame, ycol, xcol, zcol]].to_numpy()
+    array_tpos = array_tpos[~np.isnan(array_tpos).any(axis=1)]
+    # split array into list of arrays, one for each collid/timepoint combination
+    grouped_array = np.split(
+        array_tpos, np.unique(array_tpos[:, 0], axis=0, return_index=True)[1][1:]
+    )
+    # calc bbox for every array in the list
+    bbox = [calc_bbox(i) for i in grouped_array]
+    hull = ConvexHull(bbox[0][:, 1:])
+    face = hull.simplices
+    dataFaces = []
+    vertices_count = 0
+    data_colors = []
+    face = np.array(
+        [
+            [3, 5, 4],
+            [3, 5, 0],
+            [3, 1, 2],
+            [3, 1, 0],
+            [7, 3, 2],
+            [7, 3, 4],
+            [6, 1, 0],
+            [6, 5, 0],
+            [6, 1, 2],
+            [6, 7, 2],
+            [6, 5, 4],
+            [6, 7, 4],
+        ]
+    )
+    for value in bbox:
+        dataFaces.append(np.add(face, vertices_count))
+        vertices_count += len(value)
+    out_faces = np.concatenate(dataFaces)
+    # color_array = np.array(data_colors)
+    bbox_array = np.concatenate(bbox)
+    data_colors = np.array([1 for i in range(bbox_array.shape[0])])
+    return (bbox_array, out_faces, data_colors)
