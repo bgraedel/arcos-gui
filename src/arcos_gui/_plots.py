@@ -1,3 +1,4 @@
+from re import findall
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -205,6 +206,241 @@ class CollevPlotter(QtWidgets.QWidget):
         elif len(self.viewer.dims.current_step) == 4:
             t, y, x, z = self.viewer.dims.current_step
             self.viewer.dims.current_step = (frame, y, x, z)
+
+    @property
+    def picked_collid(self):
+        return self._picked_collid
+
+    @picked_collid.setter
+    def picked_collid(self, new_value):
+        self._picked_collid = new_value
+        self._notify_observers(new_value)
+
+    def _notify_observers(self, new_value):
+        for callback in self._callbacks:
+            callback(new_value)
+
+    def register_callback_on_collid_pick(self, callback):
+        self._callbacks.append(callback)
+
+
+class NoodlePlot(QtWidgets.QWidget):
+    """
+    QWidget for plotting.
+    Class to make a matplotlib figure canvas and add it to a Qwidget.
+    Canvas, figure and axis objects can be acessed by self.canvas,
+    self.fig and self.ax. This plots tracks of Collective events over time.
+    """
+
+    def __init__(self, viewer: napari.viewer.Viewer, parent=None):
+        """Initialise instance.
+        :param viewer: Napari viewer instance
+        :type viewer: napari.viewer.Viewer
+        :param parent: Parent widget, optional
+        :type parent: qtpy.QtWidgets.QWidget
+        """
+        super().__init__(parent)
+        self.viewer = viewer
+        self.collid_name: str = "collid"
+        self.nbr_collev: int = 0
+        self.stats = pd.DataFrame(
+            data={"total_size": [], "duration": [], self.collid_name: []}
+        )
+        self._callbacks: list = []
+        self._init_mpl_widgets()
+        self.fig.canvas.mpl_connect("motion_notify_event", self.hover)
+        # self.fig.canvas.mpl_connect("pick_event", self.on_pick)
+
+    def _init_mpl_widgets(self):
+        """
+        Method to initialise a matplotlib figure canvas, to generate,
+        set plot style and axis, and populate it with a matplotlib.figure.Figure.
+        """
+        # set up figure and axe objects
+        with plt.style.context("dark_background"):
+            plt.rcParams["figure.dpi"] = 110
+            plt.rcParams["axes.edgecolor"] = "#ffffff"
+            self.fig = Figure(figsize=(3, 2), tight_layout=True)
+            self.canvas = FigureCanvas(self.fig)
+            self.ax = self.fig.add_subplot(111)
+            self.ax.plot([], [])
+            self.ax.set_xlabel("Time")
+            self.ax.set_ylabel("Position coordinate")
+            self.canvas.figure.tight_layout()
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        # construct layout
+        self.layout_collevplot = QtWidgets.QVBoxLayout()
+        self.layout_collevplot.addWidget(self.toolbar)
+        self.layout_collevplot.addWidget(self.canvas)
+        self.setLayout(self.layout_collevplot)
+        self.setWindowTitle("Noodle Plot")
+
+    def prepare_data(
+        self,
+        df: pd.DataFrame,
+        colev: str,
+        trackid: str,
+        frame: str,
+        posx: str,
+        posy: str,
+        posz: str,
+    ):
+        df.sort_values([colev, trackid], inplace=True)
+        if posz != "None":
+            array = df[[colev, trackid, frame, posx, posy, posz]].to_numpy()
+        else:
+            array = df[[colev, trackid, frame, posx, posy]].to_numpy()
+        grouped_array = np.split(
+            array, np.unique(array[:, 0], axis=0, return_index=True)[1][1:]
+        )
+        seq_colids = np.concatenate(
+            [np.repeat(i, value.shape[0]) for i, value in enumerate(grouped_array)],
+            axis=0,
+        )
+        array_seq_colids = np.column_stack((array, seq_colids))
+        grouped_array = np.split(
+            array_seq_colids,
+            np.unique(array_seq_colids[:, :2], axis=0, return_index=True)[1][1:],
+        )
+        colors = plt.cm.viridis_r(
+            np.linspace(0, 1, np.unique(array_seq_colids[:, -1]).shape[0])
+        )
+        return grouped_array, colors
+
+    def update_plot(self, columnpicker_widget, arcos_data, point_size=10):
+        """
+        Method to update the matplotlibl axis object self.ax with new values from
+        the stored_variables object
+        """
+        self.arcos = arcos_data
+        self.point_size = point_size
+        self.frame_col = columnpicker_widget.frame.value
+        self.trackid_col = columnpicker_widget.track_id.value
+        self.posx = columnpicker_widget.x_coordinates.value
+        self.posy = columnpicker_widget.y_coordinates.value
+        self.posz = columnpicker_widget.z_coordinates.value
+        # if no calculation was run so far (i.e. when the widget is initialized)
+        # populate it with no data
+        if not arcos_data.empty:
+            self.dat_grpd, self.colors = self.prepare_data(
+                arcos_data,
+                "collid",
+                self.trackid_col,
+                self.frame_col,
+                self.posx,
+                self.posy,
+                self.posz,
+            )
+            self.ax.cla()
+            self.ax.spines["bottom"].set_color("white")
+            self.ax.spines["top"].set_color("white")
+            self.ax.spines["right"].set_color("white")
+            self.ax.spines["left"].set_color("white")
+            self.ax.xaxis.label.set_color("white")
+            self.ax.yaxis.label.set_color("white")
+            self.ax.tick_params(colors="white", which="both")
+            self.ax.axis("on")
+            for dat in self.dat_grpd:
+                self.ax.plot(
+                    dat[:, 2], dat[:, 4], c=self.colors[int(dat[0, -1])], picker=True
+                )
+            self.ax.set_xlabel("Time Point")
+            self.ax.set_ylabel("Position")
+            self.fig.canvas.draw_idle()
+            self.nbr_collev = self.stats.shape[0]
+            self.annot = self.ax.annotate(
+                "",
+                xy=(0, 0),
+                xytext=(0, 0),
+                bbox=dict(boxstyle="round", fc="#252932", ec="white", linewidth=0.3),
+                fontsize=7,
+                color="white",
+                clip_on=True,
+            )
+            self.annot.set_visible(False)
+
+    def update_annot(self, ind, line):
+        x, y = line.get_data()
+        pos_text = [x[ind["ind"][0]], y[ind["ind"][0]]]
+        clid_index = int(findall(r"\d+", line.get_label())[0])
+        clid = int(self.dat_grpd[clid_index][0, 0])
+        self.annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
+        # text = f"id: {self.stats[self.collid_name][ind['ind'][0]]}"
+        text = f"id:{clid}"
+        self.annot.set_text(text)
+        r = self.fig.canvas.get_renderer()
+        bbox = self.annot.get_window_extent(renderer=r)
+        bbox_data = self.ax.transData.inverted().transform(bbox)
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        size_h = bbox_data[1][0] - bbox_data[0][0]
+        size_v = bbox_data[1][1] - bbox_data[0][1]
+
+        if pos_text[0] < (xlim[0] + size_h):
+            pos_text[0] += size_h
+        if pos_text[0] > (xlim[1] - size_h):
+            pos_text[0] -= size_h
+        if pos_text[1] < (ylim[0] + size_v):
+            pos_text[1] += size_v
+        if pos_text[1] > (ylim[1] - size_v):
+            pos_text[1] -= size_v
+
+        self.annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
+        self.annot.set_position(pos_text)
+        self.annot.get_bbox_patch().set_alpha(1)
+
+    def hover(self, event):
+        vis = self.annot.get_visible()
+        if event.inaxes == self.ax:
+            for line in self.ax.lines:
+                cont, ind = line.contains(event)
+                if cont:
+                    self.update_annot(ind, line)
+                    self.annot.set_visible(True)
+                    self.fig.canvas.draw_idle()
+                else:
+                    if vis:
+                        self.annot.set_visible(False)
+                        self.fig.canvas.draw_idle()
+
+    # def on_pick(self, event):
+    #     ind = event.ind
+    #     clid = self.stats.iloc[ind[0]][0]
+    #     current_colev = self.arcos[self.arcos["collid"] == clid]
+    #     edge_size = self.point_size.value() / 5
+    #     frame = self.stats.iloc[ind[0]][5]
+    #     if "event_boundingbox" in self.viewer.layers:
+    #         self.viewer.layers.remove("event_boundingbox")
+    #     if self.posz == "None":
+    #         bbox, bbox_param = get_bbox(
+    #             current_colev, clid, self.frame_col, self.posx, self.posy, edge_size
+    #         )
+    #         self.viewer.add_shapes(bbox, **bbox_param)
+    #     else:
+    #         timepoints = [i for i in range(0, int(self.viewer.dims.range[0][1]))]
+    #         df_tp = pd.DataFrame(timepoints, columns=[self.frame_col])
+    #         bbox_tuple = get_bbox_3d(
+    #             current_colev, self.frame_col, self.posx, self.posy, self.posz
+    #         )
+    #         bbox_tuple = fix_3d_convex_hull(
+    #             df_tp, bbox_tuple[0], bbox_tuple[1], bbox_tuple[2], self.frame_col
+    #         )
+    #         self.viewer.add_surface(
+    #             bbox_tuple,
+    #             colormap="red",
+    #             opacity=0.15,
+    #             name="event_boundingbox",
+    #             shading="none",
+    #         )
+
+    #     if len(self.viewer.dims.current_step) == 3:
+    #         t, y, x = self.viewer.dims.current_step
+    #         self.viewer.dims.current_step = (frame, y, x)
+    #     elif len(self.viewer.dims.current_step) == 4:
+    #         t, y, x, z = self.viewer.dims.current_step
+    #         self.viewer.dims.current_step = (frame, y, x, z)
 
     @property
     def picked_collid(self):

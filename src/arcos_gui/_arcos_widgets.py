@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # local imports
 from arcos4py import ARCOS
 from arcos4py.tools import filterCollev
-from arcos_gui._plots import CollevPlotter, TimeSeriesPlots
+from arcos_gui._plots import NoodlePlot, TimeSeriesPlots
 from arcos_gui.data_module import process_input, read_data_header
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
 from arcos_gui.magic_guis import (
@@ -154,7 +154,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.arcos_filtered: pd.DataFrame = pd.DataFrame()
         self.measurement = "None"
         self.timeseriesplot = TimeSeriesPlots(parent=self)
-        self.collevplot = CollevPlotter(parent=self, viewer=self.viewer)
+        self.collevplot = NoodlePlot(parent=self, viewer=self.viewer)
         self._add_plot_widgets()
         self._init_ranged_sliderts()
         self.browse_file.setIcon(browse_file_icon)
