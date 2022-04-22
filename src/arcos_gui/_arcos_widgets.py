@@ -32,6 +32,7 @@ from arcos_gui.magic_guis import (
     toggle_visible_second_measurment,
 )
 from arcos_gui.shape_functions import (
+    COLOR_CYCLE,
     fix_3d_convex_hull,
     get_verticesHull,
     make_surface_3d,
@@ -970,14 +971,38 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         # get point_size
                         size = self.point_size.value()
                         # create remaining layer.data.tuples
+                        np_clids = merged_data[~np.isnan(merged_data["collid"])][
+                            "collid"
+                        ].to_numpy()
+                        # this code could be used to make collective ids sequential
+                        # an issue that might occur with the way colors are currently
+                        # assigned
+                        # is that 2 collective events in the same frame have the
+                        # same color
+                        # making collective events sequential could fix the problem
+                        # clids_sorted_i = np.argsort(np_clids)
+                        # clids_reverse_i = np.argsort(clids_sorted_i)
+                        # np_clids_sorted = np_clids[[clids_sorted_i]]
+                        # grouped_array_clids = np.split(
+                        #     np_clids_sorted,
+                        # np.unique(np_clids_sorted,
+                        # axis=0, return_index=True)[1][1:]
+                        # )
+                        # seq_colids = np.concatenate(
+                        #     [np.repeat(i, value.shape[0])
+                        # for i, value in enumerate(grouped_array_clids)],
+                        #     axis=0,
+                        # )[clids_reverse_i]
+                        color_ids = np.take(
+                            np.array(COLOR_CYCLE), [i for i in np_clids], mode="wrap"
+                        )
                         coll_cells = (
                             datColl,
                             {
-                                "face_color": "black",
-                                "size": round(size / 1.7, 2),
+                                "face_color": color_ids,
+                                "size": round(size / 1.2, 2),
                                 "edge_width": 0,
-                                "opacity": 0.75,
-                                "symbol": "x",
+                                "opacity": 1,
                                 "name": "coll cells",
                             },
                             "points",
