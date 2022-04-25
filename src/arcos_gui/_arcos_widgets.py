@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # local imports
 from arcos4py import ARCOS
 from arcos4py.tools import filterCollev
-from arcos_gui._plots import NoodlePlot, TimeSeriesPlots
+from arcos_gui._plots import CollevPlotter, NoodlePlot, TimeSeriesPlots
 from arcos_gui.data_module import process_input, read_data_header
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
 from arcos_gui.magic_guis import (
@@ -122,6 +122,7 @@ class _MainUI:
     collevplot_goupbox: QtWidgets.QGroupBox
     timeseriesplot_groupbox: QtWidgets.QGroupBox
     evplot_layout: QtWidgets.QVBoxLayout
+    evplot_layout_2: QtWidgets.QVBoxLayout
     tsplot_layout: QtWidgets.QVBoxLayout
     nbr_collev_display: QtWidgets.QLCDNumber
 
@@ -155,7 +156,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.arcos_filtered: pd.DataFrame = pd.DataFrame()
         self.measurement = "None"
         self.timeseriesplot = TimeSeriesPlots(parent=self)
-        self.collevplot = NoodlePlot(parent=self, viewer=self.viewer)
+        self.noodle_plot = NoodlePlot(parent=self, viewer=self.viewer)
+        self.collevplot = CollevPlotter(parent=self, viewer=self.viewer)
         self._add_plot_widgets()
         self._init_ranged_sliderts()
         self.browse_file.setIcon(browse_file_icon)
@@ -170,17 +172,14 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._init_callbacks_visible_arcosparameters()
         self._init_plot_callbacks()
         self._init_columns()
-        self.collevplot.register_callback_on_collid_pick(self.set_frame_from_pick)
 
     def _add_plot_widgets(self):
         self.evplot_layout.addWidget(self.collevplot)
+        self.evplot_layout_2.addWidget(self.noodle_plot)
         self.tsplot_layout.addWidget(self.timeseriesplot)
 
     def _ts_plot_update(self):
         self.timeseriesplot.update_plot(columnpicker, self.filtered_data)
-
-    def set_frame_from_pick(self):
-        print(self.collevplot.picked_collid)
 
     def _init_plot_callbacks(self):
         self.timeseriesplot.combo_box.currentIndexChanged.connect(self._ts_plot_update)
@@ -188,7 +187,22 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def collev_plot_update(self):
         self.collevplot.update_plot(
-            columnpicker, self.arcos_filtered, point_size=self.point_size
+            self.frame,
+            self.track_id,
+            self.x_coordinates,
+            self.y_coordinates,
+            self.z_coordinates,
+            self.arcos_filtered,
+            point_size=self.point_size,
+        )
+        self.noodle_plot.update_plot(
+            self.frame,
+            self.track_id,
+            self.x_coordinates,
+            self.y_coordinates,
+            self.z_coordinates,
+            self.arcos_filtered,
+            point_size=self.point_size,
         )
         self.nbr_collev_display.display(self.collevplot.nbr_collev)
 
@@ -1095,12 +1109,12 @@ def movie_export(viewer, automatic_viewer_size):
     if len(viewer.layers) == 0:
         show_info("No data to export, run arcos first")
     else:
-        # hides dock widgets, sets path, gets viwer dimensions
-        hide_dock_widgets(viewer)
         path = str(output_movie_folder.filename.value)
         output_path = f"{path}{sep}{output_movie_folder.Name.value}"
         # resize viewer if chosen
         if automatic_viewer_size:
+            # hides dock widgets, sets path, gets viwer dimensions
+            hide_dock_widgets(viewer)
             resize_napari([np.float64(1012), np.float64(1012)], viewer)
         # iterate over frames to export data to chosen output path
         iterate_over_frames.show()

@@ -1224,16 +1224,46 @@
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="collevplot_goupbox">
+        <widget class="QGroupBox" name="collevplot_goupbox_2">
          <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Plot displaying collective event duration over collective event total size&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string/>
          </property>
          <property name="title">
           <string>Collective Event Statistics</string>
          </property>
-         <layout class="QVBoxLayout" name="timeseriesplot_layout">
+         <layout class="QVBoxLayout" name="timeseriesplot_layout_2">
           <item>
-           <layout class="QVBoxLayout" name="evplot_layout"/>
+           <widget class="QTabWidget" name="tabWidget_2">
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <widget class="QWidget" name="scatter_plot">
+             <attribute name="title">
+              <string>Scatter Plot</string>
+             </attribute>
+             <attribute name="toolTip">
+              <string>Plot displaying collective event duration over collective event total size</string>
+             </attribute>
+             <layout class="QHBoxLayout" name="horizontalLayout_5">
+              <item>
+               <layout class="QVBoxLayout" name="evplot_layout"/>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="noodle_plot">
+             <attribute name="title">
+              <string>Noodle Plot</string>
+             </attribute>
+             <attribute name="toolTip">
+              <string>Collective Event Tracks, colors indicate unique collective events, tracks are projected along one coordinate</string>
+             </attribute>
+             <layout class="QVBoxLayout" name="verticalLayout_6">
+              <item>
+               <layout class="QVBoxLayout" name="evplot_layout_2"/>
+              </item>
+             </layout>
+            </widget>
+           </widget>
           </item>
          </layout>
         </widget>
@@ -1296,6 +1326,38 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>file_LineEdit</tabstop>
+  <tabstop>browse_file</tabstop>
+  <tabstop>open_file_button</tabstop>
+  <tabstop>position</tabstop>
+  <tabstop>frame_interval</tabstop>
+  <tabstop>rescale_measurment</tabstop>
+  <tabstop>min_tracklength_spinbox</tabstop>
+  <tabstop>max_tracklength_spinbox</tabstop>
+  <tabstop>filter_input_data</tabstop>
+  <tabstop>interpolate_meas</tabstop>
+  <tabstop>clip_meas</tabstop>
+  <tabstop>clip_high</tabstop>
+  <tabstop>clip_low</tabstop>
+  <tabstop>bias_method</tabstop>
+  <tabstop>smooth_k</tabstop>
+  <tabstop>bias_k</tabstop>
+  <tabstop>polyDeg</tabstop>
+  <tabstop>bin_peak_threshold</tabstop>
+  <tabstop>bin_threshold</tabstop>
+  <tabstop>neighbourhood_size</tabstop>
+  <tabstop>min_clustersize</tabstop>
+  <tabstop>min_dur</tabstop>
+  <tabstop>total_event_size</tabstop>
+  <tabstop>update_arcos</tabstop>
+  <tabstop>point_size</tabstop>
+  <tabstop>LUT</tabstop>
+  <tabstop>min_lut_spinbox</tabstop>
+  <tabstop>max_lut_spinbox</tabstop>
+  <tabstop>reset_lut</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
