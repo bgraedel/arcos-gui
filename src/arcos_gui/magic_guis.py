@@ -53,6 +53,7 @@ measurement_math_options.append("None")
     z_coordinates={"choices": ["None"]},
     measurment={"choices": ["None"]},
     field_of_view_id={"choices": ["None"]},
+    additional_filter={"choices": ["None"]},
     second_measurment={"choices": ["None"], "visible": False},
     measurement_math={
         "widget_type": "RadioButtons",
@@ -70,6 +71,7 @@ def columnpicker(
     measurment="None",
     second_measurment="None",
     field_of_view_id="None",
+    additional_filter="None",
     measurement_math="None",
     Ok=False,
 ):

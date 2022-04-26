@@ -62,6 +62,8 @@ class _MainUI:
     open_file_button: QtWidgets.QPushButton
     browse_file: QtWidgets.QPushButton
     position: QtWidgets.QComboBox
+    additional_filter_combobox: QtWidgets.QComboBox
+    additional_filter_combobox_label: QtWidgets.QLabel
     frame_interval: QtWidgets.QSpinBox
     rescale_measurment: QtWidgets.QSpinBox
     min_tracklength: QtWidgets.QSlider
@@ -104,6 +106,7 @@ class _MainUI:
     update_arcos: QtWidgets.QPushButton
     arcos_group: QtWidgets.QGroupBox
     clip_frame: QtWidgets.QFrame
+    add_convex_hull_checkbox: QtWidgets.QCheckBox
 
     point_size_label: QtWidgets.QLabel
     select_lut_label: QtWidgets.QLabel
@@ -277,6 +280,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.min_clustersize.valueChanged.connect(self.update_what_to_run_tracking)
         self.min_dur.valueChanged.connect(self.update_what_to_run_filtering)
         self.total_event_size.valueChanged.connect(self.update_what_to_run_filtering)
+        self.add_convex_hull_checkbox.stateChanged.connect(
+            self.update_what_to_run_filtering
+        )
 
     def _init_ranged_sliderts(self):
         self.lut_slider = QDoubleRangeSlider(Qt.Horizontal)
@@ -299,6 +305,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.first_measurement = "None"
         self.second_measurement = "None"
         self.field_of_view_id = "None"
+        self.additional_filter_column_name = "None"
 
     def handleSlider_tracklength_ValueChange(self):
         slider_vals = self.tracklenght_slider.value()
@@ -330,6 +337,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.clip_meas.setChecked(False)
         self.position.setVisible(False)
         self.position_label.setVisible(False)
+        self.additional_filter_combobox.setVisible(False)
+        self.additional_filter_combobox_label.setVisible(False)
         self.polyDeg.setVisible(False)
         self.polyDeg_label.setVisible(False)
 
@@ -487,11 +496,13 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
         if "coll cells" in layer_list:
             self.viewer.layers["coll cells"].size = round(size / 1.7, 2)
+
+        if "coll events" in layer_list:
             self.viewer.layers["coll events"].edge_width = size / 5
             self.viewer.layers["coll events"].refresh()
 
         if "event_boundingbox" in self.viewer.layers:
-            self.viewer.layers["coll events"].edge_width = size / 5
+            self.viewer.layers["event_boundingbox"].edge_width = size / 5
 
     def open_columnpicker(self):
         """
@@ -515,7 +526,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             columnpicker.measurment.choices = columns
             columnpicker.second_measurment.choices = columns
             columnpicker.field_of_view_id.choices = columns
+            columnpicker.additional_filter.choices = columns
             columnpicker.field_of_view_id.set_choice("None", "None")
+            columnpicker.additional_filter.set_choice("None", "None")
             columnpicker.z_coordinates.set_choice("None", "None")
             columnpicker.show()
             self.data = pd.read_csv(csv_file, delimiter=delimiter_value)
@@ -536,6 +549,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.first_measurement = columnpicker.measurment.value
         self.second_measurement = columnpicker.second_measurment.value
         self.field_of_view_id = columnpicker.field_of_view_id.value
+        self.additional_filter_column_name = columnpicker.additional_filter.value
         columnpicker.close()
         self.measurement, self.data = self.calculate_measurment(
             self.data, self.first_measurement, self.second_measurement
@@ -582,8 +596,18 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         else:
             positions = ["None"]
 
+        if self.additional_filter_column_name != "None":
+            additional_filter_choices = (
+                self.data[self.additional_filter_column_name].unique().tolist()
+            )
+        else:
+            additional_filter_choices = ["None"]
+
         # delete position values is position dialog self.positions
         self.position.clear()
+        self.additional_filter_combobox.clear()
+        for i in additional_filter_choices:
+            self.additional_filter_combobox.addItem(str(i), i)
         # add new positions
         for i in positions:
             self.position.addItem(str(i), i)
@@ -598,6 +622,13 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         else:
             self.position.setVisible(True)
             self.position_label.setVisible(True)
+
+        if self.additional_filter_combobox.count() <= 1:
+            self.additional_filter_combobox.setVisible(False)
+            self.additional_filter_combobox_label.setVisible(False)
+        else:
+            self.additional_filter_combobox.setVisible(True)
+            self.additional_filter_combobox_label.setVisible(True)
 
     def set_posCol(self) -> list:
         if self.z_coordinates != "None":
@@ -666,6 +697,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 # hast to be done before .filter_tracklenght otherwise code could break
                 # if track ids are not unique to positions
                 in_data.filter_position(self.position.currentData())
+
+            if self.additional_filter_column_name != "None":
+                in_data.filter_second_column(
+                    self.additional_filter_column_name,
+                    self.additional_filter_combobox.currentData(),
+                )
             # filter by tracklenght
             in_data.filter_tracklength(
                 self.min_tracklength_spinbox.value(),
@@ -838,6 +875,25 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         self.min_dur.value(),
                         self.total_event_size.value(),
                     )
+                    # makes collids sequential
+                    clid_np = self.arcos_filtered[collid_name].to_numpy()
+                    clids_sorted_i = np.argsort(clid_np)
+                    clids_reverse_i = np.argsort(clids_sorted_i)
+                    clid_np_sorted = clid_np[[clids_sorted_i]]
+                    grouped_array_clids = np.split(
+                        clid_np_sorted,
+                        np.unique(clid_np_sorted, axis=0, return_index=True)[1][1:],
+                    )
+                    seq_colids = np.concatenate(
+                        [
+                            np.repeat(i, value.shape[0])
+                            for i, value in enumerate(grouped_array_clids)
+                        ],
+                        axis=0,
+                    )[clids_reverse_i]
+                    seq_colids_from_one = np.add(seq_colids, 1)
+                    self.arcos_filtered[collid_name] = seq_colids_from_one
+
                     self.Progress.setValue(20)
                     # merge tracked and original data
                     merged_data = pd.merge(
@@ -928,59 +984,60 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # if yes calculate convex hulls for collective events
                     if datColl.size != 0:
                         # convex hulls
-                        if self.z_coordinates == "None":
-                            datChull, color_ids = get_verticesHull(
-                                merged_data[~np.isnan(merged_data["collid"])],
-                                frame=self.frame,
-                                colid=collid_name,
-                                col_x=self.x_coordinates,
-                                col_y=self.y_coordinates,
-                            )
+                        if self.add_convex_hull_checkbox.isChecked():
+                            if self.z_coordinates == "None":
+                                datChull, color_ids = get_verticesHull(
+                                    merged_data[~np.isnan(merged_data["collid"])],
+                                    frame=self.frame,
+                                    colid=collid_name,
+                                    col_x=self.x_coordinates,
+                                    col_y=self.y_coordinates,
+                                )
 
-                            self.Progress.setValue(28)
+                                self.Progress.setValue(28)
 
-                            self.Progress.setValue(32)
+                                self.Progress.setValue(32)
 
-                            coll_events = (
-                                datChull,
-                                {
-                                    "face_color": color_ids,
-                                    "shape_type": "polygon",
-                                    "text": None,
-                                    "opacity": 0.5,
-                                    "edge_color": "white",
-                                    "edge_width": round(size / 5, 2),
-                                    "name": "coll events",
-                                },
-                                "shapes",
-                            )
+                                coll_events = (
+                                    datChull,
+                                    {
+                                        "face_color": color_ids,
+                                        "shape_type": "polygon",
+                                        "text": None,
+                                        "opacity": 0.5,
+                                        "edge_color": "white",
+                                        "edge_width": round(size / 5, 2),
+                                        "name": "coll events",
+                                    },
+                                    "shapes",
+                                )
 
-                        else:
-                            event_surfaces = make_surface_3d(
-                                merged_data[~np.isnan(merged_data["collid"])],
-                                self.frame,
-                                self.x_coordinates,
-                                self.y_coordinates,
-                                self.z_coordinates,
-                                "collid",
-                            )
+                            else:
+                                event_surfaces = make_surface_3d(
+                                    merged_data[~np.isnan(merged_data["collid"])],
+                                    self.frame,
+                                    self.x_coordinates,
+                                    self.y_coordinates,
+                                    self.z_coordinates,
+                                    "collid",
+                                )
 
-                            event_surfaces = fix_3d_convex_hull(
-                                merged_data[vColsCore],
-                                event_surfaces[0],
-                                event_surfaces[1],
-                                event_surfaces[2],
-                                self.frame,
-                            )
-                            coll_events = (
-                                event_surfaces,
-                                {
-                                    "colormap": "viridis",
-                                    "name": "coll events",
-                                    "opacity": 0.5,
-                                },
-                                "surface",
-                            )
+                                event_surfaces = fix_3d_convex_hull(
+                                    merged_data[vColsCore],
+                                    event_surfaces[0],
+                                    event_surfaces[1],
+                                    event_surfaces[2],
+                                    self.frame,
+                                )
+                                coll_events = (
+                                    event_surfaces,
+                                    {
+                                        "colormap": "viridis",
+                                        "name": "coll events",
+                                        "opacity": 0.5,
+                                    },
+                                    "surface",
+                                )
 
                         # get point_size
                         size = self.point_size.value()
@@ -1030,6 +1087,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         # check if layers exit, if yes remove them
                         if "coll cells" in layer_list:
                             self.viewer.layers.remove("coll cells")
+                        if "coll events" in layer_list:
                             self.viewer.layers.remove("coll events")
                         show_info(
                             "No collective events detected, consider adjusting parameters"  # NOQA
@@ -1040,12 +1098,26 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                     # update layers
                     # check which layers need to be added, add these layers
-                    if return_collev and return_points:
+                    if (
+                        return_collev
+                        and return_points
+                        and self.add_convex_hull_checkbox.isChecked()
+                    ):
                         self.layers_to_create = [
                             all_cells,
                             active_cells,
                             coll_cells,
                             coll_events,
+                        ]
+                    if (
+                        return_collev
+                        and return_points
+                        and not self.add_convex_hull_checkbox.isChecked()
+                    ):
+                        self.layers_to_create = [
+                            all_cells,
+                            active_cells,
+                            coll_cells,
                         ]
                     elif not return_collev and return_points:
                         self.layers_to_create = [all_cells, active_cells]

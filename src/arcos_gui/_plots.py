@@ -153,7 +153,7 @@ class CollevPlotter(QtWidgets.QWidget):
     def update_annot(self, ind):
         pos = self.ax.collections[0].get_offsets()[ind["ind"][0]]
         pos_text = pos.copy()
-        text = f"id: {self.stats[self.collid_name][ind['ind'][0]]}"
+        text = f"id: {int(self.stats[self.collid_name][ind['ind'][0]])}"
         self.annot.set_text(text)
         self.fig.canvas.draw_idle()
         renderer = self.fig.canvas.get_renderer()
@@ -187,7 +187,7 @@ class CollevPlotter(QtWidgets.QWidget):
 
     def on_pick(self, event):
         ind = event.ind
-        clid = self.stats.iloc[ind[0]][0]
+        clid = int(self.stats.iloc[ind[0]][0])
         current_colev = self.arcos[self.arcos["collid"] == clid]
         edge_size = self.point_size.value() / 5
         frame = self.stats.iloc[ind[0]][5]
@@ -324,8 +324,9 @@ class NoodlePlot(QtWidgets.QWidget):
             array_seq_colids,
             np.unique(array_seq_colids[:, :2], axis=0, return_index=True)[1][1:],
         )
-        colors = plt.cm.tab20(
-            np.linspace(0, 1, np.unique(array_seq_colids[:, -1]).shape[0])
+
+        colors = np.take(
+            np.array(COLOR_CYCLE), [i + 1 for i in np.unique(seq_colids)], mode="wrap"
         )
         return grouped_array, colors
 
@@ -358,7 +359,7 @@ class NoodlePlot(QtWidgets.QWidget):
         if self.posz != "None":
             projection_list = [self.posx, self.posy, self.posz]
         else:
-            projection_list = [self.posz, self.posy]
+            projection_list = [self.posx, self.posy]
         self.combo_box.clear()
         self.combo_box.addItems(projection_list)
         self.update_plot_data()

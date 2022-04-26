@@ -9,15 +9,25 @@ from scipy.spatial.qhull import QhullError
 
 COLOR_CYCLE = [
     "#1f77b4",
+    "#aec7e8",
     "#ff7f0e",
+    "#ffbb78",
     "#2ca02c",
+    "#98df8a",
     "#d62728",
+    "#ff9896",
     "#9467bd",
+    "#c5b0d5",
     "#8c564b",
+    "#c49c94",
     "#e377c2",
+    "#f7b6d2",
     "#7f7f7f",
+    "#c7c7c7",
     "#bcbd22",
+    "#dbdb8d",
     "#17becf",
+    "#9edae5",
 ]
 
 text_parameters = {
@@ -240,9 +250,12 @@ def get_bbox(
     )
     # calc bbox for every array in the list
     bbox = [calc_bbox(i) for i in grouped_array]
+    text_size = edge_size * 5
+    if text_size < 1:
+        text_size = 1
     text_parameters = {
         "text": "Event Nbr: {label}",
-        "size": edge_size,
+        "size": text_size,
         "color": "white",
         "anchor": "upper_left",
         "translation": [-3, 0],

@@ -45,6 +45,16 @@ class process_input:
         if return_dataframe:
             return self.df
 
+    def filter_second_column(
+        self, column=None, value_to_select=None, return_dataframe=False
+    ):
+        if value_to_select is not None:
+            self.df = self.df.loc[self.df.loc[:, column] == value_to_select].copy(
+                deep=True
+            )
+        if return_dataframe:
+            return self.df
+
         # filter_tracklenght works only if previously filtered by pos
         # or if track_ids dont overlapp between fov
 
