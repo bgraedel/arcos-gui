@@ -399,6 +399,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         columnpicker.z_coordinates.value = "None"
         columnpicker.measurment.value = "m"
         columnpicker.field_of_view_id.value = "Position"
+        columnpicker.additional_filter.value = "None"
 
     def update_what_to_run_all(self):
         """

@@ -76,7 +76,7 @@ class CollevPlotter(QtWidgets.QWidget):
         with plt.style.context("dark_background"):
             plt.rcParams["figure.dpi"] = 110
             plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2))
+            self.fig = Figure(figsize=(3, 1.5))
             self.canvas = FigureCanvas(self.fig)
             self.ax = self.fig.add_subplot(111)
             self.ax.scatter([], [])
@@ -276,7 +276,7 @@ class NoodlePlot(QtWidgets.QWidget):
         with plt.style.context("dark_background"):
             plt.rcParams["figure.dpi"] = 110
             plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2))
+            self.fig = Figure(figsize=(3, 1.5))
             self.canvas = FigureCanvas(self.fig)
             self.ax = self.fig.add_subplot(111)
             self.ax.plot([], [])
