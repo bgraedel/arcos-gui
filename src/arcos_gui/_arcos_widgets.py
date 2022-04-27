@@ -39,6 +39,7 @@ from arcos_gui.shape_functions import (
     make_timestamp,
 )
 from arcos_gui.temp_data_storage import data_storage
+from napari.utils import Colormap
 
 # icons
 ICONS = Path(__file__).parent / "_icons"
@@ -46,6 +47,7 @@ browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
 
 # initalize class
 stored_variables = data_storage()
+tab20 = Colormap(COLOR_CYCLE, "tab20", interpolation="zero")
 
 
 class _MainUI:
@@ -85,6 +87,8 @@ class _MainUI:
     bin_threshold_label: QtWidgets.QLabel
     neighbourhood_label: QtWidgets.QLabel
     min_clustersize_label: QtWidgets.QLabel
+    nprev_spinbox: QtWidgets.QSpinBox
+    nprev_spinbox_label: QtWidgets.QLabel
     min_dur_label: QtWidgets.QLabel
     tot_size_label: QtWidgets.QLabel
 
@@ -277,7 +281,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.neighbourhood_size.valueChanged.connect(self.update_what_to_run_tracking)
         self.bin_peak_threshold.valueChanged.connect(self.update_what_to_run_all)
         self.min_clustersize.valueChanged.connect(self.update_what_to_run_tracking)
-        self.min_clustersize.valueChanged.connect(self.update_what_to_run_tracking)
+        self.nprev_spinbox.valueChanged.connect(self.update_what_to_run_tracking)
         self.min_dur.valueChanged.connect(self.update_what_to_run_filtering)
         self.total_event_size.valueChanged.connect(self.update_what_to_run_filtering)
         self.add_convex_hull_checkbox.stateChanged.connect(
@@ -831,6 +835,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     arcos.trackCollev(
                         self.neighbourhood_size.value(),
                         self.min_clustersize.value(),
+                        self.nprev_spinbox.value(),
                     )
 
                     self.Progress.setValue(16)
@@ -1032,7 +1037,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                                 coll_events = (
                                     event_surfaces,
                                     {
-                                        "colormap": "viridis",
+                                        "colormap": tab20,
                                         "name": "coll events",
                                         "opacity": 0.5,
                                     },
@@ -1045,25 +1050,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         np_clids = merged_data[~np.isnan(merged_data["collid"])][
                             "collid"
                         ].to_numpy()
-                        # this code could be used to make collective ids sequential
-                        # an issue that might occur with the way colors are currently
-                        # assigned
-                        # is that 2 collective events in the same frame have the
-                        # same color
-                        # making collective events sequential could fix the problem
-                        # clids_sorted_i = np.argsort(np_clids)
-                        # clids_reverse_i = np.argsort(clids_sorted_i)
-                        # np_clids_sorted = np_clids[[clids_sorted_i]]
-                        # grouped_array_clids = np.split(
-                        #     np_clids_sorted,
-                        # np.unique(np_clids_sorted,
-                        # axis=0, return_index=True)[1][1:]
-                        # )
-                        # seq_colids = np.concatenate(
-                        #     [np.repeat(i, value.shape[0])
-                        # for i, value in enumerate(grouped_array_clids)],
-                        #     axis=0,
-                        # )[clids_reverse_i]
+
                         color_ids = np.take(
                             np.array(COLOR_CYCLE), [i for i in np_clids], mode="wrap"
                         )
