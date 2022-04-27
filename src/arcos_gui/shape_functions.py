@@ -97,24 +97,34 @@ def make_timestamp(
 
 def calculate_convex_hull(array):
     try:
-        if array.shape[0] < 3:
-            return np.array([])
-        hull = ConvexHull(array[:, 2:])
-        array_out = array[hull.vertices]
-        return array_out
+        if array.shape[0] > 2:
+            hull = ConvexHull(array[:, 2:])
+            array_out = array[hull.vertices]
+            return array_out
+        if array.shape[0] == 2:
+            return array
     except QhullError:
-        return np.array([])
+        array
 
 
 def calculate_convex_hull_3d(array):
     try:
-        if array.shape[0] < 4:
-            return
-        hull = ConvexHull(array[:, 2:])
-        array_faces = hull.simplices
-        return array_faces
+        if array.shape[0] > 3:
+            hull = ConvexHull(array[:, 2:])
+            array_faces = hull.simplices
+            if array_faces.shape[0] != 0:
+                return array_faces
+        if array.shape[0] == 3:
+            array_faces = np.array([[0, 1, 2]])
+            return array_faces
+        if array.shape[0] == 2:
+            array_faces = np.array([[0, 1, 1]])
+            return array_faces
+        if array.shape[0] == 1:
+            array_faces = np.array([[0, 0, 0]])
+            return array_faces
     except QhullError:
-        return
+        pass
 
 
 # @profile
@@ -140,7 +150,7 @@ def get_verticesHull(df, frame, colid, col_x, col_y):
         array_txy, np.unique(array_txy[:, 0:2], axis=0, return_index=True)[1][1:]
     )
     # map to grouped_array
-    convex_hulls = [calculate_convex_hull(i) for i in grouped_array if i.shape[0] > 4]
+    convex_hulls = [calculate_convex_hull(i) for i in grouped_array if i.shape[0] > 1]
     color_ids = np.take(
         np.array(COLOR_CYCLE), [int(i[0, 0]) for i in convex_hulls], mode="wrap"
     )
@@ -161,7 +171,7 @@ def make_surface_3d(df: pd.DataFrame, frame, col_x, col_y, col_z, colid):
     dataFaces = []
     vertices_count = 0
     # sort needed for np.split
-    df = df.sort_values([frame, colid])
+    df = df.sort_values([colid, frame])
     array_idtyxz = df[[colid, frame, col_y, col_x, col_z]].to_numpy()
     array_idtyxz = array_idtyxz[~np.isnan(array_idtyxz).any(axis=1)]
     # split array into list of arrays, one for each collid/timepoint combination
@@ -169,15 +179,13 @@ def make_surface_3d(df: pd.DataFrame, frame, col_x, col_y, col_z, colid):
         array_idtyxz, np.unique(array_idtyxz[:, 0:2], axis=0, return_index=True)[1][1:]
     )
     # calc convex hull for every array in the list
-    convex_hulls = [
-        calculate_convex_hull_3d(i) for i in grouped_array if i.shape[0] > 3
-    ]
+    convex_hulls = [calculate_convex_hull_3d(i) for i in grouped_array]
     # generates color ids (integers for LUT in napari)
     color_ids = np.concatenate([i[:, 0].astype(np.int64) for i in grouped_array])
-    out_vertices = array_idtyxz[:, 1:]
+    out_vertices = np.concatenate(grouped_array)[:, 1:]
     # merge convex hull face list and shift indexes according to groups
-    for i, value in enumerate(convex_hulls):
-        dataFaces.append(np.add(value, vertices_count))
+    for i, val in enumerate(convex_hulls):
+        dataFaces.append(np.add(val, vertices_count))
         vertices_count += len(grouped_array[i])
     out_faces = np.concatenate(dataFaces)
     return (out_vertices, out_faces, color_ids)
@@ -284,8 +292,6 @@ def get_bbox_3d(df: pd.DataFrame, frame: str, xcol: str, ycol: str, zcol: str):
     )
     # calc bbox for every array in the list
     bbox = [calc_bbox(i) for i in grouped_array]
-    hull = ConvexHull(bbox[0][:, 1:])
-    face = hull.simplices
     dataFaces = []
     vertices_count = 0
     data_colors = []
