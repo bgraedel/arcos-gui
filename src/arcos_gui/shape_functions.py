@@ -104,7 +104,7 @@ def calculate_convex_hull(array):
         if array.shape[0] == 2:
             return array
     except QhullError:
-        array
+        pass
 
 
 def calculate_convex_hull_3d(array):
