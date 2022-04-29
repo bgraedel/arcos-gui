@@ -26,19 +26,23 @@ if TYPE_CHECKING:
 
 class CollevPlotter(QtWidgets.QWidget):
     """
-    QWidget for plotting.
-    Class to make a matplotlib figure canvas and add it to a Qwidget.
+    QWidget for plotting a scatterplot of Collective events.
+    Make a matplotlib figure canvas and add it to a Qwidget.
     Canvas, figure and axis objects can be acessed by self.canvas,
     self.fig and self.ax. This plots duration of Collective events over their size as
     returned by arcos.
+
+    Attributes:
+        viewer (napari.viewer.Viewer): Napari viewer instance
+        parent (qtpy.QtWidgets.QWidget): Parent widget, optional
     """
 
     def __init__(self, viewer: napari.viewer.Viewer, parent=None):
-        """Initialise instance.
-        :param viewer: Napari viewer instance
-        :type viewer: napari.viewer.Viewer
-        :param parent: Parent widget, optional
-        :type parent: qtpy.QtWidgets.QWidget
+        """Class constructor.
+
+        Parameters:
+            viewer (napari.viewer.Viewer): Napari viewer instance
+            parent (qtpy.QtWidgets.QWidget): Parent widget, optional
         """
         super().__init__(parent)
         self.viewer = viewer
@@ -109,7 +113,8 @@ class CollevPlotter(QtWidgets.QWidget):
         self.posy = posy
         self.posz = posz
         # if no calculation was run so far (i.e. when the widget is initialized)
-        # populate it with no data
+        # populate it with no data else calculate stats for collective events,
+        # generate plot with data
         if not self.arcos.empty:
             self.stats = collev_stats.calculate(
                 self.arcos,
@@ -138,6 +143,7 @@ class CollevPlotter(QtWidgets.QWidget):
             self.ax.set_ylabel("Event Duration")
             self.fig.canvas.draw_idle()
             self.nbr_collev = self.stats.shape[0]
+        # generate empty annotation, set it to invisible
         self.annot = self.ax.annotate(
             "",
             xy=(0, 0),
@@ -148,9 +154,20 @@ class CollevPlotter(QtWidgets.QWidget):
             clip_on=True,
         )
         self.annot.set_visible(False)
+        # instantiate blintmanager and add annotation to it.
+        # Used to improve performance of annotations
+        # rendering annotation label.
         self.bm = BlitManager(self.canvas, [self.annot])
 
     def update_annot(self, ind):
+        """Update the annotation.
+
+        Updates hover annotation showing collective event id.
+
+        Parameters:
+            ind (dict): Index of plotted data corresponding to the
+            current mouse location.
+        """
         pos = self.ax.collections[0].get_offsets()[ind["ind"][0]]
         pos_text = pos.copy()
         text = f"id: {int(self.stats[self.collid_name][ind['ind'][0]])}"
@@ -164,6 +181,8 @@ class CollevPlotter(QtWidgets.QWidget):
         size_h = bbox_data[1][0] - bbox_data[0][0]
         size_v = bbox_data[1][1] - bbox_data[0][1]
 
+        # moves lable by the size of the bounding box
+        # if it would be cut off by the plot boundry
         if pos_text[0] > (xlim[1] - size_h):
             pos_text[0] -= size_h
         if pos_text[1] > (ylim[1] - size_v):
@@ -173,19 +192,35 @@ class CollevPlotter(QtWidgets.QWidget):
         self.annot.get_bbox_patch().set_alpha(1)
 
     def hover(self, event):
+        """Display annotation of collective even on hover.
+
+        Checks if current mouse position is over a datapoint. If yes,
+        displays corresponding collective event id.
+        """
         vis = self.annot.get_visible()
         if event.inaxes == self.ax:
             cont, ind = self.ax.collections[0].contains(event)
             if cont:
                 self.update_annot(ind)
                 self.annot.set_visible(True)
+                # blitting to improve performance.
                 self.bm.update()
             else:
                 if vis:
                     self.annot.set_visible(False)
+                    # blitting to improve performance.
                     self.bm.update()
 
     def on_pick(self, event):
+        """Displays the selected collective event in the napari viewer.
+
+        On pick gets collective event id from picked datapoint, gets
+        the correspondig starting frame, moves to this and
+        draws a bounding box arround the extends of the collective event.
+
+        Parameters:
+            event (matplotlib_pick_event): event generated from selecting a datapoint.
+        """
         ind = event.ind
         clid = int(self.stats.iloc[ind[0]][0])
         current_colev = self.arcos[self.arcos["collid"] == clid]
@@ -232,11 +267,16 @@ class NoodlePlot(QtWidgets.QWidget):
     """
 
     def __init__(self, viewer: napari.viewer.Viewer, parent=None):
-        """Initialise instance.
-        :param viewer: Napari viewer instance
-        :type viewer: napari.viewer.Viewer
-        :param parent: Parent widget, optional
-        :type parent: qtpy.QtWidgets.QWidget
+        """
+        QWidget for plotting a Noodleplot of Collective events.
+        Tracks of objects are plotted and colored by collective event id.
+        Make a matplotlib figure canvas and add it to a Qwidget.
+        Canvas, figure and axis objects can be acessed by self.canvas,
+        self.fig and self.ax.
+
+        Attributes:
+            viewer (napari.viewer.Viewer): Napari viewer instance
+            parent (qtpy.QtWidgets.QWidget): Parent widget, optional
         """
         super().__init__(parent)
         self.viewer = viewer
@@ -306,31 +346,51 @@ class NoodlePlot(QtWidgets.QWidget):
         posy: str,
         posz: str,
     ):
+        """From arcos collective event data,
+        generates a list of numpy arrays, one for each event.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame containing collective events from arcos.
+            colev (str): Name of the collective event column in df.
+            trackid (str): Name of the track column in df.
+            frame: (str): Name of the frame column in df.
+            posx (str): Name of the X coordinate column in df.
+            posy (str): Name of the Y coordinate column in df.
+            posz (str): Name of the Z coordinate column in df,
+            or "None" (str) if no z column.
+
+        Returns (list[np.ndarray], np.ndarray): List of collective events data,
+        colors for each collective event.
+        """
+        # values need to be sorted to group with numpy
         df.sort_values([colev, trackid], inplace=True)
         if posz != "None":
             array = df[[colev, trackid, frame, posx, posy, posz]].to_numpy()
         else:
             array = df[[colev, trackid, frame, posx, posy]].to_numpy()
-
+        # generate goroups for each unique value
         grouped_array = np.split(
             array, np.unique(array[:, 0], axis=0, return_index=True)[1][1:]
         )
+        # make collids sequential
         seq_colids = np.concatenate(
             [np.repeat(i, value.shape[0]) for i, value in enumerate(grouped_array)],
             axis=0,
         )
         array_seq_colids = np.column_stack((array, seq_colids))
+        # split sequential collids array by trackid and collid
         grouped_array = np.split(
             array_seq_colids,
             np.unique(array_seq_colids[:, :2], axis=0, return_index=True)[1][1:],
         )
-
+        # generate colors for each collective event, wrap arround the color cycle
         colors = np.take(
             np.array(COLOR_CYCLE), [i + 1 for i in np.unique(seq_colids)], mode="wrap"
         )
         return grouped_array, colors
 
     def calc_stats(self, frame_col, trackid_col):
+        """Calculates stats for collective events."""
         collev_stats = calcCollevStats()
         # if no calculation was run so far (i.e. when the widget is initialized)
         # populate it with no data
@@ -347,7 +407,16 @@ class NoodlePlot(QtWidgets.QWidget):
     ):
         """
         Method to update the matplotlibl axis object self.ax with new values from
-        the stored_variables object
+        the stored_variables object and update the projection choices.
+
+        Parameters:
+            frame_col (str): The name of the frame column.
+            trackid_col (str): The name of the trackid column.
+            posx (str): The name of the x coordinate column.
+            posy (str): The name of the y coordinate column.
+            posz (str): The name of the z coordinate column.
+            arcos_data (pd.DataFrame): DataFrame containing arcos output data.
+            point_size (int): The size of the points drawn in napari.
         """
         self.arcos = arcos_data
         self.point_size = point_size
@@ -365,6 +434,7 @@ class NoodlePlot(QtWidgets.QWidget):
         self.update_plot_data()
 
     def update_plot_data(self):
+        """Update plot data."""
         # if no calculation was run so far (i.e. when the widget is initialized)
         # populate it with no data
         projection_type = self.combo_box.currentText()
@@ -406,6 +476,7 @@ class NoodlePlot(QtWidgets.QWidget):
                 )
 
             self.nbr_collev = self.stats.shape[0]
+        # generate empty annotation
         self.annot = self.ax.annotate(
             "",
             xy=(0, 0),
@@ -417,17 +488,27 @@ class NoodlePlot(QtWidgets.QWidget):
             animated=True,
         )
         self.annot.set_visible(False)
+        # instantiate the BlitManager for faster rendering of the hover annotation.
         self.bm = BlitManager(self.canvas, [self.annot])
 
     def update_annot(self, ind, line):
+        """Update the annotation.
+
+        Updates hover annotation showing collective event id.
+
+        Parameters:
+            ind (dict): Index of plotted data corresponding
+            to the current mouse location.
+            line (matplotlib.Artist.artist): Line artist where hover detected the event.
+        """
         x, y = line.get_data()
         pos_text = [x[ind["ind"][0]], y[ind["ind"][0]]]
         clid_index = int(findall(r"\d+", line.get_label())[0])
         clid = int(self.dat_grpd[clid_index][0, 0])
         self.annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
-        # text = f"id: {self.stats[self.collid_name][ind['ind'][0]]}"
         text = f"id:{clid}"
         self.annot.set_text(text)
+        # get size of the annotation bbox
         r = self.fig.canvas.get_renderer()
         bbox = self.annot.get_window_extent(renderer=r)
         bbox_data = self.ax.transData.inverted().transform(bbox)
@@ -436,6 +517,7 @@ class NoodlePlot(QtWidgets.QWidget):
         size_h = bbox_data[1][0] - bbox_data[0][0]
         size_v = bbox_data[1][1] - bbox_data[0][1]
 
+        # fix for annotation drawn at the border of the plot (moves annotation)
         if pos_text[0] > (xlim[1] - size_h):
             pos_text[0] -= size_h
         if pos_text[1] > (ylim[1] - size_v):
@@ -446,22 +528,40 @@ class NoodlePlot(QtWidgets.QWidget):
         self.annot.get_bbox_patch().set_alpha(1)
 
     def hover(self, event):
+        """Display annotation of collective even on hover.
+
+        Checks if current mouse position is over a datapoint. If yes,
+        displays corresponding collective event id for the correct Line2D artist.
+        """
         vis = self.annot.get_visible()
         if event.inaxes == self.ax:
+            # get line, or liens that was hovered over
             selected_line = [line for line in self.ax.lines if line.contains(event)[0]]
             if selected_line:
+                # loop over all lines that are within hover radius
                 for line in selected_line:
                     cont, ind = line.contains(event)
                     self.update_annot(ind, line)
                     self.annot.set_visible(True)
+                    # blitting for faster rendering of annotations.
                     self.bm.update()
-                    break
+                    break  # break on first line with content
             else:
                 if vis:
                     self.annot.set_visible(False)
+                    # blitting for faster rendering of annotations.
                     self.bm.update()
 
     def on_pick(self, event):
+        """Displays the selected collective event in the napari viewer.
+
+        On pick gets collective event id from picked datapoint, gets
+        the correspondig starting frame, moves to this and
+        draws a bounding box arround the extends of the collective event.
+
+        Parameters:
+            event (matplotlib_pick_event): event generated from selecting a datapoint.
+        """
         clid_index = int(findall(r"\d+", event.artist.get_label())[0])
         clid = int(self.dat_grpd[clid_index][0, 0])
         current_colev = self.arcos[self.arcos["collid"] == clid]
@@ -504,13 +604,12 @@ class BlitManager:
         """
         Parameters
         ----------
-        canvas : FigureCanvasAgg
-            The canvas to work with, this only works for sub-classes of the Agg
+        canvas (FigureCanvasAgg): The canvas to work with, this only works for
+        sub-classes of the Agg
             canvas which have the `~FigureCanvasAgg.copy_from_bbox` and
             `~FigureCanvasAgg.restore_region` methods.
 
-        animated_artists : Iterable[Artist]
-            List of the artists to manage
+        animated_artists (Iterable[Artist]): List of the artists to manage
         """
         self.canvas = canvas
         self._bg = None
@@ -534,11 +633,8 @@ class BlitManager:
         """
         Add an artist to be managed.
 
-        Parameters
-        ----------
-        art : Artist
-
-            The artist to be added.  Will be set to 'animated' (just
+        Parameters:
+            art (Artist): The artist to be added.  Will be set to 'animated' (just
             to be safe).  *art* must be in the figure associated with
             the canvas this class is managing.
 
@@ -579,15 +675,15 @@ class TimeSeriesPlots(QtWidgets.QWidget):
     Canvas, figure and axis objects can be acessed by self.canvas, self.fig and self.ax.
     This plots several different Timeseries plots such as Position/t plots,
     tracklength histogram and a measurment density plot.
+
+    Attributes:
+        parent (qtpy.QtWidgets.QWidget): Parent widget, optional
     """
 
     def __init__(self, parent=None):
-        """
-        Initialise instance.
-        :param viewer: Napari viewer instance
-        :type viewer: napari.viewer.Viewer
-        :param parent: Parent widget, optional
-        :type parent: qtpy.QtWidgets.QWidget
+        """Constructs class with given arguments
+        Parameters:
+            parent (qtpy.QtWidgets.QWidget): Parent widget, optional
         """
         super().__init__(parent)
         # available plots
