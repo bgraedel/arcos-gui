@@ -172,7 +172,7 @@ def get_verticesHull(df, frame, colid, col_x, col_y):
         np.array(COLOR_CYCLE), [int(i[0, 0]) for i in convex_hulls], mode="wrap"
     )
     # color_ids = recycle_palette(COLOR_CYCLE, len(convex_hulls))
-    out = np.array([i[:, 1:] for i in convex_hulls])
+    out = [i[:, 1:] for i in convex_hulls]
     return out, color_ids
 
 
@@ -319,7 +319,7 @@ def get_bbox(
     )
     # calc bbox for every array in the list
     bbox = [calc_bbox(i) for i in grouped_array]
-    text_size = edge_size * 5
+    text_size = edge_size * 2.5
     if text_size < 1:
         text_size = 1
     text_parameters = {

@@ -424,6 +424,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         columnpicker.measurment.value = "m"
         columnpicker.field_of_view_id.value = "Position"
         columnpicker.additional_filter.value = "None"
+        columnpicker.measurement_math.value = "None"
 
     def update_what_to_run_all(self):
         """
@@ -519,10 +520,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
         if "coll cells" in layer_list:
             self.viewer.layers["coll cells"].size = round(size / 1.7, 2)
-
-        if "coll events" in layer_list:
-            self.viewer.layers["coll events"].edge_width = size / 5
-            self.viewer.layers["coll events"].refresh()
 
         if "event_boundingbox" in self.viewer.layers:
             self.viewer.layers["event_boundingbox"].edge_width = size / 5
@@ -910,12 +907,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     self.arcos_filtered = filterer.filter(
                         self.min_dur.value(),
                         self.total_event_size.value(),
-                    )
+                    ).copy(deep=True)
                     # makes filtered collids sequential
                     clid_np = self.arcos_filtered[collid_name].to_numpy()
                     clids_sorted_i = np.argsort(clid_np)
                     clids_reverse_i = np.argsort(clids_sorted_i)
-                    clid_np_sorted = clid_np[[clids_sorted_i]]
+                    clid_np_sorted = clid_np[(clids_sorted_i)]
                     grouped_array_clids = np.split(
                         clid_np_sorted,
                         np.unique(clid_np_sorted, axis=0, return_index=True)[1][1:],
@@ -928,7 +925,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         axis=0,
                     )[clids_reverse_i]
                     seq_colids_from_one = np.add(seq_colids, 1)
-                    self.arcos_filtered[collid_name] = seq_colids_from_one
+                    self.arcos_filtered.loc[:, collid_name] = seq_colids_from_one
 
                     self.Progress.setValue(20)
 
@@ -1044,7 +1041,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                                         "text": None,
                                         "opacity": 0.5,
                                         "edge_color": "white",
-                                        "edge_width": round(size / 5, 2),
+                                        "edge_width": 0,
                                         "name": "coll events",
                                     },
                                     "shapes",
