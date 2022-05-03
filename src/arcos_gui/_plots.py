@@ -154,7 +154,7 @@ class CollevPlotter(QtWidgets.QWidget):
             clip_on=True,
         )
         self.annot.set_visible(False)
-        # instantiate blintmanager and add annotation to it.
+        # instantiate blitmanager and add annotation to it.
         # Used to improve performance of annotations
         # rendering annotation label.
         self.bm = BlitManager(self.canvas, [self.annot])
