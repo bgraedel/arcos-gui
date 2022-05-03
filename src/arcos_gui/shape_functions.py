@@ -179,7 +179,7 @@ def get_verticesHull(df, frame, colid, col_x, col_y):
 # @profile
 def make_surface_3d(
     df: pd.DataFrame, frame: str, col_x: str, col_y: str, col_z: str, colid: str
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+):
     """Calculate convex hull for 3d collective events.
 
     Input dataframe is converted into a numpy array and split into groups
