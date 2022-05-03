@@ -39,11 +39,11 @@ def data_frame_3d():
 
 
 def test_get_verticesHull(data_frame_2d):
-    hulls = get_verticesHull(
+    hulls, colors = get_verticesHull(
         df=data_frame_2d, frame="time", colid="collid", col_x="X", col_y="Y"
     )
-    d_np = np.array([[[5, 0], [10, 5], [6, 9]]])
-    assert_equal(d_np, hulls[0][:, :, 1:])
+    d_np = np.array([[5, 0], [10, 5], [6, 9]])
+    assert_equal(d_np, hulls[0][:, 1:])
 
 
 def test_make_surface_3d(data_frame_3d):
