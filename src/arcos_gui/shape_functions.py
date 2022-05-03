@@ -3,23 +3,34 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 from scipy.spatial import ConvexHull
-from scipy.spatial.qhull import QhullError
 
 # # Definitions and custom functions
-
+# Color Cycle used throughout the plugin for collective events.
+# Color values correspond to hex values of the matplotlib tab20
+# colorscale
 COLOR_CYCLE = [
     "#1f77b4",
+    "#aec7e8",
     "#ff7f0e",
+    "#ffbb78",
     "#2ca02c",
+    "#98df8a",
     "#d62728",
+    "#ff9896",
     "#9467bd",
+    "#c5b0d5",
     "#8c564b",
+    "#c49c94",
     "#e377c2",
+    "#f7b6d2",
     "#7f7f7f",
+    "#c7c7c7",
     "#bcbd22",
+    "#dbdb8d",
     "#17becf",
+    "#9edae5",
 ]
-
+# text parameters for the timestamp
 text_parameters = {
     "text": "{label}",
     "size": 12,
@@ -27,60 +38,6 @@ text_parameters = {
     "anchor": "center",
     "translation": [0, 0],
 }
-
-
-def recycle_palette(l_colors, length):
-    ntimes = length // len(l_colors)
-    remainder = length % len(l_colors)
-    return l_colors * ntimes + l_colors[:remainder]
-
-
-def assign_color_id(df, palette, col_id="collid", col_color="color"):
-    """
-    Assign one color to each unique value in a column.
-    Returns a DF with the assignment.
-    """
-    unique_id = df[col_id].unique()
-    palette_val = recycle_palette(palette, len(unique_id))
-    df_out = pd.DataFrame.from_dict({col_id: unique_id, col_color: palette_val})
-    return df_out
-
-
-def make_shapes(
-    df,
-    col_id="index",
-    col_x="axis-2",
-    col_y="axis-1",
-    col_t="axis-0",
-    col_colors="color",
-    col_text=None,
-):
-    """
-    Take a pandas df with the coordinates of polygons vertices in "long"
-    format and turn them into a list of numpy arrays, one for each polygon.
-    Outputs a dictionary suitable for napari viewer.add_shapes
-    """
-    all_cols = [col_id, col_t, col_y, col_x, col_colors]
-    if col_text:
-        all_cols.append(col_text)
-    # Drop irrelevant columns, check columns are ordered according to napari's format
-    df = df[df.columns.intersection(all_cols)]
-    df = df.reindex(columns=all_cols)
-
-    out = {}
-    # List of 2 tuples (index, df_subset)
-    l_shapes = [tup[1] for tup in list(df.groupby(col_id))]
-    # The color is duplicated for each point in the polygon, take only first value
-    out["face_color"] = [dff[col_colors].values[0] for dff in l_shapes]
-    if col_text:
-        out["properties"] = {}
-        out["properties"]["label"] = [dff[col_text].values[0] for dff in l_shapes]
-    l_shapes = [
-        dff.drop(columns=[col_id, col_colors, col_text], errors="ignore")
-        for dff in l_shapes
-    ]
-    out["data"] = [dff.to_numpy() for dff in l_shapes]
-    return out
 
 
 def make_timestamp(
@@ -139,123 +96,155 @@ def make_timestamp(
     return out
 
 
-def get_verticesHull(df, col_x, col_y):
-    """From a set of point coordinates (XY), return the points
-    coordinates which form the vertices of the convex hull.
+def calculate_convex_hull(array):
+    """Calculates the convex hull for a 2d array of points.
 
-    Args:
-        df (pd.DataFrame): A dataframe with at least 2 columns
-        containing the XY coordinates of a set of points.
+    Parameters:
+        array (np.ndarray): A 2d array of points with x and y coordinates.
+
+    Returns (np.ndarray): If shape of input array can be used
+    to calculate convex hull the vertices of the convex hull are returned.
+    If shape is less, the points themselfs are returned.
     """
-
-    df_xy = df[[col_x, col_y]].copy(deep=True)
-    df_xy.dropna(inplace=True)
-    # try except statement to test if Qhullerror is thrown
-    # returns column names as a list of df_xy
-    # instead of pd.DataFrame to check if correct columns were selected
-    try:
-        if df_xy.shape[0] >= 3:
-            hull = ConvexHull(df_xy)
-            df_out = df_xy.iloc[hull.vertices]
-            # Add back the columns that do not contain the XY coords
-            df_out = pd.merge(df_out, df, how="left")
-        elif df_xy.shape[0] == 2:
-            df_out = df
-        else:
-            df_out = pd.DataFrame(columns=list(df.columns))
-        return df_out
-
-    except QhullError:
-        return df_xy.columns
+    if array.shape[0] > 2:
+        hull = ConvexHull(array[:, 2:])
+        array_out = array[hull.vertices]
+        return array_out
+    if array.shape[0] == 2:
+        return array
 
 
-def format_verticesHull(df, col_t, col_x, col_y, col_collid):
+def calculate_convex_hull_3d(array):
+    """Calculates the convex hull for a 3d array of points.
+
+    Parameters:
+        array (np.ndarray): A 2d array of points with x y and z coordinates.
+
+    Returns (np.ndarray): If shape of input array can be used
+    to calculate convex hull the vertices of the convex hull are returned.
+    If shape is less, the points themselfs are returned.
     """
-    Format the output of get_verticesHull() applied to group
+    if array.shape[0] > 3:
+        hull = ConvexHull(array[:, 2:])
+        array_faces = hull.simplices
+        if array_faces.shape[0] != 0:
+            return array_faces
+    if array.shape[0] == 3:
+        array_faces = np.array([[0, 1, 2]])
+        return array_faces
+    if array.shape[0] == 2:
+        array_faces = np.array([[0, 1, 1]])
+        return array_faces
+    if array.shape[0] == 1:
+        array_faces = np.array([[0, 0, 0]])
+        return array_faces
 
-    Args:
-        df (pd.DataFrame): A DataFrame with the coordinates
-        of the vertices of collective events.
+
+def get_verticesHull(df, frame, colid, col_x, col_y):
+    """Calculate convex hull for 2d collective events.
+
+    Input dataframe is converted into a numpy array and split into groups
+    according to unique collective ids.
+    For each set array the convex hull is calculated.
+
+    Parameters:
+        df (pd.DataFrame): A dataframe with at least 4 columns
+        containing the XY coordinates of a set of points aswell
+        as frame and collective id columns.
+        frame (str): Name of frame column in df.
+        colid (str): Name of collective id column in df.
+        col_x (str): Name of column x coordinate column in df.
+        col_y (str): Name of column y coordinate column in df.
+
+    Returns (np.ndarray,np.ndarray): Tuple containing arrays of vertices,
+    one for each collective event. Array of colors, a unique
+    one for each collective event.
     """
-    all_cols = [col_t, col_x, col_y, col_collid]
-    df = df.loc[:, all_cols]
-    df["shape-type"] = "polygon"
-    df["index"] = df.groupby([col_t, col_collid]).ngroup()
-    df["vertex-index"] = df.groupby("index").cumcount()
-    df.rename(
-        columns={
-            col_t: "axis-0",
-            col_y: "axis-1",
-            col_x: "axis-2",
-            col_collid: "collid",
-        },
-        inplace=True,
+    df = df.sort_values([colid, frame])
+    array_txy = df[[colid, frame, col_y, col_x]].to_numpy()
+    array_txy = array_txy[~np.isnan(array_txy).any(axis=1)]
+    grouped_array = np.split(
+        array_txy, np.unique(array_txy[:, 0:2], axis=0, return_index=True)[1][1:]
     )
-
-    df = df.reindex(
-        columns=[
-            "index",
-            "shape-type",
-            "vertex-index",
-            "axis-0",
-            "axis-1",
-            "axis-2",
-            "collid",
-        ]
+    # map to grouped_array
+    convex_hulls = [calculate_convex_hull(i) for i in grouped_array if i.shape[0] > 1]
+    color_ids = np.take(
+        np.array(COLOR_CYCLE), [int(i[0, 0]) for i in convex_hulls], mode="wrap"
     )
-    return df
+    # color_ids = recycle_palette(COLOR_CYCLE, len(convex_hulls))
+    out = [i[:, 1:] for i in convex_hulls]
+    return out, color_ids
 
 
-def make_surface_3d(df, col_t, col_x, col_y, col_z, col_id):
+# @profile
+def make_surface_3d(
+    df: pd.DataFrame, frame: str, col_x: str, col_y: str, col_z: str, colid: str
+):
+    """Calculate convex hull for 3d collective events.
+
+    Input dataframe is converted into a numpy array and split into groups
+    according to unique collective ids.
+    For each set array the convex hull is calculated.
+    A tuple that can be used to add 3d convex hull with the napari
+    add_surface function is generated.
+    Output has to be appended with empy vertices and surfaces for the
+    timepoints where no surface should be drawn. Otherwise will
+    result in a nontype subscription error.
+
+    Parameters:
+        df (pd.DataFrame): A dataframe with at least 4 columns
+        containing the XY coordinates of a set of points aswell
+        as frame and collective id columns.
+        frame (str): Name of frame column in df.
+        colid (str): Name of collective id column in df.
+        col_x (str): Name of x coordinate column in df.
+        col_y (str): Name of y coordinate column in df.
+        col_z (str): Name of z coordinate column in df.
+
+    Returns (tuple(np.ndarray, np.ndarray, np.ndarray)): Tuple that contains
+    vertex coordinates, face indices and color ids
     """
-    Takes a dataframe and generates a tuple that can be used
-    to add 3d convex hull with the napari add_surface function
-    """
-    datChull = pd.DataFrame()
-    dataFaces = np.array([])
+    dataFaces = []
     vertices_count = 0
-    values = []
-    for event in df[col_id].unique():
-        df_event = df[df[col_id] == event]
-        for i in df_event[col_t].unique():
-            df_filtered = df_event[df_event[col_t] == i]
-            df_xyz = df_filtered[[col_x, col_y, col_z]].copy(deep=True)
-            df_xyz.dropna(inplace=True)
-            hull = ConvexHull(df_xyz)
-            df_out = df_xyz.iloc[hull.vertices]
-            # Add back the columns that do not contain the XY coords
-            df_out = pd.merge(df_out, df_filtered, how="right")
-            datChull = pd.concat([datChull, df_out])
-            values += [event] * len(df_out)
-            faces = hull.simplices
-            faces += vertices_count
-            vertices_count += len(df_out)
-            if dataFaces.size == 0:
-                dataFaces = faces
-            else:
-                dataFaces = np.concatenate((dataFaces, faces))
-    np_color_values = np.array(values)
-    datChull = datChull.reindex(
-        columns=[
-            col_t,
-            col_y,
-            col_x,
-            col_z,
-        ]
+    # sort needed for np.split
+    df = df.sort_values([colid, frame])
+    array_idtyxz = df[[colid, frame, col_y, col_x, col_z]].to_numpy()
+    array_idtyxz = array_idtyxz[~np.isnan(array_idtyxz).any(axis=1)]
+    # split array into list of arrays, one for each collid/timepoint combination
+    grouped_array = np.split(
+        array_idtyxz, np.unique(array_idtyxz[:, 0:2], axis=0, return_index=True)[1][1:]
     )
-    hull_np = datChull.to_numpy()
-    return (hull_np, dataFaces, np_color_values)
+    # calc convex hull for every array in the list
+    convex_hulls = [calculate_convex_hull_3d(i) for i in grouped_array]
+    # generates color ids (integers for LUT in napari)
+    color_ids = np.concatenate([i[:, 0].astype(np.int64) for i in grouped_array])
+    out_vertices = np.concatenate(grouped_array)[:, 1:]
+    # merge convex hull face list and shift indexes according to groups
+    for i, val in enumerate(convex_hulls):
+        dataFaces.append(np.add(val, vertices_count))
+        vertices_count += len(grouped_array[i])
+    out_faces = np.concatenate(dataFaces)
+    return (out_vertices, out_faces, color_ids)
 
 
+# @profile
 def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
+    """Generate empty vertex and faces to fix napari subset error.
 
-    arr_size = vertices.shape[0]
+    Parameters:
+        df (pd.DataFrame): A dataframe used to calculate convex hulls.
+        vertices (np.ndarray): vertex coordinates.
+        faces (np.ndarray): Array containing face indices.
+        colors (np.ndarray): Array containing color ids.
+        col_t (str): String name of frame column in df.
+    """
     empty_vertex = []
     empty_faces = []
     empty_colors = []
-
+    time_points = np.unique(vertices[:, 0])
+    arr_size = vertices.shape[0]
     for i in df[col_t].unique():
-        if i not in vertices[:, :1]:
+        if i not in time_points:
             empty_vertex.append([i, 0, 0, 0])
             empty_faces.append([arr_size, arr_size, arr_size])
             arr_size = arr_size + 1
@@ -266,3 +255,142 @@ def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
     surface_tuple_2 = np.concatenate((colors, np.array(empty_colors)), axis=0)
 
     return (surface_tuple_0, surface_tuple_1, surface_tuple_2)
+
+
+def calc_bbox(array: np.ndarray):
+    """Calcualte the bounding box of input array.
+
+    Parameters:
+        array (np.ndarray): 2d array of coordinates
+        for which to compute the bounding box.
+
+    Returns (np.ndarray): 2d array of coordinates for the bounding box.
+    """
+    t = array[0, 0]
+    pos_array = array[:, 1:]
+    # 3d case
+    if pos_array.shape[1] == 3:
+
+        miny, minx, minz = np.min(pos_array, axis=0)
+        maxy, maxx, maxz = np.max(pos_array, axis=0)
+        return np.array(
+            [
+                [t, miny, minx, minz],
+                [t, miny, minx, maxz],
+                [t, miny, maxx, maxz],
+                [t, miny, maxx, minz],
+                [t, maxy, maxx, minz],
+                [t, maxy, minx, minz],
+                [t, maxy, minx, maxz],
+                [t, maxy, maxx, maxz],
+            ]
+        )
+    # 2d case
+    miny, minx = np.min(pos_array, axis=0)
+    maxy, maxx = np.max(pos_array, axis=0)
+    return np.array(
+        [[t, miny, minx], [t, miny, maxx], [t, maxy, maxx], [t, maxy, minx]]
+    )
+
+
+def get_bbox(
+    df: pd.DataFrame, clid: int, frame: str, xcol: str, ycol: str, edge_size: float = 10
+):
+    """Get bounding box of dataframe in long format with position columns, for 2d case.
+
+    Parameters:
+        df (pd.DataFrame): dataframe to get bounding box form.
+        frame (str): Name of frame column.
+        xcol (str): X coordinate column.
+        ycol (str): Y coordinate column.
+        edge_size (float): Bounding Box edge_size, also used to calculate text size.
+
+    Returns (nd.array, dict): Array that can be added to
+    napari with add_shapes function aswell
+    as dictionary that can be unpacked
+    containing kwargs for shapes layer.
+    """
+    df = df.sort_values([frame])
+    array_tpos = df[[frame, ycol, xcol]].to_numpy()
+    array_tpos = array_tpos[~np.isnan(array_tpos).any(axis=1)]
+    # split array into list of arrays, one for each collid/timepoint combination
+    grouped_array = np.split(
+        array_tpos, np.unique(array_tpos[:, 0], axis=0, return_index=True)[1][1:]
+    )
+    # calc bbox for every array in the list
+    bbox = [calc_bbox(i) for i in grouped_array]
+    text_size = edge_size * 2.5
+    if text_size < 1:
+        text_size = 1
+    text_parameters = {
+        "text": "Event Nbr: {label}",
+        "size": text_size,
+        "color": "white",
+        "anchor": "upper_left",
+        "translation": [-3, 0],
+    }
+    bbox_layer: dict = {}
+    bbox_layer["properties"] = {}
+    bbox_layer["properties"]["label"] = clid
+    bbox_layer["text"] = text_parameters
+    bbox_layer["face_color"] = "transparent"
+    bbox_layer["edge_color"] = "red"
+    bbox_layer["edge_width"] = edge_size
+    bbox_layer["name"] = "event_boundingbox"
+
+    return bbox, bbox_layer
+
+
+def get_bbox_3d(df: pd.DataFrame, frame: str, xcol: str, ycol: str, zcol: str):
+    """Get bounding box of dataframe in long format with position columns, for 3d case.
+
+    Can be added to napari with the add_surfaces function.
+
+    Parameters:
+        df (pd.DataFrame): dataframe to get bounding box form.
+        frame (str): Name of frame column.
+        xcol (str): X coordinate column.
+        ycol (str): Y coordinate column.
+        zcol (str): Z coordinate column.
+
+    Returns (nd.array, np.ndarray, np.ndarray): Tuple that
+    can be added to napari with add_shapes
+    function. Need to be passed on to the fix_3d_convex_hull
+    function to avoid indexing errors in napari.
+    """
+    df = df.sort_values([frame])
+    array_tpos = df[[frame, ycol, xcol, zcol]].to_numpy()
+    array_tpos = array_tpos[~np.isnan(array_tpos).any(axis=1)]
+    # split array into list of arrays, one for each collid/timepoint combination
+    grouped_array = np.split(
+        array_tpos, np.unique(array_tpos[:, 0], axis=0, return_index=True)[1][1:]
+    )
+    # calc bbox for every array in the list
+    bbox = [calc_bbox(i) for i in grouped_array]
+    dataFaces = []
+    vertices_count = 0
+    data_colors = []
+    # precalculated face indidec for a 3d bounding box
+    face = np.array(
+        [
+            [3, 5, 4],
+            [3, 5, 0],
+            [3, 1, 2],
+            [3, 1, 0],
+            [7, 3, 2],
+            [7, 3, 4],
+            [6, 1, 0],
+            [6, 5, 0],
+            [6, 1, 2],
+            [6, 7, 2],
+            [6, 5, 4],
+            [6, 7, 4],
+        ]
+    )
+    for value in bbox:
+        dataFaces.append(np.add(face, vertices_count))
+        vertices_count += len(value)
+    out_faces = np.concatenate(dataFaces)
+    bbox_array = np.concatenate(bbox)
+    data_colors = np.array([1 for i in range(bbox_array.shape[0])])
+    return (bbox_array, out_faces, data_colors)

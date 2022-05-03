@@ -14,15 +14,17 @@ The following section shows how to use arcos-gui.
 #### Load Data
 3. Load and filter the data:
 
-    a. Open file browser and select comma-delimited CSV file in long format.
+    a. Open file browser and select CSV file with data in long format. CSV file can be either comma, semicolon or tab separated. Additionally arcos-gui supports loading csv.gz files.
 
     b. Load CSV file.
 
-    c. In the popup dialogue, select columns corresponding to the indicated label. For Z-coordinates and Position can be None if this column does not exist.
+    c. In the popup dialogue, select columns corresponding to the indicated label. For Z-coordinates, Position and Additional Filter (e.g Well) can be None if this column does not exist.
+    Optionally mathematical operations can be performed either between columns (i.e for Ratios of fluorescent biosensors). Depending on the selection of the operation via radio buttons,
+    an additional column can be specified as second measurement. Default is None.
 
     d. Filter input data. Parameters can be used to select track length, rescale frame interval and rescale measurement.
 
-![load_and_filter](screenshots/load_filter.png){ width="300" } ![columnpicker](screenshots/select_from_dropdown.png){ width="150" }
+![load_and_filter](screenshots/load_filter.png){ width="300" } ![columnpicker](screenshots/select_from_dropdown.png){ width="400" }
 
 
 #### Run ARCOS
@@ -44,8 +46,8 @@ The following section shows how to use arcos-gui.
 
     1. all_cells: centroid of cells with the color code representing the measurement.
     2. active cells: points represent active cells according to binarization
-    3. coll cells: cross marking cells that are part of a collective event
-    4. coll event: the convex hull of collective events
+    3. coll cells: Points marking cells that are part of a collective event, colored by collective event id.
+    4. coll event: the convex hull of collective events, colored by collective event id.
 
 ## Other Widgets
 
@@ -94,7 +96,7 @@ Options can be set using the Timestamp Options dialogue
 | polyDeg                   | Available if Bias Method is set to 'lm',<br>sets the degree of the polynomial for regression detrending |
 | Bin Peak Threshold        | Threshold for rescaling of the de-trended signal.                                                   |
 
-First, a short-term median filter with size smoothK is applied to remove fast noise from the time series. If the de-trending method is set to "none", smoothing is applied on globally rescaled time series. The subsequent de-trending can be performed with a long-term median filter with the size biasK {biasMet = "runmed"} or by fitting a polynomial of degree polyDeg {biasMet = "lm"}.
+First, a short-term median filter with size smoothK is applied to remove fast noise from the time series. If the Bias Method is set to "none", smoothing is applied on globally rescaled time series. The subsequent de-trending can be performed with a long-term median filter with the size biasK {biasMet = "runmed"} or by fitting a polynomial of degree polyDeg {biasMet = "lm"}.
 After de-trending, if the global difference between min/max is greater than the threshold the signal is rescaled to the (0,1) range. The final signal is binarised using the binThr threshold parameter.
 
 ### Collective Event Detection
@@ -102,7 +104,8 @@ After de-trending, if the global difference between min/max is greater than the 
 | Parameter          | Description                                                                                                                                                                                                                                                     |
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Neighbourhood Size | The maximum distance between two samples for one to be considered<br>as in the neighbourhood of the other. This is not a maximum bound <br>on the distances of points within a cluster. <br>Value is also used to connect collective events across multiple frames. |
-| Min Clustersize    | Minimum size for a cluster to be identified as a collective event.                                                                                                                                                                                              |
+| Min Clustersize    | Minimum size for a cluster to be identified as a collective |
+| nPrev frames       | Number of previous frames to consider when tracking collective_events |
 
 ### Filter Collective Events
 
@@ -112,18 +115,34 @@ After de-trending, if the global difference between min/max is greater than the 
 | Total Event Size | Minimal total event size.                             |
 
 
+### Additional
+Add Convex Hull: If checked, the convex hull is calculated for each collective event and drawn in 2d as polygons, in 3d as surfaces. If a large ammount of collective events are detected, adding
+polygons / surfaces can take some time.
+
 ## Plots
 Under the main widgets plotting tab, several types of plots can be found that describe the time-series data and collective events.
+Plots can be saved as images, zoomed in to display only certain areas via the plot toolbar on top of each plot.
 
-![plots](screenshots/plots.png){ width="400" }
-
-### Time-series statistics
+### Input data statistics
 These plots help to choose appropriate parameters for Arcos and track length filtering.
+Plots are chosen through dropdown menus.
 Available plots are:
 
 - Track length Histogram
 - Measurement Density plot (kde)
 - X-T and Y-T plot
 
-### Collective Event statistics
-This plot shows collective event duration over collective event size.
+![plots_stats](screenshots/plots_stats.png){ width="400" }
+
+### Scatterplot
+Interactive Scatterplot of duration vs size.
+On hover, shows collective event id, on click takes user to first frame of selected collective event and marks this event with a bounding box.
+
+![plots_scatter](screenshots/plots_scatter.png){ width="400" }
+
+### Noodleplot
+Interactive Noodleplot of object id vs time. Object tracks are colored by collective event id.
+On hover, shows collective event id, on click takes user to first frame of selected collective event and marks this event with a bounding box.
+Dropdown allows choice of projection axis.
+
+![plots_noodle](screenshots/plots_noodle.png){ width="400" }

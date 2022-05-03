@@ -1,3 +1,4 @@
+from copy import deepcopy
 from os import sep
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 # local imports
 from arcos4py import ARCOS
 from arcos4py.tools import filterCollev
-from arcos_gui._plots import CollevPlotter, TimeSeriesPlots
+from arcos_gui._plots import CollevPlotter, NoodlePlot, TimeSeriesPlots
 from arcos_gui.data_module import process_input, read_data_header
 from arcos_gui.export_movie import iterate_over_frames, resize_napari
 from arcos_gui.magic_guis import (
@@ -32,15 +33,13 @@ from arcos_gui.magic_guis import (
 )
 from arcos_gui.shape_functions import (
     COLOR_CYCLE,
-    assign_color_id,
     fix_3d_convex_hull,
-    format_verticesHull,
     get_verticesHull,
-    make_shapes,
     make_surface_3d,
     make_timestamp,
 )
 from arcos_gui.temp_data_storage import data_storage
+from napari.utils import Colormap
 
 # icons
 ICONS = Path(__file__).parent / "_icons"
@@ -48,6 +47,7 @@ browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
 
 # initalize class
 stored_variables = data_storage()
+tab20 = Colormap(COLOR_CYCLE, "tab20", interpolation="zero")
 
 
 class _MainUI:
@@ -64,6 +64,8 @@ class _MainUI:
     open_file_button: QtWidgets.QPushButton
     browse_file: QtWidgets.QPushButton
     position: QtWidgets.QComboBox
+    additional_filter_combobox: QtWidgets.QComboBox
+    additional_filter_combobox_label: QtWidgets.QLabel
     frame_interval: QtWidgets.QSpinBox
     rescale_measurment: QtWidgets.QSpinBox
     min_tracklength: QtWidgets.QSlider
@@ -85,6 +87,8 @@ class _MainUI:
     bin_threshold_label: QtWidgets.QLabel
     neighbourhood_label: QtWidgets.QLabel
     min_clustersize_label: QtWidgets.QLabel
+    nprev_spinbox: QtWidgets.QSpinBox
+    nprev_spinbox_label: QtWidgets.QLabel
     min_dur_label: QtWidgets.QLabel
     tot_size_label: QtWidgets.QLabel
 
@@ -106,6 +110,7 @@ class _MainUI:
     update_arcos: QtWidgets.QPushButton
     arcos_group: QtWidgets.QGroupBox
     clip_frame: QtWidgets.QFrame
+    add_convex_hull_checkbox: QtWidgets.QCheckBox
 
     point_size_label: QtWidgets.QLabel
     select_lut_label: QtWidgets.QLabel
@@ -124,6 +129,7 @@ class _MainUI:
     collevplot_goupbox: QtWidgets.QGroupBox
     timeseriesplot_groupbox: QtWidgets.QGroupBox
     evplot_layout: QtWidgets.QVBoxLayout
+    evplot_layout_2: QtWidgets.QVBoxLayout
     tsplot_layout: QtWidgets.QVBoxLayout
     nbr_collev_display: QtWidgets.QLCDNumber
 
@@ -139,13 +145,13 @@ class _MainUI:
 
 class MainWindow(QtWidgets.QWidget, _MainUI):
     """
-    widget allowing a user to import a csv file, filter this file,
-    choose arcos parameters, choose LUT mappings aswell as shape sizes
-    When called runs arcos.
+    Widget allowing a user to import a csv file, filter this file,
+    choose arcos parameters, choose LUT mappings aswell as shape sizes.
     list of napari.types.LayerDataTuble to add or update layers is generated.
     """
 
     def __init__(self, viewer: napari.viewer.Viewer, remote=True):
+        """Constructs class with provided arguments."""
         super().__init__()
         self.viewer: napari.viewer.Viewer = viewer
         self.setup_ui()
@@ -157,7 +163,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.arcos_filtered: pd.DataFrame = pd.DataFrame()
         self.measurement = "None"
         self.timeseriesplot = TimeSeriesPlots(parent=self)
-        self.collevplot = CollevPlotter(parent=self)
+        self.noodle_plot = NoodlePlot(parent=self, viewer=self.viewer)
+        self.collevplot = CollevPlotter(parent=self, viewer=self.viewer)
         self._add_plot_widgets()
         self._init_ranged_sliderts()
         self.browse_file.setIcon(browse_file_icon)
@@ -170,44 +177,74 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._connect_ranged_sliders_to_spinboxes()
         self._connect_pushbutton_callbacks()
         self._init_callbacks_visible_arcosparameters()
-        self._init_ts_plot_callbacks()
+        self._init_plot_callbacks()
         self._init_columns()
 
     def _add_plot_widgets(self):
+        """Add the plot widgets to the main window."""
         self.evplot_layout.addWidget(self.collevplot)
+        self.evplot_layout_2.addWidget(self.noodle_plot)
         self.tsplot_layout.addWidget(self.timeseriesplot)
 
     def _ts_plot_update(self):
+        """Updates the ts-plot with new data."""
         self.timeseriesplot.update_plot(columnpicker, self.filtered_data)
 
-    def _init_ts_plot_callbacks(self):
+    def _init_plot_callbacks(self):
+        """Initializes the plot callbacks."""
         self.timeseriesplot.combo_box.currentIndexChanged.connect(self._ts_plot_update)
         self.timeseriesplot.button.clicked.connect(self._ts_plot_update)
 
     def collev_plot_update(self):
-        self.collevplot.update_plot(columnpicker, self.arcos_filtered)
+        """Updates the collective event plots and the collecitve
+        events counter with new data."""
+        self.collevplot.update_plot(
+            self.frame,
+            self.track_id,
+            self.x_coordinates,
+            self.y_coordinates,
+            self.z_coordinates,
+            self.arcos_filtered,
+            point_size=self.point_size,
+        )
+        self.noodle_plot.update_plot(
+            self.frame,
+            self.track_id,
+            self.x_coordinates,
+            self.y_coordinates,
+            self.z_coordinates,
+            self.arcos_filtered,
+            point_size=self.point_size,
+        )
         self.nbr_collev_display.display(self.collevplot.nbr_collev)
 
     def _init_callbacks_visible_arcosparameters(self):
-        # callback for changing available options of bias method
+        """Initialize the callbacks for visible parameters in bias method groupbox."""
         self.bias_method.currentIndexChanged.connect(
             self.toggle_bias_method_parameter_visibility
         )
 
     def _connect_pushbutton_callbacks(self):
+        """Connect push button callbacks in the widget to corresponding methods."""
         # callback to open file dialog
         self.browse_file.clicked.connect(self.browse_files)
         # callback for updating what to run in arcos_widget
         self.open_file_button.clicked.connect(self.open_columnpicker)
         # reset what to run
-        self.filter_input_data.clicked.connect(self.update_what_to_run_all)
+        self.filter_input_data.clicked.connect(self.after_filter_input_data)
         self.open_file_button.clicked.connect(self.what_to_run.clear)
-        # callbackfor filtering data
-        self.filter_input_data.clicked.connect(self.filter_data)
         self.update_arcos.clicked.connect(self.reset_contrast)
         self.update_arcos.clicked.connect(self.run)
 
+    def after_filter_input_data(self):
+        """Collection of methods that run after filtering input data."""
+        self.update_what_to_run_all()
+        self.filter_data()
+        self.reset_contrast()
+        self.set_point_size()
+
     def _connect_ranged_sliders_to_spinboxes(self):
+        """Method to connect ranged sliders to spinboxes to sync values."""
         self.tracklenght_slider.valueChanged.connect(
             self.handleSlider_tracklength_ValueChange
         )
@@ -222,9 +259,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.max_lut_spinbox.valueChanged.connect(self.handle_max_lut_box_ValueChange)
 
     def _init_size_contrast_callbacks(self):
-        # reset contrast and point size
-        self.filter_input_data.clicked.connect(self.reset_contrast)
-        self.filter_input_data.clicked.connect(self.set_point_size)
+        """Connects various callbacks that correspond to size,
+        contrast and lut changes."""
         # execute LUT and point functions
         self.reset_lut.clicked.connect(self.reset_contrast)
         # update size and LUT
@@ -234,18 +270,24 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.point_size.valueChanged.connect(self.change_cell_size)
 
     def _init_callback_for_sample_data(self):
+        """Callback to load sample data via the napari sample data interface."""
         stored_variables.register_callback(self.callback_file_Linedit_text)
 
     def _init_columnpicker_callbacks(self):
-        # callback for updating several variables after OK press in columnpicker widget
+        """Connect callbacks suppoed to run after OK press in columnpicker widget."""
         columnpicker.measurement_math.changed.connect(toggle_visible_second_measurment)
         columnpicker.Ok.changed.connect(self.close_columnpicker)
         columnpicker.Ok.changed.connect(self.set_positions)
         columnpicker.Ok.changed.connect(self.get_tracklengths)
         columnpicker.Ok.changed.connect(self.remove_layers_after_columnpicker)
+        columnpicker.Ok.changed.connect(self.after_filter_input_data)
 
     def _init_callbacks_for_whattorun(self):
-        # callback for updating 'what to run' in stored_variables object
+        """Connect callbacks for updating 'what to run'.
+
+        This is used to run only the appropriate parts of the
+        run_arcos method depending on the parameters changed.
+        """
         self.clip_low.valueChanged.connect(self.update_what_to_run_all)
         self.clip_high.valueChanged.connect(self.update_what_to_run_all)
         self.smooth_k.valueChanged.connect(self.update_what_to_run_all)
@@ -254,11 +296,15 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.neighbourhood_size.valueChanged.connect(self.update_what_to_run_tracking)
         self.bin_peak_threshold.valueChanged.connect(self.update_what_to_run_all)
         self.min_clustersize.valueChanged.connect(self.update_what_to_run_tracking)
-        self.min_clustersize.valueChanged.connect(self.update_what_to_run_tracking)
+        self.nprev_spinbox.valueChanged.connect(self.update_what_to_run_tracking)
         self.min_dur.valueChanged.connect(self.update_what_to_run_filtering)
         self.total_event_size.valueChanged.connect(self.update_what_to_run_filtering)
+        self.add_convex_hull_checkbox.stateChanged.connect(
+            self.update_what_to_run_filtering
+        )
 
     def _init_ranged_sliderts(self):
+        """Initialize ranged sliders from superqt."""
         self.lut_slider = QDoubleRangeSlider(Qt.Horizontal)
         self.tracklenght_slider = QRangeSlider(Qt.Horizontal)
         self.horizontalLayout_lut.addWidget(self.lut_slider)
@@ -271,6 +317,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.lut_slider.setValue((0, 10))
 
     def _init_columns(self):
+        """Method that sets default values for columnpicker."""
         self.frame = "None"
         self.track_id = "None"
         self.x_coordinates = "None"
@@ -279,44 +326,54 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.first_measurement = "None"
         self.second_measurement = "None"
         self.field_of_view_id = "None"
+        self.additional_filter_column_name = "None"
 
     def handleSlider_tracklength_ValueChange(self):
+        """Method to handle trancklenght value changes."""
         slider_vals = self.tracklenght_slider.value()
         self.min_tracklength_spinbox.setValue(slider_vals[0])
         self.max_tracklength_spinbox.setValue(slider_vals[1])
 
     def handle_min_tracklenght_box_ValueChange(self, value):
+        """Method to handle min tracklenght spinbox."""
         slider_vals = self.tracklenght_slider.value()
         self.tracklenght_slider.setValue((value, slider_vals[1]))
 
     def handle_max_tracklength_box_ValueChange(self, value):
+        """Method to handle max tracklength spinbox."""
         slider_vals = self.tracklenght_slider.value()
         self.tracklenght_slider.setValue((slider_vals[0], value))
 
     def handleSlider_lut_ValueChange(self):
+        """Method to handle lut value change."""
         slider_vals = self.lut_slider.value()
         self.min_lut_spinbox.setValue(slider_vals[0])
         self.max_lut_spinbox.setValue(slider_vals[1])
 
     def handle_min_lut_box_ValueChange(self, value):
+        """Method to handle lut min spinbox value change."""
         slider_vals = self.lut_slider.value()
         self.lut_slider.setValue((value, slider_vals[1]))
 
     def handle_max_lut_box_ValueChange(self, value):
+        """Method to handle lut max spinbox value change."""
         slider_vals = self.lut_slider.value()
         self.lut_slider.setValue((slider_vals[0], value))
 
     def _set_default_visible(self):
+        """Method that sets the default visible widgets in the main window."""
         self.clip_meas.setChecked(False)
         self.position.setVisible(False)
         self.position_label.setVisible(False)
+        self.additional_filter_combobox.setVisible(False)
+        self.additional_filter_combobox_label.setVisible(False)
         self.polyDeg.setVisible(False)
         self.polyDeg_label.setVisible(False)
 
     def toggle_bias_method_parameter_visibility(self):
         """
         based on the seleciton of bias method:
-        shows or hides the appropriate options in the widget
+        shows or hides the appropriate options in the main window.
         """
         if self.bias_method.currentText() == "runmed":
             self.smooth_k.setVisible(True)
@@ -356,7 +413,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def callback_file_Linedit_text(self, value):
         """Used to load sample data from test_data.
-        and set columnpicker to indicated values"""
+        and set columnpicker to indicated strings."""
         self.file_LineEdit.setText(value)
         self.open_columnpicker()
         columnpicker.frame.value = "t"
@@ -366,6 +423,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         columnpicker.z_coordinates.value = "None"
         columnpicker.measurment.value = "m"
         columnpicker.field_of_view_id.value = "Position"
+        columnpicker.additional_filter.value = "None"
+        columnpicker.measurement_math.value = "None"
 
     def update_what_to_run_all(self):
         """
@@ -420,9 +479,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             )
 
     def reset_contrast(self):
-        """
-        updates values in lut mapping slider
-        """
+        """updates values in lut mapping slider."""
         min_max = stored_variables.min_max
         # change slider values
         self.max_lut_spinbox.setMaximum(min_max[1])
@@ -434,15 +491,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.min_lut_spinbox.setValue(min_max[0])
 
     def update_lut(self):
-        """
-        updates LUT choice in stored_variables
-        """
+        """updates LUT choice in stored_variables."""
         stored_variables.lut = self.LUT.currentText()
 
     def change_cell_colors(self):
-        """
-        function to update lut and corresponding lut mappings
-        """
+        """Method to update lut and corresponding lut mappings."""
         layer_list = self.get_layer_list()
         min_value = self.min_lut_spinbox.value()
         max_value = self.max_lut_spinbox.value()
@@ -455,9 +508,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self.viewer.layers["all_cells"].refresh_colors()
 
     def change_cell_size(self):
-        """
-        function to update size of points and shapes layers:
-        "all_cells, "active cells", "coll cells" and "coll events"
+        """Method to update size of points and shapes layers:
+        "all_cells, "active cells", "coll cells", "coll events"
+        and if created "event_boundingbox".
         """
         layer_list = self.get_layer_list()
         size = self.point_size.value()
@@ -467,11 +520,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
         if "coll cells" in layer_list:
             self.viewer.layers["coll cells"].size = round(size / 1.7, 2)
-            self.viewer.layers["coll events"].edge_width = size / 5
-            self.viewer.layers["coll events"].refresh()
+
+        if "event_boundingbox" in self.viewer.layers:
+            self.viewer.layers["event_boundingbox"].edge_width = size / 5
 
     def open_columnpicker(self):
-        """
+        """Open Columnpicker dialog window.
         Take a filename and if it is a csv file,
         opens it and stores it in the stored_variables_object.
         Shows columnpicker dialog.
@@ -481,19 +535,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         if not csv_file.endswith(tuple(extension)):
             show_info("Not a csv file")
         else:
-            columns = columnpicker.frame.choices
-            column_keys = [
-                "frame",
-                "x_coordinates",
-                "y_coordinates",
-                "z_coordinates",
-                "track_id",
-                "measurment",
-                "field_of_view_id",
-            ]
-            for i in column_keys:
-                for index, j in enumerate(columns):
-                    getattr(columnpicker, i).del_choice(str(j))
             csv_file = self.file_LineEdit.text()
             self.layers_to_create.clear()
             columns, delimiter_value = read_data_header(csv_file)
@@ -505,14 +546,15 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             columnpicker.measurment.choices = columns
             columnpicker.second_measurment.choices = columns
             columnpicker.field_of_view_id.choices = columns
+            columnpicker.additional_filter.choices = columns
             columnpicker.field_of_view_id.set_choice("None", "None")
+            columnpicker.additional_filter.set_choice("None", "None")
             columnpicker.z_coordinates.set_choice("None", "None")
             columnpicker.show()
             self.data = pd.read_csv(csv_file, delimiter=delimiter_value)
 
     def close_columnpicker(self):
-        """
-        gets the chosen columns to be stored inside of
+        """Stores the chosen columns inside of
         class attributes and closes the columnpicker dialog.
         Additionally subtracts the frame-offset from the frame
         column in data.
@@ -526,6 +568,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.first_measurement = columnpicker.measurment.value
         self.second_measurement = columnpicker.second_measurment.value
         self.field_of_view_id = columnpicker.field_of_view_id.value
+        self.additional_filter_column_name = columnpicker.additional_filter.value
         columnpicker.close()
         self.measurement, self.data = self.calculate_measurment(
             self.data, self.first_measurement, self.second_measurement
@@ -533,11 +576,17 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.subtract_timeoffset()
 
     def calculate_measurment(self, data, in_meas_1_name, in_meas_2_name):
+        """Perform operation on the two measurement columns.
+
+        Calcualates new column that will be used to detect collective events.
+        Operation is determined in the columnpicker dialog and loaded from
+        the OPERATOR_DICTIONARY.
+        """
         data_in = data
         operation = columnpicker.measurement_math.value
         if operation in OPERATOR_DICTIONARY.keys():
             out_meas_name = OPERATOR_DICTIONARY[operation][1]
-            data_in[self.measurement] = OPERATOR_DICTIONARY[operation][0](
+            data_in[out_meas_name] = OPERATOR_DICTIONARY[operation][0](
                 data[in_meas_1_name], data[in_meas_2_name]
             )
 
@@ -546,7 +595,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         return out_meas_name, data_in
 
     def remove_layers_after_columnpicker(self):
-        """removes existing arcos layers before loading new data"""
+        """Method to remove existing arcos layers before loading new data"""
         layer_list = self.get_layer_list()
         for layer in [
             "coll cells",
@@ -554,25 +603,36 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             "active cells",
             "all_cells",
             "Timestamp",
+            "event_boundingbox",
         ]:
             if layer in layer_list:
                 self.viewer.layers.remove(layer)
 
     def get_layer_list(self):
-        """Get list of open layers"""
+        """Get list of open layers."""
         layer_list = [layer.name for layer in self.viewer.layers]
         return layer_list
 
     def set_positions(self):
-        """get unique positions from data, empty positions dialog
+        """Get unique positions from data, empty positions dialog
         for preveious data and append new positions."""
         if self.field_of_view_id != "None":
             positions = list(self.data[self.field_of_view_id].unique())
         else:
             positions = ["None"]
 
+        if self.additional_filter_column_name != "None":
+            additional_filter_choices = (
+                self.data[self.additional_filter_column_name].unique().tolist()
+            )
+        else:
+            additional_filter_choices = ["None"]
+
         # delete position values is position dialog self.positions
         self.position.clear()
+        self.additional_filter_combobox.clear()
+        for i in additional_filter_choices:
+            self.additional_filter_combobox.addItem(str(i), i)
         # add new positions
         for i in positions:
             self.position.addItem(str(i), i)
@@ -588,7 +648,15 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self.position.setVisible(True)
             self.position_label.setVisible(True)
 
+        if self.additional_filter_combobox.count() <= 1:
+            self.additional_filter_combobox.setVisible(False)
+            self.additional_filter_combobox_label.setVisible(False)
+        else:
+            self.additional_filter_combobox.setVisible(True)
+            self.additional_filter_combobox_label.setVisible(True)
+
     def set_posCol(self) -> list:
+        """Generates the posCol list containing all position names."""
         if self.z_coordinates != "None":
             posCols = [self.x_coordinates, self.y_coordinates, self.z_coordinates]
             return posCols
@@ -631,9 +699,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def filter_data(self):
         """
-        Used to filter the input datato contain a single position.
-        filter options also include minimum and maximum tracklength.
+        Used to filter the input data to contain a single position.
+        If selected in the columpicker dialog, an additional filter option
+        is displayed.
+        Filter options also include minimum and maximum tracklength.
         Allows for rescaling of measurment variable.
+
         """
         # gets raw data read in by arcos_widget from stored_variables object
         # and columns from columnpicker value
@@ -655,6 +726,12 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 # hast to be done before .filter_tracklenght otherwise code could break
                 # if track ids are not unique to positions
                 in_data.filter_position(self.position.currentData())
+
+            if self.additional_filter_column_name != "None":
+                in_data.filter_second_column(
+                    self.additional_filter_column_name,
+                    self.additional_filter_combobox.currentData(),
+                )
             # filter by tracklenght
             in_data.filter_tracklength(
                 self.min_tracklength_spinbox.value(),
@@ -687,29 +764,31 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             )
         return data
 
-    def run_arcos(self) -> LayerDataTuple:
+    # @profile
+    def run_arcos(self):
         """
-        ARCOS method to detect collective events.
+        Method to detect collective events.
 
-        Returned data can contain:
-        all_cells:
-        returns color coded points of all cells filtered by the filter_widget.
-        Color code represents measurment active_cells: returns black dots,
-        representing cells determined as being active
-        by arcos binarise measurment function
+        When called the loaded data is processed according to the selected parameters,
+        in order to detect collective events.
 
-        active cells:
-        points representing cells that have been classified as being active
-        by the arcos binarization approach.
+        Updates layers_to_create (list) with:
+            all_cells (tuple): returns color coded points
+            of all cells filtered by the filter_widget.
+            Color code represents measurment active_cells: returns black dots,
+            representing cells determined as being active
+            by arcos binarise measurment function
 
-        coll cells:
-        returns black crosses representing cells that are according
-        to the calculation done by arcos part of a collective event
+            active cells (tuple):points representing cells that have been classified as
+            being active by the arcos binarization approach.
 
-        coll events:
-        returns convex hulls of individual collective
-        events, in 2D case, color is coded accoring to a color_cycle attribute.
-        in 3D case according to a LUT.
+            coll cells (tuple): returns points representing cells that are according
+            to the calculation done by arcos part of a collective event.
+            Colored by collective event id with tab20 colormap.
+
+            coll events (tuple): returns convex hulls of individual collective
+            events, in 2D case, color is coded accoring to a color_cycle attribute.
+            in 3D case according to a LUT.
         """
 
         posCols = self.set_posCol()
@@ -757,12 +836,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
                 self.Progress.setValue(8)
 
-                # updates arcos object in the stored_variables object
-                stored_variables.arcos = arcos
-
-                # binarize data and update ts variable in stored_variables
+                # binarize data and update self.ts variable
                 # update from where to run
-                ts = arcos.bin_measurements(
+                self.ts = arcos.bin_measurements(
                     smoothK=self.smooth_k.value(),
                     biasK=self.bias_k.value(),
                     peakThr=self.bin_peak_threshold.value(),
@@ -770,7 +846,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     polyDeg=self.polyDeg.value(),
                     biasMet=self.bias_method.currentText(),
                 )
-                stored_variables.ts_data = ts
+                self.start_arcos = deepcopy(arcos)
                 self.what_to_run.add("from_tracking")
 
                 self.Progress.setValue(12)
@@ -778,18 +854,17 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             # if statement checks if this part of the function has to be run
             # depends on the parameters changed in arcos widget
             if "from_tracking" in self.what_to_run:
-                arcos = stored_variables.arcos  # type: ignore
-                ts = stored_variables.ts_data
+                arcos = deepcopy(self.start_arcos)  # type: ignore
                 # if active cells were detected, run this
-                if 1 in ts[measbin_col].values:
+                if 1 in self.ts[measbin_col].values:
                     # track collective events
                     arcos.trackCollev(
                         self.neighbourhood_size.value(),
                         self.min_clustersize.value(),
+                        self.nprev_spinbox.value(),
                     )
 
                     self.Progress.setValue(16)
-
                 # if no active cells were detected remove previous layer,
                 # since this does not correspont to current widget parameters
                 else:
@@ -801,40 +876,63 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     self.Progress.setValue(40)
                     show_info("No active Cells detected, consider adjusting parameters")
 
-                # update stored variables
-                stored_variables.arcos = arcos
+                # update attributes with current state of arcos and what to run
+                # copy is required in order to facilitate recalculation from specific
+                # points without the  need to recalculate everything
+                self.tracking_arcos = deepcopy(arcos)
                 self.what_to_run.add("from_filtering")
 
             # depending on the parameters changed in arcos widget
             if "from_filtering" in self.what_to_run:
 
-                # get most recent data from stored_variables
-                arcos = stored_variables.arcos  # type: ignore
-                ts = stored_variables.ts_data
+                # get most recent data from attribute
+                arcos = deepcopy(self.tracking_arcos)  # type: ignore
 
                 # if no data show info to run arcos first
-                # and set the progressbar to 100%
+                # and set the progressbar to 0
                 if arcos is None:
                     show_info("No data available, run arcos first")
                     self.Progress.setValue(0)
 
                 # if cells were classifed as being active (represented by a 1)
                 # filter tracked events acording to chosen parameters
-                elif 1 in ts[measbin_col].values:
+                elif 1 in self.ts[measbin_col].values:
 
                     # set return varaibles to check which layers have to be created
                     return_collev = False
                     return_points = True
-                    filterer = filterCollev(arcos.data, self.frame, collid_name)
+                    filterer = filterCollev(
+                        arcos.data, self.frame, collid_name, self.track_id
+                    )
                     self.arcos_filtered = filterer.filter(
                         self.min_dur.value(),
                         self.total_event_size.value(),
+                    ).copy(deep=True)
+                    # makes filtered collids sequential
+                    clid_np = self.arcos_filtered[collid_name].to_numpy()
+                    clids_sorted_i = np.argsort(clid_np)
+                    clids_reverse_i = np.argsort(clids_sorted_i)
+                    clid_np_sorted = clid_np[(clids_sorted_i)]
+                    grouped_array_clids = np.split(
+                        clid_np_sorted,
+                        np.unique(clid_np_sorted, axis=0, return_index=True)[1][1:],
                     )
+                    seq_colids = np.concatenate(
+                        [
+                            np.repeat(i, value.shape[0])
+                            for i, value in enumerate(grouped_array_clids)
+                        ],
+                        axis=0,
+                    )[clids_reverse_i]
+                    seq_colids_from_one = np.add(seq_colids, 1)
+                    self.arcos_filtered.loc[:, collid_name] = seq_colids_from_one
+
                     self.Progress.setValue(20)
 
+                    self.Progress.setValue(20)
                     # merge tracked and original data
                     merged_data = pd.merge(
-                        ts,
+                        self.ts,
                         self.arcos_filtered[
                             [
                                 self.frame,
@@ -849,7 +947,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         ],
                     )
                     stored_variables.data_merged = merged_data
-
                     if self.z_coordinates == "None":
                         # column list
                         vColsCore = [
@@ -873,7 +970,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # shown as a color code of all cells
 
                     datAllProp = {"act": merged_data[self.measurement]}
-
                     # np matrix with acvtive cells; shown as black dots
                     datAct = merged_data[merged_data[measbin_col] > 0][
                         vColsCore
@@ -895,7 +991,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         "points",
                     )
 
-                    # np matrix with cells in collective events; shown as black pluses
+                    # np matrix with cells in collective events
                     datColl = merged_data[~np.isnan(merged_data["collid"])][
                         vColsCore
                     ].to_numpy()
@@ -922,99 +1018,79 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # check if collective events were detected and add layer,
                     # if yes calculate convex hulls for collective events
                     if datColl.size != 0:
-                        # convex hulls
-                        df_gb = merged_data[~np.isnan(merged_data["collid"])].groupby(
-                            [self.frame, "collid"]
-                        )
-                        if self.z_coordinates == "None":
-                            datChull = df_gb.apply(
-                                get_verticesHull,
-                                col_x=self.x_coordinates,
-                                col_y=self.y_coordinates,
-                            ).reset_index(drop=True)
-
-                            # check if error Qhullerror was raised in get_verticesHull
-                            # shows column info that was passed on to the function
-                            if type(datChull) == list:
-                                show_info(
-                                    f"Error in convex hull creation, \
-                                    correct x/y columns selected? \n \
-                                    x, y columns: {datChull}"
+                        # convex hulls only if user selects checkbox
+                        if self.add_convex_hull_checkbox.isChecked():
+                            if self.z_coordinates == "None":
+                                datChull, color_ids = get_verticesHull(
+                                    merged_data[~np.isnan(merged_data["collid"])],
+                                    frame=self.frame,
+                                    colid=collid_name,
+                                    col_x=self.x_coordinates,
+                                    col_y=self.y_coordinates,
                                 )
 
-                            datChull = format_verticesHull(
-                                datChull,
-                                self.frame,
-                                self.x_coordinates,
-                                self.y_coordinates,
-                                "collid",
-                            )
-                            self.Progress.setValue(28)
+                                self.Progress.setValue(28)
 
-                            df_collid_colors = assign_color_id(
-                                df=datChull,
-                                palette=COLOR_CYCLE,
-                            )
+                                self.Progress.setValue(32)
 
-                            self.Progress.setValue(32)
+                                coll_events = (
+                                    datChull,
+                                    {
+                                        "face_color": color_ids,
+                                        "shape_type": "polygon",
+                                        "text": None,
+                                        "opacity": 0.5,
+                                        "edge_color": "white",
+                                        "edge_width": 0,
+                                        "name": "coll events",
+                                    },
+                                    "shapes",
+                                )
 
-                            datChull = datChull.merge(df_collid_colors, on="collid")
-                            # create actual shapes
-                            kw_shapes = make_shapes(datChull, col_text="collid")
+                            else:
+                                event_surfaces = make_surface_3d(
+                                    merged_data[~np.isnan(merged_data["collid"])],
+                                    self.frame,
+                                    self.x_coordinates,
+                                    self.y_coordinates,
+                                    self.z_coordinates,
+                                    "collid",
+                                )
 
-                            coll_events = (
-                                kw_shapes["data"],
-                                {
-                                    "face_color": kw_shapes["face_color"],
-                                    "properties": kw_shapes["properties"],
-                                    "shape_type": "polygon",
-                                    "text": None,
-                                    "opacity": 0.5,
-                                    "edge_color": "white",
-                                    "edge_width": round(size / 5, 2),
-                                    "name": "coll events",
-                                },
-                                "shapes",
-                            )
-
-                        else:
-                            event_surfaces = make_surface_3d(
-                                merged_data[~np.isnan(merged_data["collid"])],
-                                self.frame,
-                                self.x_coordinates,
-                                self.y_coordinates,
-                                self.z_coordinates,
-                                "collid",
-                            )
-
-                            event_surfaces = fix_3d_convex_hull(
-                                merged_data[vColsCore],
-                                event_surfaces[0],
-                                event_surfaces[1],
-                                event_surfaces[2],
-                                self.frame,
-                            )
-                            coll_events = (
-                                event_surfaces,
-                                {
-                                    "colormap": "viridis",
-                                    "name": "coll events",
-                                    "opacity": 0.5,
-                                },
-                                "surface",
-                            )
+                                event_surfaces = fix_3d_convex_hull(
+                                    merged_data[vColsCore],
+                                    event_surfaces[0],
+                                    event_surfaces[1],
+                                    event_surfaces[2],
+                                    self.frame,
+                                )
+                                coll_events = (
+                                    event_surfaces,
+                                    {
+                                        "colormap": tab20,
+                                        "name": "coll events",
+                                        "opacity": 0.5,
+                                    },
+                                    "surface",
+                                )
 
                         # get point_size
                         size = self.point_size.value()
                         # create remaining layer.data.tuples
+                        np_clids = merged_data[~np.isnan(merged_data["collid"])][
+                            "collid"
+                        ].to_numpy()
+
+                        color_ids = np.take(
+                            np.array(COLOR_CYCLE), [i for i in np_clids], mode="wrap"
+                        )
                         coll_cells = (
                             datColl,
                             {
-                                "face_color": "black",
-                                "size": round(size / 1.7, 2),
+                                "face_color": color_ids,
+                                "size": round(size / 1.2, 2),
                                 "edge_width": 0,
-                                "opacity": 0.75,
-                                "symbol": "x",
+                                "opacity": 1,
                                 "name": "coll cells",
                             },
                             "points",
@@ -1028,6 +1104,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                         # check if layers exit, if yes remove them
                         if "coll cells" in layer_list:
                             self.viewer.layers.remove("coll cells")
+                        if "coll events" in layer_list:
                             self.viewer.layers.remove("coll events")
                         show_info(
                             "No collective events detected, consider adjusting parameters"  # NOQA
@@ -1037,18 +1114,33 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     self.layers_to_create.clear()
 
                     # update layers
-                    # check which layers need to be added, add these layers
-                    if return_collev and return_points:
+                    # check which layers need to be added, add these layers to the list
+                    if (
+                        return_collev
+                        and return_points
+                        and self.add_convex_hull_checkbox.isChecked()
+                    ):
                         self.layers_to_create = [
                             all_cells,
                             active_cells,
                             coll_cells,
                             coll_events,
                         ]
+                    if (
+                        return_collev
+                        and return_points
+                        and not self.add_convex_hull_checkbox.isChecked()
+                    ):
+                        self.layers_to_create = [
+                            all_cells,
+                            active_cells,
+                            coll_cells,
+                        ]
                     elif not return_collev and return_points:
                         self.layers_to_create = [all_cells, active_cells]
                     self.what_to_run.clear()
 
+    # @profile
     def make_layers(self):
         """adds layers from self.layers_to_create,
         whitch itself is upated from run_arcos method"""
@@ -1059,6 +1151,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 "coll events",
                 "active cells",
                 "all_cells",
+                "event_boundingbox",
             ]:
                 if layer in layers_names:
                     self.viewer.layers.remove(layer)
@@ -1077,10 +1170,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             self.viewer.dims.ndisplay = 2
 
 
-# function to export csv to specified path
 def export_csv(merged_data):
     """
-    function to export the arcos data sotred in the
+    Function to export the arcos data stored in the
     stored_varaibles object and save it to the
     filepath set with the arcos_widget widget
     """
@@ -1094,10 +1186,9 @@ def export_csv(merged_data):
         show_info(f"wrote csv file to {output_path}")
 
 
-# export movie
 def movie_export(viewer, automatic_viewer_size):
     """
-    function to export image sequence from the viewer
+    Function to export image sequence from the viewer.
     """
     # closes magicgui filepicker
     output_movie_folder.close()
@@ -1105,12 +1196,12 @@ def movie_export(viewer, automatic_viewer_size):
     if len(viewer.layers) == 0:
         show_info("No data to export, run arcos first")
     else:
-        # hides dock widgets, sets path, gets viwer dimensions
-        hide_dock_widgets(viewer)
         path = str(output_movie_folder.filename.value)
         output_path = f"{path}{sep}{output_movie_folder.Name.value}"
         # resize viewer if chosen
         if automatic_viewer_size:
+            # hides dock widgets, sets path, gets viwer dimensions
+            hide_dock_widgets(viewer)
             resize_napari([np.float64(1012), np.float64(1012)], viewer)
         # iterate over frames to export data to chosen output path
         iterate_over_frames.show()

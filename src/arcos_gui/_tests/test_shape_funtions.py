@@ -2,18 +2,15 @@ import numpy as np
 import pandas as pd
 import pytest
 from arcos_gui.shape_functions import (
-    COLOR_CYCLE,
-    assign_color_id,
-    format_verticesHull,
+    fix_3d_convex_hull,
     get_verticesHull,
-    make_shapes,
+    make_surface_3d,
 )
 from numpy.testing import assert_equal
-from pandas.testing import assert_frame_equal
 
 
 @pytest.fixture
-def data_frame():
+def data_frame_2d():
     col_2 = list(range(5, 10))
     col_2.extend(list(range(10, 5, -1)))
     d = {
@@ -26,62 +23,78 @@ def data_frame():
     return df
 
 
-def test_assign_color_id(data_frame):
-    color_id = assign_color_id(data_frame, palette=COLOR_CYCLE, col_id="X")
-    color_list = color_id["color"].to_list()
-    assert color_list == COLOR_CYCLE
-
-
-def test_get_verticesHull(data_frame):
-    hulls = get_verticesHull(data_frame, "X", "Y")
-    d = [[0, 5], [9, 6], [5, 10]]
-    cols = ["X", "Y"]
-    df = pd.DataFrame(data=d, columns=cols)
-    assert_frame_equal(df, hulls.iloc[:, [0, 1]].reset_index(drop=True))
-
-
-def test_format_verticesHull(data_frame):
-    hulls = get_verticesHull(data_frame, "X", "Y")
-    datChull = format_verticesHull(hulls, "time", "X", "Y", "collid")
-    d_2 = [
-        [0, "polygon", 0, 1, 5, 0, 1],
-        [0, "polygon", 1, 1, 6, 9, 1],
-        [0, "polygon", 2, 1, 10, 5, 1],
-    ]
-    cols_2 = [
-        "index",
-        "shape-type",
-        "vertex-index",
-        "axis-0",
-        "axis-1",
-        "axis-2",
-        "collid",
-    ]
-    df = pd.DataFrame(data=d_2, columns=cols_2)
-    assert_frame_equal(df, datChull)
-
-
-def test_make_shapes(data_frame):
-    d_2 = [
-        [0, "polygon", 0, 1, 5, 0, 1],
-        [0, "polygon", 1, 1, 6, 9, 1],
-        [0, "polygon", 2, 1, 10, 5, 1],
-    ]
-    cols_2 = [
-        "index",
-        "shape-type",
-        "vertex-index",
-        "axis-0",
-        "axis-1",
-        "axis-2",
-        "collid",
-    ]
-    datChull = pd.DataFrame(data=d_2, columns=cols_2)
-    datChull_color = assign_color_id(datChull, COLOR_CYCLE)
-    datChull = datChull.merge(datChull_color, on="collid")
-    shapes = make_shapes(datChull)
-    dict_exp = {
-        "face_color": ["#1f77b4"],
-        "data": [np.array([[1, 5, 0], [1, 6, 9], [1, 10, 5]])],
+@pytest.fixture
+def data_frame_3d():
+    clid = [1 for i in range(0, 9)]
+    clid.append(np.nan)
+    d = {
+        "time": [1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+        "Y": [1, 1, 1, 1, 2, 2, 2, 2, 1.5, 5],
+        "X": [1, 1, 2, 2, 1, 1, 2, 2, 1.5, 5],
+        "Z": [1, 2, 1, 2, 1, 2, 1, 2, 1.5, 5],
+        "collid": clid,
     }
-    assert_equal(shapes, dict_exp)
+    df = pd.DataFrame(data=d)
+    return df
+
+
+def test_get_verticesHull(data_frame_2d):
+    hulls, colors = get_verticesHull(
+        df=data_frame_2d, frame="time", colid="collid", col_x="X", col_y="Y"
+    )
+    d_np = np.array([[5, 0], [10, 5], [6, 9]])
+    assert_equal(d_np, hulls[0][:, 1:])
+
+
+def test_make_surface_3d(data_frame_3d):
+    df_in = data_frame_3d[data_frame_3d["collid"] == 1]
+    hulls = make_surface_3d(df_in, "time", "X", "Y", "Z", "collid")
+    cube_vertices = np.array(
+        [
+            [6, 2, 0],
+            [6, 4, 0],
+            [5, 4, 0],
+            [5, 1, 0],
+            [5, 6, 4],
+            [5, 6, 7],
+            [3, 2, 0],
+            [3, 1, 0],
+            [3, 6, 2],
+            [3, 6, 7],
+            [3, 5, 1],
+            [3, 5, 7],
+        ]
+    )
+    assert_equal(hulls[0], df_in.iloc[:, 0:4])
+    assert_equal(hulls[1], cube_vertices)
+    assert_equal(hulls[2], np.repeat(1, 9))
+
+
+def test_fix_3d_convex_hull(data_frame_3d):
+    df_in = data_frame_3d
+    hulls = make_surface_3d(df_in, "time", "X", "Y", "Z", "collid")
+    cube_vertices = np.array(
+        [
+            [6, 2, 0],
+            [6, 4, 0],
+            [5, 4, 0],
+            [5, 1, 0],
+            [5, 6, 4],
+            [5, 6, 7],
+            [3, 2, 0],
+            [3, 1, 0],
+            [3, 6, 2],
+            [3, 6, 7],
+            [3, 5, 1],
+            [3, 5, 7],
+            [9, 9, 9],
+        ]
+    )
+    df_out_true = df_in.iloc[:-1, 0:4]
+    df_out_true.loc[len(df_out_true.index)] = [2, 0, 0, 0]
+    color_true = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 0])
+    hulls_fixed = fix_3d_convex_hull(df_in, hulls[0], hulls[1], hulls[2], "time")
+    print("\n", df_in, hulls_fixed[0], hulls_fixed[1], hulls_fixed[2])
+    assert_equal(hulls_fixed[0], df_out_true)
+    assert_equal(hulls_fixed[1], cube_vertices)
+    assert_equal(hulls_fixed[2], color_true)
