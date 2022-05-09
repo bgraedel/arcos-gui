@@ -538,18 +538,19 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             csv_file = self.file_LineEdit.text()
             self.layers_to_create.clear()
             columns, delimiter_value = read_data_header(csv_file)
+            columns_w_none = columns + ["None"]
             columnpicker.frame.choices = columns
             columnpicker.track_id.choices = columns
             columnpicker.x_coordinates.choices = columns
             columnpicker.y_coordinates.choices = columns
-            columnpicker.z_coordinates.choices = columns
+            columnpicker.z_coordinates.choices = columns_w_none
             columnpicker.measurment.choices = columns
             columnpicker.second_measurment.choices = columns
-            columnpicker.field_of_view_id.choices = columns
-            columnpicker.additional_filter.choices = columns
-            columnpicker.field_of_view_id.set_choice("None", "None")
-            columnpicker.additional_filter.set_choice("None", "None")
-            columnpicker.z_coordinates.set_choice("None", "None")
+            columnpicker.field_of_view_id.choices = columns_w_none
+            columnpicker.additional_filter.choices = columns_w_none
+            # columnpicker.field_of_view_id.set_choice("None", "None")
+            # columnpicker.additional_filter.set_choice("None", "None")
+            # columnpicker.z_coordinates.set_choice("None", "None")
             columnpicker.show()
             self.data = pd.read_csv(csv_file, delimiter=delimiter_value)
 
