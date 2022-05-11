@@ -45,21 +45,59 @@ measurement_math_options.append("None")
 
 @magicgui(
     call_button=False,
-    Ok={"widget_type": "PushButton"},
-    frame={"choices": ["None"]},
-    track_id={"choices": ["None"]},
-    x_coordinates={"choices": ["None"]},
-    y_coordinates={"choices": ["None"]},
-    z_coordinates={"choices": ["None"]},
-    measurment={"choices": ["None"]},
-    field_of_view_id={"choices": ["None"]},
-    additional_filter={"choices": ["None"]},
-    second_measurment={"choices": ["None"], "visible": False},
+    Ok={"widget_type": "PushButton", "tooltip": "Press to load data"},
+    frame={
+        "choices": ["None"],
+        "label": "Frame Column:",
+        "tooltip": "Select frame column in input data",
+    },
+    track_id={
+        "choices": ["None"],
+        "label": "Object id Column:",
+        "tooltip": "Select column representing object track ids in input data",  # noqa: E501
+    },
+    x_coordinates={
+        "choices": ["None"],
+        "label": "X Coordinate Column:",
+        "tooltip": "Select x coordinate column in input data",
+    },
+    y_coordinates={
+        "choices": ["None"],
+        "label": "Y Coordinate Column:",
+        "tooltip": "Select y coordinate column in input data",
+    },
+    z_coordinates={
+        "choices": ["None"],
+        "label": "Z Coordinate Column:",
+        "tooltip": "Select z coordinate column in input data, select None if column does not exist",  # noqa: E501
+    },
+    measurment={
+        "choices": ["None"],
+        "label": "Measurement Column:",
+        "tooltip": "Select measurement column in input data",
+    },
+    field_of_view_id={
+        "choices": ["None"],
+        "label": "Field of View/Position Column:",
+        "tooltip": "Select fov column in input data, select None if column does not exist",  # noqa: E501
+    },
+    additional_filter={
+        "choices": ["None"],
+        "label": "Additional Filter Column:",
+        "tooltip": "Select additional filter column, for example Well of a wellplate, select None if column does not exist",  # noqa: E501
+    },
+    second_measurment={
+        "choices": ["None"],
+        "label": "Second Measurement Column:",
+        "visible": False,
+        "tooltip": "Select second measurement",
+    },
     measurement_math={
         "widget_type": "RadioButtons",
         "orientation": "horizontal",
         "choices": measurement_math_options,
         "label": "Math on first and \n second measurement:",
+        "tooltip": "Choose operation to calculate the measurment to be used in arcos calculation on first and second measurement",  # noqa: E501
     },
 )
 def columnpicker(
