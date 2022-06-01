@@ -825,11 +825,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                 self.Progress.setValue(4)
 
                 # if corresponding checkbox was selected run interpolate measurments
-                if self.interpolate_meas.isChecked:
+                if self.interpolate_meas.isChecked():
                     arcos.interpolate_measurements()
 
                 # if corresponding checkbock was selected run clip_measuremnts
-                if self.clip_meas.isChecked:
+                if self.clip_meas.isChecked():
                     arcos.clip_meas(
                         clip_low=self.clip_low.value(),
                         clip_high=self.clip_high.value(),
