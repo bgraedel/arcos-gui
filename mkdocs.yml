@@ -1,12 +1,10 @@
 site_name: arcos-gui
 site_url: https://bgraedel.github.io/arcos-gui
-repo_url: https://github.com/bgraedel/arcos4py
+repo_url: https://github.com/bgraedel/arcos-gui
 repo_name: bgraedel/arcos-gui
 site_author: Benjamin Grädel
 
 theme: readthedocs
-
-repo_url: https://github.com/bgraedel/arcos-gui
 
 nav:
 - Home: index.md
@@ -61,7 +59,7 @@ extra:
       link: https://www.pertzlab.net/
       name: Lab Website
     - icon: fontawesome/brands/github
-      link: https://github.com/bgraedel/arcos4py
+      link: https://github.com/bgraedel/arcos-gui
       name: Github
     - icon: material/email
       link: "mailto:benjamin.graedel@unibe.ch"

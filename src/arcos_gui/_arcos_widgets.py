@@ -147,7 +147,6 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
     """
     Widget allowing a user to import a csv file, filter this file,
     choose arcos parameters, choose LUT mappings aswell as shape sizes.
-    list of napari.types.LayerDataTuble to add or update layers is generated.
     """
 
     def __init__(self, viewer: napari.viewer.Viewer, remote=True):

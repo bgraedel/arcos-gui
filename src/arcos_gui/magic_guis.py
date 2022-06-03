@@ -2,6 +2,16 @@ import operator
 
 from magicgui import magicgui
 
+OPERATOR_DICTIONARY = {
+    "Divide": (operator.truediv, "Measurement_Ratio"),
+    "Multiply": (operator.mul, "Measurement_Product"),
+    "Add": (operator.add, "Measurement_Sum"),
+    "Subtract": (operator.sub, "Measurement_Difference"),
+}
+
+measurement_math_options = list(OPERATOR_DICTIONARY.keys())
+measurement_math_options.append("None")
+
 
 @magicgui(
     call_button="Set Options",
@@ -31,16 +41,6 @@ def timestamp_options(
 # used as a callback function in main widget file
 def show_timestamp_options():
     timestamp_options.show()
-
-
-OPERATOR_DICTIONARY = {
-    "Divide": (operator.truediv, "Measurement_Ratio"),
-    "Multiply": (operator.mul, "Measurement_Product"),
-    "Add": (operator.add, "Measurement_Sum"),
-    "Subtract": (operator.sub, "Measurement_Difference"),
-}
-measurement_math_options = list(OPERATOR_DICTIONARY.keys())
-measurement_math_options.append("None")
 
 
 @magicgui(
