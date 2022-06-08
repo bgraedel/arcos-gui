@@ -362,12 +362,18 @@ class NoodlePlot(QtWidgets.QWidget):
         Returns (list[np.ndarray], np.ndarray): List of collective events data,
         colors for each collective event.
         """
+        col_fact = f"{trackid}_factorized"
+
+        # factorize column in order to prevent numpy grouping error in detrending
+        value, label = df[trackid].factorize()
+        df[col_fact] = value
+
         # values need to be sorted to group with numpy
-        df.sort_values([colev, trackid], inplace=True)
+        df.sort_values([colev, col_fact], inplace=True)
         if posz != "None":
-            array = df[[colev, trackid, frame, posx, posy, posz]].to_numpy()
+            array = df[[colev, col_fact, frame, posx, posy, posz]].to_numpy()
         else:
-            array = df[[colev, trackid, frame, posx, posy]].to_numpy()
+            array = df[[colev, col_fact, frame, posx, posy]].to_numpy()
         # generate goroups for each unique value
         grouped_array = np.split(
             array, np.unique(array[:, 0], axis=0, return_index=True)[1][1:]
