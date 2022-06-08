@@ -21,6 +21,8 @@ provides GUI elements to process this data with ARCOS. Layers containing the det
 
 Following analysis, the user can export the output as a CSV file with the detected collective events or as a sequence of images to generate a movie.
 
+![export_data](docs/screenshots/arcos_gui_preview.png)
+
 # Installation
 
 You can install `arcos-gui` via [pip]:
