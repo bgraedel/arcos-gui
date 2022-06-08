@@ -21,8 +21,6 @@ provides GUI elements to process this data with ARCOS. Layers containing the det
 
 Following analysis, the user can export the output as a CSV file with the detected collective events or as a sequence of images to generate a movie.
 
-![](https://user-images.githubusercontent.com/100028238/172628967-e2c9d724-e795-4e0a-931a-4f449143728c.mp4)
-
 # Installation
 
 You can install `arcos-gui` via [pip]:
@@ -32,6 +30,10 @@ You can install `arcos-gui` via [pip]:
 ## System Requirements
 
 Since version "0.0.2" this plugin is python native with the arcos4py package available.
+
+## Demo Video
+
+[![arcos_demo](https://img.youtube.com/vi/hG_z_BFcAiQ/0.jpg)](https://www.youtube.com/watch?v=hG_z_BFcAiQ)
 
 ## Contributing
 
