@@ -33,6 +33,10 @@ You can install `arcos-gui` via [pip]:
 
 Since version "0.0.2" this plugin is python native with the arcos4py package available.
 
+## Demo Video
+
+[![arcos_demo](https://img.youtube.com/vi/hG_z_BFcAiQ/0.jpg)](https://www.youtube.com/watch?v=hG_z_BFcAiQ)
+
 ## Contributing
 
 Contributions are very welcome. Tests can be run with [tox], please ensure
