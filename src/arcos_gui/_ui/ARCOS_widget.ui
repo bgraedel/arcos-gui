@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>382</width>
-    <height>843</height>
+    <height>869</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -247,7 +247,7 @@
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Filter tracklenght of source data. Can be usefull if lots of incompleate tracks are present.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
-             <string>Track Lenght</string>
+             <string>Track Length</string>
             </property>
            </widget>
           </item>
@@ -376,7 +376,7 @@
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Minimum size for a cluster to be identified as a collective event&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
-             <string>Min Clustersize</string>
+             <string>Min Cluster Size</string>
             </property>
            </widget>
           </item>
