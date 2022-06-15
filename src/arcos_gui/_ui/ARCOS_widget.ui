@@ -1269,7 +1269,7 @@
           <item>
            <widget class="QPushButton" name="expand_plot_2">
             <property name="text">
-             <string>Expand Plot</string>
+             <string>Detatch Plot</string>
             </property>
            </widget>
           </item>
@@ -1321,7 +1321,7 @@
           <item>
            <widget class="QPushButton" name="expand_plot">
             <property name="text">
-             <string>Expand Plot</string>
+             <string>Detatch Plot</string>
             </property>
            </widget>
           </item>
