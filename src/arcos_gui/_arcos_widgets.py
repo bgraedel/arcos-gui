@@ -31,6 +31,7 @@ from arcos_gui.magic_guis import (
     timestamp_options,
     toggle_visible_second_measurment,
 )
+from arcos_gui.plot_dialog import CollevPlotDialog, DataPlot
 from arcos_gui.shape_functions import (
     COLOR_CYCLE,
     fix_3d_convex_hull,
@@ -40,7 +41,6 @@ from arcos_gui.shape_functions import (
 )
 from arcos_gui.temp_data_storage import data_storage
 from napari.utils import Colormap
-from plot_dialog import CollevPlotDialog, DataPlot
 
 # icons
 ICONS = Path(__file__).parent / "_icons"
