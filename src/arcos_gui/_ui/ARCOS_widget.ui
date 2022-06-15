@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>382</width>
+    <width>384</width>
     <height>869</height>
    </rect>
   </property>
@@ -29,7 +29,7 @@
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <property name="elideMode">
       <enum>Qt::ElideNone</enum>
@@ -924,6 +924,9 @@
             </property>
             <property name="autoFillBackground">
              <bool>false</bool>
+            </property>
+            <property name="minimum">
+             <number>1</number>
             </property>
             <property name="maximum">
              <number>1000</number>

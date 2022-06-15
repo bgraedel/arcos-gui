@@ -691,15 +691,18 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         Parameters:
             parent (qtpy.QtWidgets.QWidget): Parent widget, optional
         """
-        super().__init__(parent)
+        super().__init__(parent=parent)
+
         # available plots
         self.plot_list = [
             "tracklength histogram",
             "measurment density plot",
+            "measurment density plot rescaled",
             "x/t-plot",
             "y/t-plot",
         ]
         self._init_widgets()
+        self.parent_gui = self.parent()
 
     def _init_widgets(self):
         """
@@ -765,6 +768,8 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         matplotlibl plot with values from
         the stored_variables object dataframe.
         """
+        self.measurement = self.parent_gui.measurement
+
         # return plottype that should be plotted
         plottype = self.combo_box.currentText()
         # sample number for position/t-plots
@@ -775,7 +780,7 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         track_id = columnpicker_widget.track_id.value
         x_coordinates = columnpicker_widget.x_coordinates.value
         y_coordinates = columnpicker_widget.y_coordinates.value
-        measurement = columnpicker_widget.measurment.value
+        # measurement = columnpicker_widget.measurment.value
 
         # check if some data was loaded already, otherwise do nothing
         if not dataframe.empty:
@@ -802,16 +807,37 @@ class TimeSeriesPlots(QtWidgets.QWidget):
             elif plottype == "measurment density plot":
                 self.sample_number.setVisible(False)
                 self.spinbox_title.setVisible(False)
-                density = gaussian_kde(dataframe[measurement].interpolate())
+                density = gaussian_kde(dataframe[self.measurement].interpolate())
                 x = np.linspace(
-                    min(dataframe[measurement]),
-                    max(dataframe[measurement]),
+                    min(dataframe[self.measurement]),
+                    max(dataframe[self.measurement]),
                     100,
                 )
                 y = density(x)
                 self.ax.plot(x, y)
                 self.ax.set_xlabel("measurement values")
                 self.ax.set_ylabel("density")
+
+            elif plottype == "measurment density plot rescaled":
+                try:
+                    self.measurement_resc = self.parent_gui.start_arcos.resc_col
+                    self.measurement_resc_values = self.parent_gui.start_arcos.data[
+                        self.measurement_resc
+                    ]
+                    self.sample_number.setVisible(False)
+                    self.spinbox_title.setVisible(False)
+                    density = gaussian_kde(self.measurement_resc_values.interpolate())
+                    x = np.linspace(
+                        min(self.measurement_resc_values),
+                        max(self.measurement_resc_values),
+                        100,
+                    )
+                    y = density(x)
+                    self.ax.plot(x, y)
+                    self.ax.set_xlabel("measurement values")
+                    self.ax.set_ylabel("density")
+                except AttributeError:
+                    pass
 
             # xy/t plots
             elif plottype == "x/t-plot":
