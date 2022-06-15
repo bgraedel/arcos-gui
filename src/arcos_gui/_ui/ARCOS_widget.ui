@@ -29,7 +29,7 @@
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <property name="elideMode">
       <enum>Qt::ElideNone</enum>
@@ -1266,11 +1266,18 @@
           <item>
            <layout class="QVBoxLayout" name="tsplot_layout"/>
           </item>
+          <item>
+           <widget class="QPushButton" name="expand_plot_2">
+            <property name="text">
+             <string>Expand Plot</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="collevplot_goupbox_2">
+        <widget class="QGroupBox" name="collevplot_goupbox">
          <property name="toolTip">
           <string/>
          </property>
@@ -1281,7 +1288,7 @@
           <item>
            <widget class="QTabWidget" name="tabWidget_2">
             <property name="currentIndex">
-             <number>0</number>
+             <number>1</number>
             </property>
             <widget class="QWidget" name="scatter_plot">
              <attribute name="title">
@@ -1311,6 +1318,13 @@
             </widget>
            </widget>
           </item>
+          <item>
+           <widget class="QPushButton" name="expand_plot">
+            <property name="text">
+             <string>Expand Plot</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -1332,7 +1346,7 @@
     </widget>
    </item>
    <item row="2" column="0">
-    <layout class="QHBoxLayout" name="horizontalLayout_3">
+    <layout class="QHBoxLayout" name="horizontalLayout_7">
      <item>
       <widget class="QLabel" name="label">
        <property name="toolTip">
@@ -1413,48 +1427,16 @@
   <connection>
    <sender>clip_meas</sender>
    <signal>toggled(bool)</signal>
-   <receiver>clip_high_label</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>94</x>
-     <y>137</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>101</x>
-     <y>168</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>clip_meas</sender>
-   <signal>toggled(bool)</signal>
    <receiver>clip_low_label</receiver>
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>131</x>
-     <y>137</y>
+     <x>152</x>
+     <y>125</y>
     </hint>
     <hint type="destinationlabel">
-     <x>131</x>
-     <y>199</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>clip_meas</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>clip_high</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>131</x>
-     <y>137</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>349</x>
-     <y>168</y>
+     <x>152</x>
+     <y>181</y>
     </hint>
    </hints>
   </connection>
@@ -1465,12 +1447,44 @@
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>131</x>
-     <y>137</y>
+     <x>152</x>
+     <y>125</y>
     </hint>
     <hint type="destinationlabel">
-     <x>349</x>
-     <y>199</y>
+     <x>351</x>
+     <y>181</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>clip_meas</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>clip_high</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>152</x>
+     <y>125</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>351</x>
+     <y>153</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>clip_meas</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>clip_high_label</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>115</x>
+     <y>125</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>122</x>
+     <y>153</y>
     </hint>
    </hints>
   </connection>

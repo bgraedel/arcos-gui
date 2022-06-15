@@ -40,6 +40,7 @@ from arcos_gui.shape_functions import (
 )
 from arcos_gui.temp_data_storage import data_storage
 from napari.utils import Colormap
+from plot_dialog import CollevPlotDialog, DataPlot
 
 # icons
 ICONS = Path(__file__).parent / "_icons"
@@ -132,6 +133,8 @@ class _MainUI:
     evplot_layout_2: QtWidgets.QVBoxLayout
     tsplot_layout: QtWidgets.QVBoxLayout
     nbr_collev_display: QtWidgets.QLCDNumber
+    expand_plot: QtWidgets.QPushButton
+    expand_plot_2: QtWidgets.QPushButton
 
     def setup_ui(self):
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
@@ -164,6 +167,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.timeseriesplot = TimeSeriesPlots(parent=self)
         self.noodle_plot = NoodlePlot(parent=self, viewer=self.viewer)
         self.collevplot = CollevPlotter(parent=self, viewer=self.viewer)
+        self.plot_dialog_collev = CollevPlotDialog(parent=self)
+        self.plot_dialog_data = DataPlot(parent=self)
         self._add_plot_widgets()
         self._init_ranged_sliderts()
         self.browse_file.setIcon(browse_file_icon)
@@ -178,12 +183,36 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._init_callbacks_visible_arcosparameters()
         self._init_plot_callbacks()
         self._init_columns()
+        self.expand_plot.clicked.connect(self._open_plot)
+        self.expand_plot_2.clicked.connect(self._open_data_plot)
 
     def _add_plot_widgets(self):
         """Add the plot widgets to the main window."""
         self.evplot_layout.addWidget(self.collevplot)
         self.evplot_layout_2.addWidget(self.noodle_plot)
         self.tsplot_layout.addWidget(self.timeseriesplot)
+
+    def _open_plot(self):
+        self.plot_dialog_collev.closeEvent = self._close_plot
+        self.plot_dialog_collev.evplot_layout.addWidget(self.collevplot)
+        self.plot_dialog_collev.evplot_layout_2.addWidget(self.noodle_plot)
+        self.plot_dialog_collev.show()
+        self.collevplot_goupbox.hide()
+
+    def _open_data_plot(self):
+        self.plot_dialog_data.closeEvent = self._close_plot_2
+        self.plot_dialog_data.tsplot_layout.addWidget(self.timeseriesplot)
+        self.plot_dialog_data.show()
+        self.timeseriesplot_groupbox.hide()
+
+    def _close_plot(self, event):
+        self.evplot_layout.addWidget(self.collevplot)
+        self.evplot_layout_2.addWidget(self.noodle_plot)
+        self.collevplot_goupbox.show()
+
+    def _close_plot_2(self, event):
+        self.tsplot_layout.addWidget(self.timeseriesplot)
+        self.timeseriesplot_groupbox.show()
 
     def _ts_plot_update(self):
         """Updates the ts-plot with new data."""
