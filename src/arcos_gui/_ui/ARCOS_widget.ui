@@ -1267,11 +1267,31 @@
            <layout class="QVBoxLayout" name="tsplot_layout"/>
           </item>
           <item>
-           <widget class="QPushButton" name="expand_plot_2">
-            <property name="text">
-             <string>Expand Plot</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item>
+             <spacer name="horizontalSpacer_5">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QPushButton" name="expand_plot_2">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Open Plot in a separate window&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
@@ -1284,11 +1304,11 @@
          <property name="title">
           <string>Collective Event Statistics</string>
          </property>
-         <layout class="QVBoxLayout" name="timeseriesplot_layout_2">
-          <item>
+         <layout class="QGridLayout" name="gridLayout_3">
+          <item row="0" column="0">
            <widget class="QTabWidget" name="tabWidget_2">
             <property name="currentIndex">
-             <number>1</number>
+             <number>0</number>
             </property>
             <widget class="QWidget" name="scatter_plot">
              <attribute name="title">
@@ -1318,12 +1338,32 @@
             </widget>
            </widget>
           </item>
-          <item>
-           <widget class="QPushButton" name="expand_plot">
-            <property name="text">
-             <string>Expand Plot</string>
-            </property>
-           </widget>
+          <item row="1" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <item>
+             <spacer name="horizontalSpacer_4">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QPushButton" name="expand_plot">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Open plot in a separate window&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>

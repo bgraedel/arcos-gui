@@ -45,6 +45,7 @@ from napari.utils import Colormap
 # icons
 ICONS = Path(__file__).parent / "_icons"
 browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
+expand_plot_icon = QIcon(str(ICONS / "enlarge_window.png"))
 
 # initalize class
 stored_variables = data_storage()
@@ -172,6 +173,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._add_plot_widgets()
         self._init_ranged_sliderts()
         self.browse_file.setIcon(browse_file_icon)
+        self.expand_plot.setIcon(expand_plot_icon)
+        self.expand_plot_2.setIcon(expand_plot_icon)
         self._set_default_visible()
 
         self._init_callbacks_for_whattorun()
@@ -443,7 +446,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         """Used to load sample data from test_data.
         and set columnpicker to indicated strings."""
         self.file_LineEdit.setText(value)
-        self.open_columnpicker()
+        self.open_file_button.click()
         columnpicker.frame.value = "t"
         columnpicker.track_id.value = "id"
         columnpicker.x_coordinates.value = "x"

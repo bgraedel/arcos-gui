@@ -327,8 +327,11 @@ class NoodlePlot(QtWidgets.QWidget):
         self.toolbar = NavigationToolbar(self.canvas, self)
         # construct layout
         self.combo_box = QtWidgets.QComboBox(self)
+        combobox_label = QtWidgets.QLabel(self)
+        combobox_label.setText("Projection Axis")
         layout_noodle_plot = QtWidgets.QVBoxLayout()
-        layout_combobox = QtWidgets.QVBoxLayout()
+        layout_combobox = QtWidgets.QHBoxLayout()
+        layout_combobox.addWidget(combobox_label)
         layout_combobox.addWidget(self.combo_box)
         layout_noodle_plot.addWidget(self.toolbar)
         layout_noodle_plot.addLayout(layout_combobox)
@@ -733,7 +736,7 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         with plt.style.context("dark_background"):
             plt.rcParams["figure.dpi"] = 110
             plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2), tight_layout=True)
+            self.fig = Figure(figsize=(3, 2))
             self.canvas = FigureCanvas(self.fig)
             self.ax = self.fig.add_subplot(111)
             self.ax.scatter([], [])
