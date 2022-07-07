@@ -22,7 +22,11 @@ provides GUI elements to process this data with ARCOS. Layers containing the det
 
 Following analysis, the user can export the output as a CSV file with the detected collective events or as a sequence of images to generate a movie.
 
+<div style="text-align: center;">
+
 [![arcos_demo](https://img.youtube.com/vi/hG_z_BFcAiQ/0.jpg)](https://www.youtube.com/watch?v=hG_z_BFcAiQ)
+
+</div>
 
 # Installation
 
