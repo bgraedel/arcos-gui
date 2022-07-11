@@ -808,13 +808,13 @@
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Threshold for binarizing the de-trended signal.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="decimals">
-             <number>2</number>
+             <number>3</number>
             </property>
             <property name="maximum">
              <double>10000.000000000000000</double>
             </property>
             <property name="singleStep">
-             <double>0.100000000000000</double>
+             <double>0.050000000000000</double>
             </property>
             <property name="value">
              <double>0.100000000000000</double>
@@ -879,13 +879,13 @@
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Threshold for rescaling of the de-trended signal.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="decimals">
-             <number>2</number>
+             <number>3</number>
             </property>
             <property name="maximum">
              <double>10000.000000000000000</double>
             </property>
             <property name="singleStep">
-             <double>0.200000000000000</double>
+             <double>0.050000000000000</double>
             </property>
             <property name="value">
              <double>0.200000000000000</double>
