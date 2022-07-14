@@ -1,8 +1,9 @@
 # arcos-gui
 
 [![License](https://img.shields.io/pypi/l/arcos-gui.svg?color=green)](https://github.com/bgraedel/arcos-gui/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/arcos-gui.svg?color=green)](https://pypi.org/project/arcos-gui)
-[![Python Version](https://img.shields.io/pypi/pyversions/arcos-gui.svg?color=green)](https://python.org)
+[![PyPI](https://img.shields.io/pypi/v/arcos-gui.svg)](https://pypi.org/project/arcos-gui)
+[![conda-forge](https://img.shields.io/conda/vn/conda-forge/arcos-gui)](https://anaconda.org/conda-forge/arcos-gui)
+[![Python Version](https://img.shields.io/pypi/pyversions/arcos-gui.svg?color=green?)](https://python.org)
 [![tests](https://github.com/bgraedel/arcos-gui/workflows/tests/badge.svg)](https://github.com/bgraedel/arcos-gui/actions)
 [![codecov](https://codecov.io/gh/bgraedel/arcos-gui/branch/main/graph/badge.svg)](https://codecov.io/gh/bgraedel/arcos-gui)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/arcos-gui)](https://napari-hub.org/plugins/arcos-gui)
