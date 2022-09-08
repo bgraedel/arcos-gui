@@ -105,6 +105,7 @@ class _MainUI:
     bin_peak_threshold: QtWidgets.QDoubleSpinBox
     bin_threshold: QtWidgets.QDoubleSpinBox
     neighbourhood_size: QtWidgets.QSpinBox
+    neighbourhood_size_frame2frame: QtWidgets.QSpinBox
     min_clustersize: QtWidgets.QSpinBox
     min_dur: QtWidgets.QSpinBox
     total_event_size: QtWidgets.QSpinBox
@@ -325,6 +326,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.bias_k.valueChanged.connect(self.update_what_to_run_all)
         self.bin_threshold.valueChanged.connect(self.update_what_to_run_all)
         self.neighbourhood_size.valueChanged.connect(self.update_what_to_run_tracking)
+        self.neighbourhood_size_frame2frame.valueChanged.connect(
+            self.update_what_to_run_tracking
+        )
         self.bin_peak_threshold.valueChanged.connect(self.update_what_to_run_all)
         self.min_clustersize.valueChanged.connect(self.update_what_to_run_tracking)
         self.nprev_spinbox.valueChanged.connect(self.update_what_to_run_tracking)
@@ -892,6 +896,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
                     # track collective events
                     arcos.trackCollev(
                         self.neighbourhood_size.value(),
+                        self.neighbourhood_size_frame2frame.value(),
                         self.min_clustersize.value(),
                         self.nprev_spinbox.value(),
                     )
