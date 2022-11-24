@@ -29,7 +29,7 @@
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <property name="elideMode">
       <enum>Qt::ElideNone</enum>
@@ -437,8 +437,14 @@
             <property name="toolTip">
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The maximum distance between two samples for one to be considered as in the neighborhood of the other. This is not a maximum bound on the distances of points within a cluster. Value also used to connect collective events across multiple frames.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
+            <property name="minimum">
+             <double>0.100000000000000</double>
+            </property>
             <property name="maximum">
              <double>1000.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>40.000000000000000</double>
             </property>
            </widget>
           </item>
