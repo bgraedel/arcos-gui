@@ -106,6 +106,8 @@ def calculate_convex_hull(array):
     to calculate convex hull the vertices of the convex hull are returned.
     If shape is less, the points themselfs are returned.
     """
+    # Todo check if there is a better way to check for coplanar
+    # points rathern than using QhullError
     try:
         if array.shape[0] > 2:
             hull = ConvexHull(array[:, 2:])
