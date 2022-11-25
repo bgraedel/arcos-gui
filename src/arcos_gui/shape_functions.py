@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, QhullError
 
 # # Definitions and custom functions
 # Color Cycle used throughout the plugin for collective events.
@@ -106,12 +106,17 @@ def calculate_convex_hull(array):
     to calculate convex hull the vertices of the convex hull are returned.
     If shape is less, the points themselfs are returned.
     """
-    if array.shape[0] > 2:
-        hull = ConvexHull(array[:, 2:])
-        array_out = array[hull.vertices]
-        return array_out
-    if array.shape[0] == 2:
-        return array
+    # Todo check if there is a better way to check for coplanar
+    # points rathern than using QhullError
+    try:
+        if array.shape[0] > 2:
+            hull = ConvexHull(array[:, 2:])
+            array_out = array[hull.vertices]
+            return array_out
+        if array.shape[0] == 2:
+            return array
+    except QhullError:
+        return []
 
 
 def calculate_convex_hull_3d(array):

@@ -342,6 +342,7 @@ def test_arcos_widget_data_all(dock_arcos_widget, capsys, qtbot):
     mywidget.close_columnpicker()
     stored_variables.positions = [0, 1]
     stored_variables.current_position = 0
+    mywidget.neighbourhood_size.setValue(5)
     mywidget.total_event_size.setValue(5)
     mywidget.update_what_to_run_all()
     QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
