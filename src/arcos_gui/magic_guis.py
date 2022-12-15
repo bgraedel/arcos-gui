@@ -1,125 +1,320 @@
-import operator
+from __future__ import annotations
 
-from magicgui import magicgui
+from typing import Union
 
-OPERATOR_DICTIONARY = {
-    "Divide": (operator.truediv, "Measurement_Ratio"),
-    "Multiply": (operator.mul, "Measurement_Product"),
-    "Add": (operator.add, "Measurement_Sum"),
-    "Subtract": (operator.sub, "Measurement_Difference"),
-}
-
-measurement_math_options = list(OPERATOR_DICTIONARY.keys())
-measurement_math_options.append("None")
+from arcos_gui._config import measurement_math_options
+from arcos_gui.temp_data_storage import columnnames
+from qtpy import QtWidgets
 
 
-@magicgui(
-    call_button="Set Options",
-    position={
-        "choices": ["upper_right", "upper_left", "lower_right", "lower_left", "center"]
-    },
-    size={"min": 0, "max": 1000},
-    x_shift={"min": -1000, "max": 1000},
-    y_shift={"min": -1000, "max": 1000},
-)
-def timestamp_options(
-    start_time=0,
-    step_time=1,
-    prefix="T =",
-    suffix="frame",
-    position="upper_left",
-    size=12,
-    x_shift=12,
-    y_shift=0,
-):
-    """
-    Widget to choose timestamp options from when called
-    """
-    timestamp_options.close()
+class timestamp_options(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.setupUi()
+
+    def setupUi(self):
+        self.setObjectName("Timestamp Options")
+        self.gridLayout = QtWidgets.QGridLayout()
+        self.start_time_label = QtWidgets.QLabel("Start Time")
+        self.start_time = QtWidgets.QSpinBox()
+        self.start_time.setRange(0, 10000)
+        self.start_time.setValue(0)
+        self.step_time_label = QtWidgets.QLabel("Step Time")
+        self.step_time = QtWidgets.QSpinBox()
+        self.step_time.setRange(0, 10000)
+        self.step_time.setValue(1)
+        self.prefix_label = QtWidgets.QLabel("Prefix")
+        self.prefix = QtWidgets.QLineEdit()
+        self.prefix.setText("T =")
+        self.suffix_label = QtWidgets.QLabel("Suffix")
+        self.suffix = QtWidgets.QLineEdit()
+        self.suffix.setText("frame")
+        self.position_label = QtWidgets.QLabel("Position")
+        self.position = QtWidgets.QComboBox()
+        self.position.addItems(
+            ["upper_right", "upper_left", "lower_right", "lower_left", "center"]
+        )
+        self.position.setCurrentIndex(1)
+        self.size_label = QtWidgets.QLabel("Size")
+        self.ts_size = QtWidgets.QSpinBox()
+        self.ts_size.setRange(0, 1000)
+        self.ts_size.setValue(12)
+        self.x_shift_label = QtWidgets.QLabel("X Shift")
+        self.x_shift = QtWidgets.QSpinBox()
+        self.x_shift.setRange(-1000, 1000)
+        self.x_shift.setValue(12)
+        self.y_shift_label = QtWidgets.QLabel("Y Shift")
+        self.y_shift = QtWidgets.QSpinBox()
+        self.y_shift.setRange(-1000, 1000)
+        self.y_shift.setValue(0)
+        self.set_options = QtWidgets.QPushButton("OK")
+        self.gridLayout.addWidget(self.start_time_label, 0, 0)
+        self.gridLayout.addWidget(self.start_time, 0, 1)
+        self.gridLayout.addWidget(self.step_time_label, 1, 0)
+        self.gridLayout.addWidget(self.step_time, 1, 1)
+        self.gridLayout.addWidget(self.prefix_label, 2, 0)
+        self.gridLayout.addWidget(self.prefix, 2, 1)
+        self.gridLayout.addWidget(self.suffix_label, 3, 0)
+        self.gridLayout.addWidget(self.suffix, 3, 1)
+        self.gridLayout.addWidget(self.position_label, 4, 0)
+        self.gridLayout.addWidget(self.position, 4, 1)
+        self.gridLayout.addWidget(self.size_label, 5, 0)
+        self.gridLayout.addWidget(self.ts_size, 5, 1)
+        self.gridLayout.addWidget(self.x_shift_label, 6, 0)
+        self.gridLayout.addWidget(self.x_shift, 6, 1)
+        self.gridLayout.addWidget(self.y_shift_label, 7, 0)
+        self.gridLayout.addWidget(self.y_shift, 7, 1)
+        self.gridLayout.addWidget(self.set_options, 8, 0, 1, 2)
+        self.setLayout(self.gridLayout)
+        self.set_options.clicked.connect(self.set_options_clicked)
+
+    def set_options_clicked(self):
+        self.close()
 
 
-# used as a callback function in main widget file
-def show_timestamp_options():
-    timestamp_options.show()
+class columnpicker(QtWidgets.QDialog):
+    def __init__(
+        self, parent=None, columnames_instance: Union[columnnames, None] = None
+    ):
+        super().__init__(parent)
+        self.setupUi()
+        self.add_tooltipps()
+        self.columnames_instance = columnames_instance
+        self.set_measurement_math(measurement_math_options)
+        self.measurement_math.setCurrentText("None")
+        self.measurement_math.currentTextChanged.connect(
+            self.toggle_visible_second_measurment
+        )
+        self.second_measurment.setVisible(False)
+        self.label_7.setVisible(False)
+
+        self.closeEvent = self._on_close
+        self.Ok.clicked.connect(self.close)
+
+    def _on_close(self, event):
+        if self.columnames_instance:
+            self._update_columnnames_in_datastorage()
+        else:
+            self.get_column_names()
+
+    def setupUi(self):
+        self.setObjectName("columnpicker")
+        self.gridLayout = QtWidgets.QGridLayout()
+        self.gridLayout.setObjectName("gridLayout")
+        self.frame = QtWidgets.QComboBox()
+        self.frame.setObjectName("frame")
+
+        self.label = QtWidgets.QLabel("Frame Column:")
+        self.label.setObjectName("frame_label")
+
+        self.track_id = QtWidgets.QComboBox()
+        self.track_id.setObjectName("track_id")
+
+        self.label_2 = QtWidgets.QLabel("Object id Column:")
+        self.label_2.setObjectName("track_id_label")
+
+        self.label_3 = QtWidgets.QLabel("X Coordinate Column:")
+        self.label_3.setObjectName("x_coordinates_label")
+
+        self.x_coordinates = QtWidgets.QComboBox()
+        self.x_coordinates.setObjectName("x_coordinates")
+
+        self.label_4 = QtWidgets.QLabel("Y Coordinate Column:")
+        self.label_4.setObjectName("y_coordinates_label")
+
+        self.y_coordinates = QtWidgets.QComboBox()
+        self.y_coordinates.setObjectName("y_coordinates")
+
+        self.label_5 = QtWidgets.QLabel("Z Coordinate Column:")
+        self.label_5.setObjectName("z_coordinates_label")
+
+        self.z_coordinates = QtWidgets.QComboBox()
+        self.z_coordinates.setObjectName("z_coordinates")
+
+        self.label_6 = QtWidgets.QLabel("Measurement Column:")
+        self.label_6.setObjectName("measurment_label")
+
+        self.measurment = QtWidgets.QComboBox()
+        self.measurment.setObjectName("measurment")
+
+        self.label_7 = QtWidgets.QLabel("Second Measurement Column:")
+        self.label_7.setObjectName("second_measurment_label")
+
+        self.second_measurment = QtWidgets.QComboBox()
+        self.second_measurment.setObjectName("second_measurment")
+
+        self.label_8 = QtWidgets.QLabel("Field of View/Position Column:")
+        self.label_8.setObjectName("field_of_view_id_label")
+
+        self.field_of_view_id = QtWidgets.QComboBox()
+        self.field_of_view_id.setObjectName("field_of_view_id")
+
+        self.label_9 = QtWidgets.QLabel("Additional Filter Column:")
+        self.label_9.setObjectName("additional_filter_label")
+
+        self.additional_filter = QtWidgets.QComboBox()
+        self.additional_filter.setObjectName("additional_filter")
+
+        self.label_10 = QtWidgets.QLabel("Math on first and second measurement:")
+        self.label_10.setObjectName("measurement_math_label")
+
+        self.measurement_math = QtWidgets.QComboBox()
+        self.measurement_math.setObjectName("measurement_math")
+
+        self.Ok = QtWidgets.QPushButton("Ok")
+        self.Ok.setObjectName("Ok")
+
+        self.gridLayout.addWidget(self.frame, 1, 1, 1, 1)
+        self.gridLayout.addWidget(self.label, 1, 0, 1, 1)
+        self.gridLayout.addWidget(self.label_2, 2, 0, 1, 1)
+        self.gridLayout.addWidget(self.track_id, 2, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_3, 3, 0, 1, 1)
+        self.gridLayout.addWidget(self.x_coordinates, 3, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_4, 4, 0, 1, 1)
+        self.gridLayout.addWidget(self.y_coordinates, 4, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_5, 5, 0, 1, 1)
+        self.gridLayout.addWidget(self.z_coordinates, 5, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_6, 6, 0, 1, 1)
+        self.gridLayout.addWidget(self.measurment, 6, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_7, 7, 0, 1, 1)
+        self.gridLayout.addWidget(self.second_measurment, 7, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_8, 8, 0, 1, 1)
+        self.gridLayout.addWidget(self.field_of_view_id, 8, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_9, 9, 0, 1, 1)
+        self.gridLayout.addWidget(self.additional_filter, 9, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_10, 10, 0, 1, 1)
+        self.gridLayout.addWidget(self.measurement_math, 10, 1, 1, 1)
+        self.gridLayout.addWidget(self.Ok, 12, 1, 1, 1)
+        # add it to our layout
+        self.setLayout(self.gridLayout)
+
+    def add_tooltipps(self):
+        self.frame.setToolTip("Select frame column in input data")
+        self.track_id.setToolTip("Select object id column in input data")
+        self.x_coordinates.setToolTip("Column with x coordinates")
+        self.y_coordinates.setToolTip("Column with y coordinates")
+        self.z_coordinates.setToolTip("Column with z coordinates")
+        self.measurment.setToolTip("Column with measurement")
+        self.second_measurment.setToolTip(
+            "Select second measurement for measurement math"
+        )
+        self.field_of_view_id.setToolTip(
+            "Select fov column in input data, select None if column does not exist"
+        )
+        self.additional_filter.setToolTip(
+            "Select additional filter column, for example Well of a wellplate, select None if column does not exist"
+        )
+        self.measurement_math.setToolTip(
+            "Choose operation to calculate the measurment to be used in\n\
+            arcos calculation on first and second measurement"
+        )
+
+    def set_column_names(self, column_names):
+
+        while "" in column_names:
+            column_names.remove("")
+
+        self.frame.clear()
+        self.track_id.clear()
+        self.x_coordinates.clear()
+        self.y_coordinates.clear()
+        self.z_coordinates.clear()
+        self.measurment.clear()
+        self.second_measurment.clear()
+        self.field_of_view_id.clear()
+        self.additional_filter.clear()
+
+        self.frame.addItems(column_names)
+        self.track_id.addItems(column_names)
+        self.x_coordinates.addItems(column_names)
+        self.y_coordinates.addItems(column_names)
+        self.z_coordinates.addItems(column_names)
+        self.measurment.addItems(column_names)
+        self.second_measurment.addItems(column_names)
+        self.field_of_view_id.addItems(column_names)
+        self.additional_filter.addItems(column_names)
+
+        self.additional_filter.addItem("None", None)
+        self.field_of_view_id.addItem("None", None)
+        self.z_coordinates.addItem("None", None)
+        self.second_measurment.addItem("None", None)
+
+        self.additional_filter.setCurrentText("None")
+        self.field_of_view_id.setCurrentText("None")
+        self.z_coordinates.setCurrentText("None")
+        self.second_measurment.setCurrentText("None")
+
+    def set_measurement_math(self, measurement_math):
+        self.measurement_math.clear()
+        self.measurement_math.addItems(measurement_math)
+
+    def get_column_names(self):
+        return {
+            self.frame.currentText(),
+            self.track_id.currentText(),
+            self.x_coordinates.currentText(),
+            self.y_coordinates.currentText(),
+            self.z_coordinates.currentText(),
+            self.measurment.currentText(),
+            self.second_measurment.currentText(),
+            self.field_of_view_id.currentText(),
+            self.additional_filter.currentText(),
+            self.measurement_math.currentText(),
+        }
+
+    def _update_columnnames_in_datastorage(self):
+        # set column_names
+        self.columnames_instance.frame_column = self.frame.currentText()
+        self.columnames_instance.position_id = self.field_of_view_id.currentText()
+        self.columnames_instance.object_id = self.track_id.currentText()
+        self.columnames_instance.x_column = self.x_coordinates.currentText()
+        self.columnames_instance.y_column = self.y_coordinates.currentText()
+        self.columnames_instance.z_column = self.z_coordinates.currentText()
+        self.columnames_instance.measurement_column_1 = self.measurment.currentText()
+        self.columnames_instance.measurement_column_2 = (
+            self.second_measurment.currentText()
+        )
+        self.columnames_instance.additional_filter_column = (
+            self.additional_filter.currentText()
+        )
+        self.columnames_instance.measurement_math_operatoin = (
+            self.measurement_math.currentText()
+        )
+
+        print(self.columnames_instance)
+
+    def toggle_visible_second_measurment(self):
+        curr_value = self.measurement_math.currentText()
+        if curr_value in ["None", "1/X"]:
+            self.second_measurment.setVisible(False)
+            self.label_7.setVisible(False)
+        else:
+            self.second_measurment.setVisible(True)
+            self.label_7.setVisible(True)
+
+    @property
+    def settable_columns(self):
+        return (
+            self.frame,
+            self.field_of_view_id,
+            self.track_id,
+            self.x_coordinates,
+            self.y_coordinates,
+            self.z_coordinates,
+            self.measurment,
+            self.second_measurment,
+            self.additional_filter,
+            self.measurement_math,
+        )
 
 
-@magicgui(
-    call_button=False,
-    Ok={"widget_type": "PushButton", "tooltip": "Press to load data"},
-    frame={
-        "choices": ["None"],
-        "label": "Frame Column:",
-        "tooltip": "Select frame column in input data",
-    },
-    track_id={
-        "choices": ["None"],
-        "label": "Object id Column:",
-        "tooltip": "Select column representing object track ids in input data",  # noqa: E501
-    },
-    x_coordinates={
-        "choices": ["None"],
-        "label": "X Coordinate Column:",
-        "tooltip": "Select x coordinate column in input data",
-    },
-    y_coordinates={
-        "choices": ["None"],
-        "label": "Y Coordinate Column:",
-        "tooltip": "Select y coordinate column in input data",
-    },
-    z_coordinates={
-        "choices": ["None"],
-        "label": "Z Coordinate Column:",
-        "tooltip": "Select z coordinate column in input data, select None if column does not exist",  # noqa: E501
-    },
-    measurment={
-        "choices": ["None"],
-        "label": "Measurement Column:",
-        "tooltip": "Select measurement column in input data",
-    },
-    field_of_view_id={
-        "choices": ["None"],
-        "label": "Field of View/Position Column:",
-        "tooltip": "Select fov column in input data, select None if column does not exist",  # noqa: E501
-    },
-    additional_filter={
-        "choices": ["None"],
-        "label": "Additional Filter Column:",
-        "tooltip": "Select additional filter column, for example Well of a wellplate, select None if column does not exist",  # noqa: E501
-    },
-    second_measurment={
-        "choices": ["None"],
-        "label": "Second Measurement Column:",
-        "visible": False,
-        "tooltip": "Select second measurement",
-    },
-    measurement_math={
-        "widget_type": "RadioButtons",
-        "orientation": "horizontal",
-        "choices": measurement_math_options,
-        "label": "Math on first and \n second measurement:",
-        "tooltip": "Choose operation to calculate the measurment to be used in arcos calculation on first and second measurement",  # noqa: E501
-    },
-)
-def columnpicker(
-    frame="None",
-    track_id="None",
-    x_coordinates="None",
-    y_coordinates="None",
-    z_coordinates="None",
-    measurment="None",
-    second_measurment="None",
-    field_of_view_id="None",
-    additional_filter="None",
-    measurement_math="None",
-    Ok=False,
-):
-    """Dialog with magicgui for selecting columns"""
-    columnpicker.Ok.bind(not Ok)
+if __name__ == "__main__":
+    import sys
 
-
-def toggle_visible_second_measurment():
-    curr_value = columnpicker.measurement_math.value
-    if curr_value in ["None", "1/X"]:
-        columnpicker.second_measurment.hide()
-    else:
-        columnpicker.second_measurment.show()
+    app = QtWidgets.QApplication(sys.argv)
+    window = columnpicker()
+    window2 = timestamp_options()
+    window.set_column_names(["a", "b", "c", "d", "e", "f", "g", "h", "i"])
+    window.show()
+    window2.show()
+    sys.exit(app.exec_())

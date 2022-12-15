@@ -1,16 +1,15 @@
 from copy import deepcopy
 
-import matplotlib.pyplot as plt
 import numpy as np
-from magicgui import magicgui
 from magicgui.tqdm import tqdm
+from skimage import io
 
 
 def resize_napari(final_shape, viewer):
     """Iterate over window until screenshot size matches given shape.
     Center the camera and set zoom to 1 (1 canvas pixel == 1 data pixel)"""
     shape = final_shape  # init with good guess
-    viewer.window.resize(shape[0].astype(int), shape[1].astype(int))
+    viewer.window.resize(shape[0], shape[1])
     for i in range(80):  # nb iterations
         current_shape = viewer.screenshot().shape[:2]
         error = np.subtract(final_shape, list(current_shape))
@@ -32,32 +31,41 @@ def resize_napari(final_shape, viewer):
     viewer.screenshot()
 
 
-@magicgui(
-    call_button=False,
-    label={"widget_type": "Label"},
-    Abort={"widget_type": "PushButton"},
-    labels=False,
-)
-def iterate_over_frames(viewer, temp_dir, label="Exporting Frames", Abort=False):
-    for frame in tqdm(range(int(viewer.dims.range[0][1]))):
-        if not iterate_over_frames.visible:
-            break
-        if len(viewer.dims.current_step) == 3:
-            viewer.dims.current_step = (frame, 0, 0)
-        elif len(viewer.dims.current_step) == 4:
-            viewer.dims.current_step = (frame, 0, 0, 0)
-        screenshot = viewer.screenshot(path=None, canvas_only=True, flash=False)
-        fig = plt.figure(frameon=False, dpi=300)
-        ax = plt.Axes(fig, [0.0, 0.0, 1.0, 1.0])
-        fig.add_axes(ax)
-        ax.imshow(screenshot)
-        ax.axis("off")
-        plt.savefig(
-            str(temp_dir) + "_%03d.png" % frame, bbox_inches="tight", pad_inches=0
-        )
-        plt.close()
+class MovieExporter:
+    def __init__(self, viewer, automatic_viewer_size, outdir, width, height):
+        self.viewer = viewer
+        self.automatic_viewer_size: bool = automatic_viewer_size
+        self.outdir = outdir
+        self.height = height
+        self.width = width
 
+    def run(self):
+        self.export_image_sequence(self.viewer, self.outdir)
 
-@iterate_over_frames.Abort.changed.connect
-def abort_export():
-    iterate_over_frames.close()
+    def export_image_sequence(self, viewer, outdir):
+        """Export a movie from a napari viewer.
+        Parameters
+        ----------
+        viewer : napari.Viewer
+            napari viewer object.
+        outdir : str
+            Path to output directory.
+        fps : int
+            Frames per second.
+        """
+        # Resize window to match screenshot size
+        if self.automatic_viewer_size:
+            resize_napari((self.width, self.height), viewer)
+        # Iterate over frames
+        self.iterate_over_frames(viewer, outdir)
+
+    def iterate_over_frames(self, viewer, outdir):
+        for frame in tqdm(range(int(viewer.dims.range[0][1]))):
+            if len(viewer.dims.current_step) == 3:
+                viewer.dims.current_step = (frame, 0, 0)
+            elif len(viewer.dims.current_step) == 4:
+                viewer.dims.current_step = (frame, 0, 0, 0)
+            screenshot = viewer.screenshot(path=None, canvas_only=True, flash=False)
+            io.imsave(
+                str(outdir) + "_%03d.png" % frame, screenshot, check_contrast=False
+            )

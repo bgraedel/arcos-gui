@@ -2,34 +2,14 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
+from arcos_gui._config import ARCOS_LAYERS, COLOR_CYCLE
 from scipy.spatial import ConvexHull, QhullError
 
 # # Definitions and custom functions
 # Color Cycle used throughout the plugin for collective events.
 # Color values correspond to hex values of the matplotlib tab20
 # colorscale
-COLOR_CYCLE = [
-    "#1f77b4",
-    "#aec7e8",
-    "#ff7f0e",
-    "#ffbb78",
-    "#2ca02c",
-    "#98df8a",
-    "#d62728",
-    "#ff9896",
-    "#9467bd",
-    "#c5b0d5",
-    "#8c564b",
-    "#c49c94",
-    "#e377c2",
-    "#f7b6d2",
-    "#7f7f7f",
-    "#c7c7c7",
-    "#bcbd22",
-    "#dbdb8d",
-    "#17becf",
-    "#9edae5",
-]
+
 # text parameters for the timestamp
 text_parameters = {
     "text": "{label}",
@@ -255,11 +235,17 @@ def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
             arr_size = arr_size + 1
             empty_colors.append(0)
 
-    surface_tuple_0 = np.concatenate((vertices, np.array(empty_vertex)), axis=0)
-    surface_tuple_1 = np.concatenate((faces, np.array(empty_faces)), axis=0)
-    surface_tuple_2 = np.concatenate((colors, np.array(empty_colors)), axis=0)
+    empty_vertex = np.array(empty_vertex)
+    empty_faces = np.array(empty_faces)
+    empty_colors = np.array(empty_colors)
 
-    return (surface_tuple_0, surface_tuple_1, surface_tuple_2)
+    if empty_vertex.size > 0:
+        vertices = np.concatenate((vertices, empty_vertex), axis=0)
+        faces = np.concatenate((faces, empty_faces), axis=0)
+        colors = np.concatenate((colors, empty_colors), axis=0)
+        return (vertices, faces, colors)
+    else:
+        return (vertices, faces, colors)
 
 
 def calc_bbox(array: np.ndarray):
@@ -341,7 +327,7 @@ def get_bbox(
     bbox_layer["face_color"] = "transparent"
     bbox_layer["edge_color"] = "red"
     bbox_layer["edge_width"] = edge_size
-    bbox_layer["name"] = "event_boundingbox"
+    bbox_layer["name"] = ARCOS_LAYERS["event_boundingbox"]
 
     return bbox, bbox_layer
 
@@ -374,7 +360,7 @@ def get_bbox_3d(df: pd.DataFrame, frame: str, xcol: str, ycol: str, zcol: str):
     bbox = [calc_bbox(i) for i in grouped_array]
     dataFaces = []
     vertices_count = 0
-    data_colors = []
+    data_colors: np.ndarray = np.array([])
     # precalculated face indidec for a 3d bounding box
     face = np.array(
         [

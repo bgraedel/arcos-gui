@@ -14,6 +14,7 @@ from arcos_gui._arcos_widgets import (
     show_output_movie_folder,
     stored_variables,
 )
+from arcos_gui._config import ARCOS_LAYERS
 from pandas.testing import assert_frame_equal
 from qtpy.QtCore import Qt
 from qtpy.QtTest import QTest
@@ -309,8 +310,8 @@ def test_arcos_widget_data_active_cells(dock_arcos_widget, capsys, qtbot):
         catptured.out
         == "INFO: No collective events detected, consider adjusting parameters\n"
     )
-    assert viewer.layers["all_cells"]
-    assert viewer.layers["active cells"]
+    assert viewer.layers[ARCOS_LAYERS["all_cells"]]
+    assert viewer.layers[ARCOS_LAYERS["all_cells"]]
     viewer.close()
 
 
@@ -346,10 +347,10 @@ def test_arcos_widget_data_all(dock_arcos_widget, capsys, qtbot):
     mywidget.total_event_size.setValue(5)
     mywidget.update_what_to_run_all()
     QTest.mouseClick(mywidget.update_arcos, Qt.LeftButton)
-    assert viewer.layers["all_cells"]
-    assert viewer.layers["active cells"]
-    assert viewer.layers["coll cells"]
-    assert viewer.layers["coll events"]
+    assert viewer.layers[ARCOS_LAYERS["all_cells"]]
+    assert viewer.layers[ARCOS_LAYERS["active_cells"]]
+    assert viewer.layers[ARCOS_LAYERS["collective_events_cells"]]
+    assert viewer.layers[ARCOS_LAYERS["event_hulls"]]
     viewer.close()
 
 

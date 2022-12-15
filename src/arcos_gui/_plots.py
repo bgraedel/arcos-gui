@@ -6,6 +6,7 @@ import napari
 import numpy as np
 import pandas as pd
 from arcos4py.tools import calcCollevStats
+from arcos_gui._config import ARCOS_LAYERS
 from arcos_gui.shape_functions import (
     COLOR_CYCLE,
     fix_3d_convex_hull,
@@ -76,26 +77,34 @@ class CollevPlotter(QtWidgets.QWidget):
         Method to initialise a matplotlib figure canvas, to generate,
         set plot style and axis, and populate it with a matplotlib.figure.Figure.
         """
-        # set up figure and axe objects
-        with plt.style.context("dark_background"):
-            plt.rcParams["figure.dpi"] = 110
-            plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 1.5))
-            self.canvas = FigureCanvas(self.fig)
-            self.ax = self.fig.add_subplot(111)
-            self.ax.scatter([], [])
-            self.ax.set_xlabel("Total Size")
-            self.ax.set_ylabel("Event Duration")
-            self.canvas.figure.tight_layout()
-
-        self.toolbar = NavigationToolbar(self.canvas, self)
-
         # construct layout
         self.layout_collevplot = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout_collevplot)
+
+        # set up figure and axe objects
+        with plt.style.context("dark_background"):
+            plt.rcParams["axes.edgecolor"] = "#ffffff"
+            self.fig = Figure(figsize=(2.5, 1.5))
+            self.canvas = FigureCanvas(self.fig)
+            self.ax = self.fig.add_subplot(111)
+            self.ax.set_xlabel("Total Size")
+            self.ax.set_ylabel("Event Duration")
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout_collevplot.addWidget(self.toolbar)
         self.layout_collevplot.addWidget(self.canvas)
-        self.setLayout(self.layout_collevplot)
         self.setWindowTitle("Collective Events")
+        self.update_layout()
+
+    def update_layout(self):
+        self.fig.tight_layout(pad=0.1, w_pad=0.001, h_pad=0.05)
+
+    def clear_plot(self):
+        """Method to clear the plot."""
+        self.ax.cla()
+        self.ax.set_xlabel("Total Size")
+        self.ax.set_ylabel("Event Duration")
+        self.fig.canvas.draw_idle()
 
     def update_plot(
         self, frame_col, trackid_col, posx, posy, posz, arcos_data, point_size=10
@@ -157,6 +166,7 @@ class CollevPlotter(QtWidgets.QWidget):
         # instantiate blitmanager and add annotation to it.
         # Used to improve performance of annotations
         # rendering annotation label.
+
         self.bm = BlitManager(self.canvas, [self.annot])
 
     def update_annot(self, ind):
@@ -199,17 +209,20 @@ class CollevPlotter(QtWidgets.QWidget):
         """
         vis = self.annot.get_visible()
         if event.inaxes == self.ax:
-            cont, ind = self.ax.collections[0].contains(event)
-            if cont:
-                self.update_annot(ind)
-                self.annot.set_visible(True)
-                # blitting to improve performance.
-                self.bm.update()
-            else:
-                if vis:
-                    self.annot.set_visible(False)
+            try:
+                cont, ind = self.ax.collections[0].contains(event)
+                if cont:
+                    self.update_annot(ind)
+                    self.annot.set_visible(True)
                     # blitting to improve performance.
                     self.bm.update()
+                else:
+                    if vis:
+                        self.annot.set_visible(False)
+                        # blitting to improve performance.
+                        self.bm.update()
+            except IndexError:
+                pass
 
     def on_pick(self, event):
         """Displays the selected collective event in the napari viewer.
@@ -224,10 +237,10 @@ class CollevPlotter(QtWidgets.QWidget):
         ind = event.ind
         clid = int(self.stats.iloc[ind[0]][0])
         current_colev = self.arcos[self.arcos["collid"] == clid]
-        edge_size = self.point_size.value() / 5
+        edge_size = self.point_size / 5
         frame = self.stats.iloc[ind[0]][5]
-        if "event_boundingbox" in self.viewer.layers:
-            self.viewer.layers.remove("event_boundingbox")
+        if ARCOS_LAYERS["event_boundingbox"] in self.viewer.layers:
+            self.viewer.layers.remove(ARCOS_LAYERS["event_boundingbox"])
         if self.posz == "None":
             bbox, bbox_param = get_bbox(
                 current_colev, clid, self.frame_col, self.posx, self.posy, edge_size
@@ -246,7 +259,7 @@ class CollevPlotter(QtWidgets.QWidget):
                 bbox_tuple,
                 colormap="red",
                 opacity=0.15,
-                name="event_boundingbox",
+                name=ARCOS_LAYERS["event_boundingbox"],
                 shading="none",
             )
 
@@ -312,19 +325,6 @@ class NoodlePlot(QtWidgets.QWidget):
         Method to initialise a matplotlib figure canvas, to generate,
         set plot style and axis, and populate it with a matplotlib.figure.Figure.
         """
-        # set up figure and axe objects
-        with plt.style.context("dark_background"):
-            plt.rcParams["figure.dpi"] = 110
-            plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 1.5))
-            self.canvas = FigureCanvas(self.fig)
-            self.ax = self.fig.add_subplot(111)
-            self.ax.plot([], [])
-            self.ax.set_xlabel("Time")
-            self.ax.set_ylabel("Position coordinate")
-            self.canvas.figure.tight_layout()
-
-        self.toolbar = NavigationToolbar(self.canvas, self)
         # construct layout
         self.combo_box = QtWidgets.QComboBox(self)
         combobox_label = QtWidgets.QLabel(self)
@@ -333,11 +333,26 @@ class NoodlePlot(QtWidgets.QWidget):
         layout_combobox = QtWidgets.QHBoxLayout()
         layout_combobox.addWidget(combobox_label)
         layout_combobox.addWidget(self.combo_box)
-        layout_noodle_plot.addWidget(self.toolbar)
         layout_noodle_plot.addLayout(layout_combobox)
+
+        # set up figure and axe objects
+        with plt.style.context("dark_background"):
+            plt.rcParams["axes.edgecolor"] = "#ffffff"
+            self.fig = Figure(figsize=(2.5, 1.5))
+            self.canvas = FigureCanvas(self.fig)
+            self.ax = self.fig.add_subplot(111)
+            self.ax.set_xlabel("Time")
+            self.ax.set_ylabel("Position (px)")
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        layout_noodle_plot.addWidget(self.toolbar)
         layout_noodle_plot.addWidget(self.canvas)
         self.setLayout(layout_noodle_plot)
         self.setWindowTitle("Noodle Plot")
+        self.update_layout()
+
+    def update_layout(self):
+        self.fig.tight_layout(pad=0.1, w_pad=0.001, h_pad=0.05)
 
     def prepare_data(
         self,
@@ -410,6 +425,13 @@ class NoodlePlot(QtWidgets.QWidget):
                 self.collid_name,
                 trackid_col,
             )
+
+    def clear_plot(self):
+        """Method to clear the plot."""
+        self.ax.cla()
+        self.ax.set_xlabel("Total Size")
+        self.ax.set_ylabel("Event Duration")
+        self.fig.canvas.draw_idle()
 
     def update_plot(
         self, frame_col, trackid_col, posx, posy, posz, arcos_data, point_size=10
@@ -574,10 +596,10 @@ class NoodlePlot(QtWidgets.QWidget):
         clid_index = int(findall(r"\d+", event.artist.get_label())[0])
         clid = int(self.dat_grpd[clid_index][0, 0])
         current_colev = self.arcos[self.arcos["collid"] == clid]
-        edge_size = self.point_size.value() / 5
+        edge_size = self.point_size / 5
         frame = int(self.stats[self.stats.iloc[:, 0] == clid].iloc[:, 5])
-        if "event_boundingbox" in self.viewer.layers:
-            self.viewer.layers.remove("event_boundingbox")
+        if ARCOS_LAYERS["event_boundingbox"] in self.viewer.layers:
+            self.viewer.layers.remove(ARCOS_LAYERS["event_boundingbox"])
         if self.posz == "None":
             bbox, bbox_param = get_bbox(
                 current_colev, clid, self.frame_col, self.posx, self.posy, edge_size
@@ -596,7 +618,7 @@ class NoodlePlot(QtWidgets.QWidget):
                 bbox_tuple,
                 colormap="red",
                 opacity=0.15,
-                name="event_boundingbox",
+                name=ARCOS_LAYERS["event_boundingbox"],
                 shading="none",
             )
 
@@ -701,11 +723,12 @@ class TimeSeriesPlots(QtWidgets.QWidget):
             "tracklength histogram",
             "measurment density plot",
             "measurment density plot rescaled",
+            "original vs detreded",
             "x/t-plot",
             "y/t-plot",
         ]
+        self.dataframe = pd.DataFrame()
         self._init_widgets()
-        self.parent_gui = self.parent()
 
     def _init_widgets(self):
         """
@@ -730,19 +753,13 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         # creating a combo box widget
         self.combo_box = QtWidgets.QComboBox(self)
         self.combo_box.addItems(self.plot_list)
-        # self.combo_box.currentIndexChanged.connect(self.update_plot)
 
         # set up figure and axe objects
         with plt.style.context("dark_background"):
-            plt.rcParams["figure.dpi"] = 110
             plt.rcParams["axes.edgecolor"] = "#ffffff"
-            self.fig = Figure(figsize=(3, 2))
+            self.fig = Figure(figsize=(2.5, 1.5))
             self.canvas = FigureCanvas(self.fig)
             self.ax = self.fig.add_subplot(111)
-            self.ax.scatter([], [])
-            self.ax.set_xlabel("X Axis")
-            self.ax.set_ylabel("Y Axis")
-            self.canvas.figure.tight_layout()
 
         self.toolbar = NavigationToolbar(self.canvas, self)
 
@@ -750,43 +767,67 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout()
         layout_combobox = QtWidgets.QVBoxLayout()
         layout_spinbox = QtWidgets.QHBoxLayout()
+        self.setLayout(layout)
 
         # add widgets to sub_layouts
         layout_combobox.addWidget(self.button)
         layout_combobox.addWidget(self.combo_box)
         layout_spinbox.addWidget(self.spinbox_title)
         layout_spinbox.addWidget(self.sample_number)
+        layout.addLayout(layout_combobox)
+        layout.addLayout(layout_spinbox)
 
         # add sublayouts together
         layout.addWidget(self.toolbar)
-        layout.addLayout(layout_combobox)
-        layout.addLayout(layout_spinbox)
         layout.addWidget(self.canvas)
-        self.setLayout(layout)
         self.setWindowTitle("Collective Events")
+        self.combo_box.currentIndexChanged.connect(self._update)
+        self.update_layout()
+        self.button.clicked.connect(self._update_from_button)
 
-    def update_plot(self, columnpicker_widget, dataframe: pd.DataFrame):
+    def update_layout(self):
+        self.fig.tight_layout(pad=0.1, w_pad=0.001, h_pad=0.05)
+
+    def update_plot(
+        self,
+        dataframe: pd.DataFrame,
+        dataframe_resc: pd.DataFrame,
+        frame_col,
+        track_id_col,
+        x_coord_col,
+        y_coord_col,
+        measurement_col,
+        measurement_resc_col,
+        object_id_number=None,
+    ):
         """
         Method to update the from the dropdown menu chosen
         matplotlibl plot with values from
         the stored_variables object dataframe.
         """
-        self.measurement = self.parent_gui.measurement
+        self.dataframe = dataframe
+        self.dataframe_resc = dataframe_resc
+        self.frame_col = frame_col
+        self.track_id_col = track_id_col
+        self.x_coord_col = x_coord_col
+        self.y_coord_col = y_coord_col
+        self.measurement = measurement_col
+        self.measurement_resc_col = measurement_resc_col
+        self.object_id_number = object_id_number
+        self._update()
 
+    def _update_from_button(self):
+        self.object_id_number = None
+        self._update()
+
+    def _update(self):
         # return plottype that should be plotted
         plottype = self.combo_box.currentText()
         # sample number for position/t-plots
         n = self.sample_number.value()
 
-        # get column values and dataframe
-        frame = columnpicker_widget.frame.value
-        track_id = columnpicker_widget.track_id.value
-        x_coordinates = columnpicker_widget.x_coordinates.value
-        y_coordinates = columnpicker_widget.y_coordinates.value
-        # measurement = columnpicker_widget.measurment.value
-
         # check if some data was loaded already, otherwise do nothing
-        if not dataframe.empty:
+        if not self.dataframe.empty:
             self.ax.cla()
             self.ax.spines["bottom"].set_color("white")
             self.ax.spines["top"].set_color("white")
@@ -801,7 +842,7 @@ class TimeSeriesPlots(QtWidgets.QWidget):
             if plottype == "tracklength histogram":
                 self.sample_number.setVisible(False)
                 self.spinbox_title.setVisible(False)
-                track_length = dataframe.groupby(track_id).size()
+                track_length = self.dataframe.groupby(self.track_id_col).size()
                 self.ax.hist(track_length)
                 self.ax.set_xlabel("tracklength")
                 self.ax.set_ylabel("counts")
@@ -810,10 +851,10 @@ class TimeSeriesPlots(QtWidgets.QWidget):
             elif plottype == "measurment density plot":
                 self.sample_number.setVisible(False)
                 self.spinbox_title.setVisible(False)
-                density = gaussian_kde(dataframe[self.measurement].interpolate())
+                density = gaussian_kde(self.dataframe[self.measurement].interpolate())
                 x = np.linspace(
-                    min(dataframe[self.measurement]),
-                    max(dataframe[self.measurement]),
+                    min(self.dataframe[self.measurement]),
+                    max(self.dataframe[self.measurement]),
                     100,
                 )
                 y = density(x)
@@ -822,48 +863,98 @@ class TimeSeriesPlots(QtWidgets.QWidget):
                 self.ax.set_ylabel("density")
 
             elif plottype == "measurment density plot rescaled":
-                try:
-                    self.measurement_resc = self.parent_gui.start_arcos.resc_col
-                    self.measurement_resc_values = self.parent_gui.start_arcos.data[
-                        self.measurement_resc
-                    ]
-                    self.sample_number.setVisible(False)
-                    self.spinbox_title.setVisible(False)
-                    density = gaussian_kde(self.measurement_resc_values.interpolate())
-                    x = np.linspace(
-                        min(self.measurement_resc_values),
-                        max(self.measurement_resc_values),
-                        100,
-                    )
-                    y = density(x)
-                    self.ax.plot(x, y)
-                    self.ax.set_xlabel("measurement values")
-                    self.ax.set_ylabel("density")
-                except AttributeError:
-                    pass
+                if not self.dataframe_resc.empty:
+                    measurement_resc_values = self.dataframe_resc[
+                        self.measurement_resc_col
+                    ].interpolate()
+                    if measurement_resc_values.size != 0:
+                        self.sample_number.setVisible(False)
+                        self.spinbox_title.setVisible(False)
+                        density = gaussian_kde(measurement_resc_values)
+                        x = np.linspace(
+                            min(measurement_resc_values),
+                            max(measurement_resc_values),
+                            100,
+                        )
+                        y = density(x)
+                        self.ax.plot(x, y)
+                        self.ax.set_xlabel("measurement values")
+                        self.ax.set_ylabel("density")
 
             # xy/t plots
             elif plottype == "x/t-plot":
                 self.sample_number.setVisible(True)
                 self.spinbox_title.setVisible(True)
-                sample = pd.Series(dataframe[track_id].unique()).sample(n, replace=True)
-                pd_from_r_df = dataframe.loc[dataframe[track_id].isin(sample)]
-                df_grp = pd_from_r_df.groupby(track_id)
+                sample = pd.Series(self.dataframe[self.track_id_col].unique()).sample(
+                    n, replace=True
+                )
+                pd_from_r_df = self.dataframe.loc[
+                    self.dataframe[self.track_id_col].isin(sample)
+                ]
+                df_grp = pd_from_r_df.groupby(self.track_id_col)
                 for label, df in df_grp:
-                    self.ax.plot(df[frame], df[x_coordinates])
+                    self.ax.plot(df[self.frame_col], df[self.x_coord_col])
                 self.ax.set_xlabel("Frame")
                 self.ax.set_ylabel("Position X")
 
             elif plottype == "y/t-plot":
                 self.sample_number.setVisible(True)
                 self.spinbox_title.setVisible(True)
-                sample = pd.Series(dataframe[track_id].unique()).sample(n, replace=True)
-                pd_from_r_df = dataframe.loc[dataframe[track_id].isin(sample)]
-                df_grp = pd_from_r_df.groupby(track_id)
+                sample = pd.Series(self.dataframe[self.track_id_col].unique()).sample(
+                    n, replace=True
+                )
+                pd_from_r_df = self.dataframe.loc[
+                    self.dataframe[self.track_id_col].isin(sample)
+                ]
+                df_grp = pd_from_r_df.groupby(self.track_id_col)
                 for label, df in df_grp:
-                    self.ax.plot(df[frame], df[y_coordinates])
+                    self.ax.plot(df[self.frame_col], df[self.y_coord_col])
                 self.ax.set_xlabel("Frame")
                 self.ax.set_ylabel("Position Y")
+
+            elif plottype == "original vs detreded":
+                if not self.dataframe_resc.empty:
+                    self.sample_number.setVisible(True)
+                    self.sample_number.setValue(1)
+                    n_samples = self.sample_number.value()
+
+                    if self.object_id_number:
+                        vals = self.object_id_number
+                    else:
+                        vals = np.random.choice(
+                            self.dataframe_resc[self.track_id_col].unique(),
+                            n_samples,
+                            replace=False,
+                        )
+                    self.dataframe_resc_cp = (
+                        self.dataframe_resc.set_index(self.track_id_col)
+                        .loc[vals]
+                        .reset_index()
+                        .copy(deep=True)
+                    )
+                    grouped = self.dataframe_resc_cp.groupby(self.track_id_col)
+                    for val in vals:
+                        df_g = grouped.get_group(val)
+                        df_g.plot(
+                            x=self.frame_col,
+                            y=[self.measurement, self.measurement_resc_col],
+                            ax=self.ax,
+                        )
+                        x = df_g[df_g[f"{self.measurement}.bin"] != 0][self.frame_col]
+                        y = np.repeat(0, x.size)
+                        indices = np.where(np.diff(x) != 1)[0] + 1
+                        x_split = np.split(x, indices)
+                        y_split = np.split(y, indices)
+                        for idx, (x, y) in enumerate(zip(x_split, y_split)):
+                            if idx == 0:
+                                self.ax.plot(x, y, color="red", lw=2, label="bin")
+                            else:
+                                self.ax.plot(x, y, color="red", lw=2)
+
+                    self.ax.legend(loc=2, prop={"size": 6})
+                    self.ax.set_xlabel("Frame")
+                    self.ax.set_ylabel("Measurement Value")
+
             self.fig.canvas.draw_idle()
         else:
             show_info("No Data to plot")
