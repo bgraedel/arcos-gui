@@ -1,8 +1,8 @@
 from copy import deepcopy
 
 import numpy as np
-from magicgui.tqdm import tqdm
 from skimage import io
+from tqdm import tqdm
 
 
 def resize_napari(final_shape, viewer):

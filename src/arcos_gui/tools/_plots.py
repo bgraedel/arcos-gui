@@ -6,13 +6,8 @@ import napari
 import numpy as np
 import pandas as pd
 from arcos4py.tools import calcCollevStats
-from arcos_gui._config import ARCOS_LAYERS
-from arcos_gui.shape_functions import (
-    COLOR_CYCLE,
-    fix_3d_convex_hull,
-    get_bbox,
-    get_bbox_3d,
-)
+from arcos_gui.tools import ARCOS_LAYERS, COLOR_CYCLE
+from arcos_gui.tools._shape_functions import fix_3d_convex_hull, get_bbox, get_bbox_3d
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -145,7 +140,6 @@ class CollevPlotter(QtWidgets.QWidget):
                 self.stats[["total_size"]],
                 self.stats[["duration"]],
                 alpha=0.8,
-                cmap=COLOR_CYCLE,
                 picker=True,
             )
             self.ax.set_xlabel("Total Size")
@@ -787,6 +781,12 @@ class TimeSeriesPlots(QtWidgets.QWidget):
 
     def update_layout(self):
         self.fig.tight_layout(pad=0.1, w_pad=0.001, h_pad=0.05)
+
+    def _data_clear(self):
+        """
+        Method to clear the data from the plot.
+        """
+        self.ax.clear()
 
     def update_plot(
         self,

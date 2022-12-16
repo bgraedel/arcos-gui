@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
-from arcos_gui._config import ARCOS_LAYERS, COLOR_CYCLE
+from arcos_gui.tools import ARCOS_LAYERS, COLOR_CYCLE
 from scipy.spatial import ConvexHull, QhullError
 
 # # Definitions and custom functions

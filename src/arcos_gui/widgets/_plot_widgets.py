@@ -4,12 +4,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import napari
-from arcos_gui._plots import CollevPlotter, NoodlePlot, TimeSeriesPlots
+from arcos_gui.tools import CollevPlotter, NoodlePlot, TimeSeriesPlots
 from qtpy import QtCore, QtWidgets
 from qtpy.QtGui import QIcon
 
 if TYPE_CHECKING:
-    from arcos_gui.temp_data_storage import data_storage
+    from arcos_gui.processing import data_storage
 
 
 class DataPlot(QtWidgets.QDialog):
@@ -20,7 +20,7 @@ class DataPlot(QtWidgets.QDialog):
 
 
 # icons
-ICONS = Path(__file__).parent / "_icons"
+ICONS = Path(__file__).parent.parent / "_icons"
 
 # still need to rewrite actual plots to be a bit nicer
 
@@ -50,6 +50,7 @@ class tsplot_widget(QtWidgets.QWidget):
         )
 
     def _on_data_update(self):
+        self._on_data_clear()
         df_orig = self._data_storage_instance.original_data.value
         df_bin = self._data_storage_instance.arcos_binarization.value
         frame_col = self._data_storage_instance.columns.frame_column
@@ -70,6 +71,9 @@ class tsplot_widget(QtWidgets.QWidget):
             measurement_resc_col,
             object_id_number,
         )
+
+    def _on_data_clear(self):
+        self.timeseriesplot._data_clear()
 
     def _print_track_id(self):
         print(self._data_storage_instance.selected_object_id.value)
@@ -194,7 +198,7 @@ class collevplot_widget(QtWidgets.QWidget):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.temp_data_storage import data_storage  # noqa: F811
+    from arcos_gui.processing import data_storage  # noqa: F811
 
     viewer = napari.Viewer()
     app = QtWidgets.QApplication(sys.argv)

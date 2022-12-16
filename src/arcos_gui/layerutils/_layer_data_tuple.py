@@ -4,8 +4,10 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
-from arcos_gui._config import ARCOS_LAYERS, COLOR_CYCLE, TAB20
-from arcos_gui.shape_functions import (
+from arcos_gui.tools import (
+    ARCOS_LAYERS,
+    COLOR_CYCLE,
+    TAB20,
     fix_3d_convex_hull,
     get_verticesHull,
     make_surface_3d,

@@ -3,26 +3,25 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from arcos_gui._config import ARCOS_LAYERS
-from arcos_gui._preprocessing_utils import DataLoader, read_data_header
-from arcos_gui._ui_util_func import remove_layers_after_columnpicker
-from arcos_gui.magic_guis import columnpicker
-from arcos_gui.temp_data_storage import columnnames
+from arcos_gui.processing import DataLoader, read_data_header
+from arcos_gui.tools import remove_layers_after_columnpicker
+from arcos_gui.tools._config import ARCOS_LAYERS
+from arcos_gui.widgets import columnpicker
 from napari.utils.notifications import show_info
 from qtpy import QtCore, QtWidgets, uic
 from qtpy.QtCore import QThread
 from qtpy.QtGui import QIcon, QMovie
 
 if TYPE_CHECKING:
-    from arcos_gui.temp_data_storage import data_storage
+    from arcos_gui.processing import data_storage
     from napari.viewer import Viewer
 
 # icons
-ICONS = Path(__file__).parent / "_icons"
+ICONS = Path(__file__).parent.parent / "_icons"
 
 
 class _input_dataUI:
-    UI_FILE = str(Path(__file__).parent / "_ui" / "Input_data.ui")
+    UI_FILE = str(Path(__file__).parent.parent / "_ui" / "Input_data.ui")
 
     file_LineEdit: QtWidgets.QLineEdit
     open_file_button: QtWidgets.QPushButton
@@ -71,9 +70,6 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
 
         # set up column picker
         self.open_file_button.clicked.connect(self._open_columnpicker)
-        self.data_storage_instance.original_data.value_changed_connect(
-            self._remove_old_layers
-        )
 
     def _browse_files(self):
         """Opens a filedialog and saves path as a string in self.filename"""
@@ -94,16 +90,14 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         old_picked_columns = (
             self.data_storage_instance.columns.pickablepickable_columns_names
         )
-        self.data_storage_instance.columns = columnnames()
-
-        picker = columnpicker(
+        self.picker = columnpicker(
             parent=self.parent(), columnames_instance=self.data_storage_instance.columns
         )
 
-        picker.set_column_names(columns)
-        self._set_choices_names_from_previous(picker, old_picked_columns)
-        picker.show()
-        self._load_csv_data(delimiter_value, picker)
+        self.picker.set_column_names(columns)
+        self._set_choices_names_from_previous(self.picker, old_picked_columns)
+        self.picker.show()
+        self._load_csv_data(delimiter_value, self.picker)
 
     def _set_choices_names_from_previous(self, picker: columnpicker, col_names):
         """Sets the column names from the previous loaded data."""
@@ -127,6 +121,12 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         self.start_loading_icon()
         self.worker.moveToThread(self.thread)
         # Connect signals and slots
+        # this signal ensures that if a user closes the columnpicker window with X
+        # the loaded data is not updated in the data storage object and layers are not deleted
+        # aswell as the columnnames are not updated
+        self.worker.new_data.connect(self._set_datastorage_to_default)
+        self.worker.new_data.connect(self._remove_old_layers)
+
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
@@ -137,17 +137,21 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         # Final resets
         self.open_file_button.setEnabled(False)
         self.thread.finished.connect(lambda: self.open_file_button.setEnabled(True))
-        self.thread.finished.connect(lambda: self.stop_loading_icon())
+        self.thread.finished.connect(self.stop_loading_icon)
+
         self.thread.finished.connect(lambda: print(self.data_storage_instance.columns))
 
     def _remove_old_layers(self):
         remove_layers_after_columnpicker(self.viewer, ARCOS_LAYERS.values())
 
+    def _set_datastorage_to_default(self):
+        self.data_storage_instance.reset_relevant_attributes(trigger_callback=False)
+
 
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.temp_data_storage import data_storage  # noqa: F811
+    from arcos_gui.processing import data_storage  # noqa: F811
     from napari.viewer import Viewer  # noqa: F811
 
     viewer = Viewer()

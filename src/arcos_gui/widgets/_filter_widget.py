@@ -3,19 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from arcos_gui._preprocessing_utils import filter_data, get_tracklengths
-from arcos_gui._ui_util_func import set_track_lenths
+from arcos_gui.processing import filter_data, get_tracklengths
+from arcos_gui.tools import set_track_lenths
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 from qtpy.QtCore import Qt
 from superqt import QRangeSlider
 
 if TYPE_CHECKING:
-    from arcos_gui.temp_data_storage import data_storage
+    from arcos_gui.processing import data_storage
 
 
 class _filter_dataUI:
-    UI_FILE = str(Path(__file__).parent / "_ui" / "filter_data.ui")
+    UI_FILE = str(Path(__file__).parent.parent / "_ui" / "filter_data.ui")
 
     # The UI_FILE above contains these objects:
     frame_interval_label: QtWidgets.QLabel
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     import sys
 
     import pandas as pd
-    from arcos_gui.temp_data_storage import data_storage  # noqa: F811
+    from arcos_gui.processing import data_storage  # noqa: F811
 
     data_storage_instance = data_storage()
 

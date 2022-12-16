@@ -5,23 +5,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from arcos_gui.export_movie import MovieExporter
-from arcos_gui.magic_guis import timestamp_options
-from arcos_gui.temp_data_storage import timestamp_parameters
+from arcos_gui.processing import timestamp_parameters
+from arcos_gui.tools import MovieExporter
+from arcos_gui.widgets import timestamp_options
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 from qtpy.QtGui import QIcon
 
 if TYPE_CHECKING:
     import napari.viewer
-    from arcos_gui.temp_data_storage import data_storage
+    from arcos_gui.processing import data_storage
 
 # icons
-ICONS = Path(__file__).parent / "_icons"
+ICONS = Path(__file__).parent.parent / "_icons"
 
 
 class _exportwidget:
-    UI_FILE = str(Path(__file__).parent / "_ui" / "export_widget.ui")
+    UI_FILE = str(Path(__file__).parent.parent / "_ui" / "export_widget.ui")
 
     # The UI_FILE above contains these objects:
 
@@ -100,8 +100,6 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
         if self.viewer.layers == []:
             show_info("No layers to export")
         else:
-            self.parent().hide()
-            self.viewer.components.LayerList.hide()
             path = Path(self.file_LineEdit_img.text())
             output_name = (
                 f"{self.current_date}_{self.base_name_LineEdit_img.text()}_arcos_output"
@@ -114,7 +112,6 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
                 self.spinBox_width_img.value(),
                 self.spinBox_height_img.value(),
             ).run()
-            self.parent().show()
 
     def _browse_file_data(self):
         path = QtWidgets.QFileDialog.getExistingDirectory(
@@ -166,7 +163,7 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.temp_data_storage import data_storage  # noqa: F811
+    from arcos_gui.processing import data_storage  # noqa: F811
     from napari import Viewer
 
     viewer = Viewer()

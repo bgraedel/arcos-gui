@@ -170,6 +170,7 @@ class timestamp_parameters:
 class data_frame_storage:
     _value: pd.DataFrame = field(default_factory=pd.DataFrame)
     _callbacks: list = field(default_factory=list)
+    verbous = False
 
     @property
     def value(self):
@@ -182,6 +183,8 @@ class data_frame_storage:
 
     def _notify_observers(self):
         for callback in self._callbacks:
+            if self.verbous:
+                print(f"data_frame_storage: value changed executing {callback}")
             callback()
 
     def value_changed_connect(self, callback):
@@ -198,6 +201,7 @@ class data_frame_storage:
 class value_calback:
     _value: Union[int, str, None]
     _callbacks: list = field(default_factory=list)
+    verbous = False
 
     @property
     def value(self):
@@ -210,6 +214,8 @@ class value_calback:
 
     def _notify_observers(self):
         for callback in self._callbacks:
+            if self.verbous:
+                print(f"value_calback: value changed, executing {callback}")
             callback()
 
     def value_changed_connect(self, callback):
@@ -240,10 +246,81 @@ class data_storage:
         self.point_size = 10
         self._selected_object_id: value_calback = value_calback(None)
         self.lut = "inferno"
-        self._filename_for_sample_data: value_calback(None)
+        self._filename_for_sample_data: value_calback(None) = value_calback(None)
         self._timestamp_parameters: value_calback = value_calback(
             timestamp_parameters()
         )
+        self.verbous = False
+
+    def reset_all_attributes(self, trigger_callback=False):
+        if trigger_callback:
+            self._original_data.value = pd.DataFrame()
+            self._filtered_data.value = pd.DataFrame()
+            self._arcos_binarization.value = pd.DataFrame()
+            self._arcos_output.value = pd.DataFrame()
+            self._arcos_stats.value = pd.DataFrame()
+            self._columns = columnnames()
+            self._arcos_parameters = arcos_parameters()
+            self.min_max_meas = (0, 0.5)
+            self.colormaps = list(AVAILABLE_COLORMAPS)
+            self.point_size = 10
+            self._selected_object_id.value = None
+            self.lut = "inferno"
+            self._filename_for_sample_data.value = None
+            self._timestamp_parameters.value = timestamp_parameters()
+            self.verbous = False
+        else:
+            self._original_data._value = pd.DataFrame()
+            self._filtered_data._value = pd.DataFrame()
+            self._arcos_binarization._value = pd.DataFrame()
+            self._arcos_output._value = pd.DataFrame()
+            self._arcos_stats._value = pd.DataFrame()
+            self._columns = columnnames()
+            self._arcos_parameters = arcos_parameters()
+            self.min_max_meas = (0, 0.5)
+            self.colormaps = list(AVAILABLE_COLORMAPS)
+            self.point_size = 10
+            self._selected_object_id._value = None
+            self.lut = "inferno"
+            self._filename_for_sample_data._value = None
+            self._timestamp_parameters._value = timestamp_parameters()
+            self.verbous = False
+
+    def reset_relevant_attributes(self, trigger_callback=False):
+        if trigger_callback:
+            self._filtered_data.value = pd.DataFrame()
+            self._arcos_binarization.value = pd.DataFrame()
+            self._arcos_output.value = pd.DataFrame()
+            self._arcos_stats.value = pd.DataFrame()
+            self._selected_object_id.value = None
+        else:
+            self._filtered_data._value = pd.DataFrame()
+            self._arcos_binarization._value = pd.DataFrame()
+            self._arcos_output._value = pd.DataFrame()
+            self._arcos_stats._value = pd.DataFrame()
+            self._selected_object_id._value = None
+
+    def make_quiet(self):
+        self.verbous = False
+        self._original_data.verbous = False
+        self._filtered_data.verbous = False
+        self._arcos_binarization.verbous = False
+        self._arcos_output.verbous = False
+        self._arcos_stats.verbous = False
+        self._selected_object_id.verbous = False
+        self._filename_for_sample_data.verbous = False
+        self._timestamp_parameters.verbous = False
+
+    def make_verbose(self):
+        self.verbous = True
+        self._original_data.verbous = True
+        self._filtered_data.verbous = True
+        self._arcos_binarization.verbous = True
+        self._arcos_output.verbous = True
+        self._arcos_stats.verbous = True
+        self._selected_object_id.verbous = True
+        self._filename_for_sample_data.verbous = True
+        self._timestamp_parameters.verbous = True
 
     @property
     def filename_for_sample_data(self):

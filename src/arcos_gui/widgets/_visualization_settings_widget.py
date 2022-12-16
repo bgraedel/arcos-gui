@@ -11,9 +11,9 @@ if TYPE_CHECKING:
     import napari.viewer
 
 # local imports
-from arcos_gui._config import ARCOS_LAYERS
-from arcos_gui._ui_util_func import get_layer_list
-from arcos_gui.temp_data_storage import data_storage
+from arcos_gui.processing import data_storage
+from arcos_gui.tools import ARCOS_LAYERS
+from arcos_gui.tools._ui_util_func import get_layer_list
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 
 # icons
@@ -22,7 +22,7 @@ ICONS = Path(__file__).parent / "_icons"
 
 class _layer_propertiesUI:
 
-    UI_FILE = str(Path(__file__).parent / "_ui" / "Layer_properties.ui")
+    UI_FILE = str(Path(__file__).parent.parent / "_ui" / "Layer_properties.ui")
 
     # The UI_FILE above contains these objects:
 
@@ -105,6 +105,17 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
         self.data_storage_instance.original_data.value_changed_connect(
             self._set_default_point_size
         )
+        self.data_storage_instance.original_data.value_changed_connect(
+            self._reset_contrast
+        )
+        self.viewer.layers.events.emitters["inserted"].connect(
+            self._set_chosen_settings
+        )
+
+    def _set_chosen_settings(self):
+        """Sets chosen settings for layer properties."""
+        self._change_size()
+        self._change_lut_colors()
 
     def _reset_contrast(self):
         """updates values in lut mapping slider."""
@@ -180,7 +191,7 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.temp_data_storage import data_storage
+    from arcos_gui.processing import data_storage
     from napari.viewer import Viewer
 
     viewer = Viewer()

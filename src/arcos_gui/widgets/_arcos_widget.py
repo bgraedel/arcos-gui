@@ -3,16 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from arcos_gui._arcos_wrapper import arcos_wrapper
+from arcos_gui.processing import arcos_wrapper
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 
 if TYPE_CHECKING:
-    from arcos_gui.temp_data_storage import data_storage
+    from arcos_gui.processing import data_storage
 
 
 class _arcosWidget:
-    UI_FILE = str(Path(__file__).parent / "_ui" / "ARCOS_widget.ui")
+    UI_FILE = str(Path(__file__).parent.parent / "_ui" / "ARCOS_widget.ui")
 
     # The UI_FILE above contains these objects:
 
@@ -282,7 +282,7 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.temp_data_storage import data_storage  # noqa: F811
+    from arcos_gui.processing import data_storage  # noqa: F811
     from napari import Viewer
 
     viewer = Viewer()

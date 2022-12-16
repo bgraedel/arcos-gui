@@ -1,22 +1,28 @@
-from pathlib import Path
+from __future__ import annotations
 
-import napari
-from arcos_gui._arcos_widget import ArcosWidget
-from arcos_gui._exporting_widget import ExportWidget
-from arcos_gui._filter_widget import FilterDataWidget
-from arcos_gui._input_data_widget import InputDataWidget
-from arcos_gui._layer_maker import Layermaker
-from arcos_gui._plot_widgets import collevplot_widget, tsplot_widget
-from arcos_gui._visualization_settings_widget import LayerPropertiesWidget
-from arcos_gui.temp_data_storage import data_storage
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from arcos_gui.layerutils import Layermaker
+from arcos_gui.processing import data_storage
+from arcos_gui.widgets import (
+    ArcosWidget,
+    ExportWidget,
+    FilterDataWidget,
+    InputDataWidget,
+    LayerPropertiesWidget,
+    collevplot_widget,
+    tsplot_widget,
+)
 from qtpy import QtWidgets, uic
 
-# from arcos_gui._plot_widget import PlotWidget
+if TYPE_CHECKING:
+    import napari.viewer
 
 
 class _MainUI:
 
-    UI_FILE = str(Path(__file__).parent / "_ui" / "main_widget.ui")
+    UI_FILE = str(Path(__file__).parent.parent / "_ui" / "main_widget.ui")
 
     # The UI_FILE above contains these objects:
     tabWidget: QtWidgets.QTabWidget
@@ -47,6 +53,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.setup_ui()
 
         self.data_storage_instance = data_storage()
+        # self.data_storage_instance.make_verbose() # uncomment to make callbacks verbose
 
         self.input_data_widget = InputDataWidget(
             viewer=self.viewer,
@@ -102,11 +109,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
 
 if __name__ == "__main__":
-    pass
+    import napari
 
-    from napari import Viewer
-
-    viewer = Viewer()
+    viewer = napari.Viewer()
     win = MainWindow(viewer)
     dw = viewer.window.add_dock_widget(win, name="ARCOS", area="right")
     napari.run()

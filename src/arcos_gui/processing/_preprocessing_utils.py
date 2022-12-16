@@ -6,11 +6,11 @@ import time
 from typing import TYPE_CHECKING, Callable, Union
 
 if TYPE_CHECKING:
-    from arcos_gui.temp_data_storage import data_storage
-    from arcos_gui.magic_guis import columnpicker
+    from arcos_gui.processing import data_storage
+    from arcos_gui.widgets import columnpicker
 
 import pandas as pd
-from arcos_gui._config import OPERATOR_DICTIONARY
+from arcos_gui.tools import OPERATOR_DICTIONARY
 from qtpy.QtCore import QObject, Signal
 
 
@@ -342,6 +342,7 @@ class process_input:
 
 class DataLoader(QObject):
     finished = Signal()
+    new_data = Signal()
 
     def __init__(
         self,
@@ -359,12 +360,8 @@ class DataLoader(QObject):
 
     def run(self):
         """Long-running task."""
-        meas_name, df = self.load_data(self.filepath, self.delimiter)
-        # carefull this has to be in the order like below otherwise the subsequent callbacks will
-        # start before the measurement column is set to the proper value since it listens for changes in the
-        # original data
-        self.stored_data_instance.columns.measurement_column = meas_name
-        self.stored_data_instance.original_data = df
+        self.load_data(self.filepath, self.delimiter)
+
         self.finished.emit()
 
     def load_data(self, filepath, delimiter=None):
@@ -376,6 +373,11 @@ class DataLoader(QObject):
         while self.columnpicker_instance.isVisible():
             time.sleep(0.1)
 
+        if not self.columnpicker_instance.ok_pressed:
+            return None, None
+
+        self.new_data.emit()
+
         frame_col = self.stored_data_instance.columns.frame_column
         op = self.stored_data_instance.columns.measurement_math_operatoin
         in_meas1 = self.stored_data_instance.columns.measurement_column_1
@@ -384,4 +386,9 @@ class DataLoader(QObject):
         meas_name, df = preprocess_data(
             df, frame_col, op, in_meas1, in_meas2, OPERATOR_DICTIONARY
         )
-        return meas_name, df
+        # carefull this has to be in the order like below otherwise the subsequent callbacks will
+        # start before the measurement column is set to the proper value since it listens for changes in the
+        # original data
+
+        self.stored_data_instance.columns.measurement_column = meas_name
+        self.stored_data_instance.original_data = df

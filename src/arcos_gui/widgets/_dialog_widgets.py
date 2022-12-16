@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Union
 
-from arcos_gui._config import measurement_math_options
-from arcos_gui.temp_data_storage import columnnames
+from arcos_gui.processing import columnnames
+from arcos_gui.tools import measurement_math_options
 from qtpy import QtWidgets
 
 
@@ -88,8 +88,14 @@ class columnpicker(QtWidgets.QDialog):
         self.second_measurment.setVisible(False)
         self.label_7.setVisible(False)
 
+        self.Ok.clicked.connect(self._on_ok)
+        self.abort_button.clicked.connect(self.close)
         self.closeEvent = self._on_close
-        self.Ok.clicked.connect(self.close)
+        self.ok_pressed = False
+
+    def _on_ok(self, event):
+        self.ok_pressed = True
+        self.close()
 
     def _on_close(self, event):
         if self.columnames_instance:
@@ -164,6 +170,8 @@ class columnpicker(QtWidgets.QDialog):
         self.Ok = QtWidgets.QPushButton("Ok")
         self.Ok.setObjectName("Ok")
 
+        self.abort_button = QtWidgets.QPushButton("Abort")
+
         self.gridLayout.addWidget(self.frame, 1, 1, 1, 1)
         self.gridLayout.addWidget(self.label, 1, 0, 1, 1)
         self.gridLayout.addWidget(self.label_2, 2, 0, 1, 1)
@@ -185,6 +193,7 @@ class columnpicker(QtWidgets.QDialog):
         self.gridLayout.addWidget(self.label_10, 10, 0, 1, 1)
         self.gridLayout.addWidget(self.measurement_math, 10, 1, 1, 1)
         self.gridLayout.addWidget(self.Ok, 12, 1, 1, 1)
+        self.gridLayout.addWidget(self.abort_button, 12, 0, 1, 1)
         # add it to our layout
         self.setLayout(self.gridLayout)
 

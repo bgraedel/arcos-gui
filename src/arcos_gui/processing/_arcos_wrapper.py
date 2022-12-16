@@ -6,10 +6,11 @@ import numpy as np
 import pandas as pd
 from arcos4py import ARCOS
 from arcos4py.tools import calcCollevStats, filterCollev
-from arcos_gui._preprocessing_utils import check_for_collid_column
+
+from ._preprocessing_utils import check_for_collid_column
 
 if TYPE_CHECKING:
-    from arcos_gui.temp_data_storage import data_storage
+    from ._data_storage import data_storage
 
 
 def init_arcos_object(
@@ -18,7 +19,6 @@ def init_arcos_object(
     measurement_name: str,
     frame_col_name: str,
     track_id_col_name: str,
-    std_out_func: Callable,
 ):
     """
     Initialize arcos object from pandas dataframe
@@ -282,7 +282,11 @@ class arcos_wrapper:
                 return
 
             self.arcos_object = init_arcos_object(
-                df_filtered, posCols, meas, frame, track_id_col_name, self.std_out
+                df_filtered,
+                posCols,
+                meas,
+                frame,
+                track_id_col_name,
             )
 
             self.arcos_object = binarization(

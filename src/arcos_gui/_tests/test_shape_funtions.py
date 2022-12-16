@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from arcos_gui.shape_functions import (
+from arcos_gui._shape_functions import (
     fix_3d_convex_hull,
     get_verticesHull,
     make_surface_3d,

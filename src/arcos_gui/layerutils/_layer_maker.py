@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from arcos_gui._config import ARCOS_LAYERS
-from arcos_gui._layer_data_tuple import (
+from arcos_gui.tools import ARCOS_LAYERS
+from napari.layers import Layer
+
+from ._layer_data_tuple import (
     prepare_active_cells,
     prepare_all_cells_layer,
     prepare_convex_hull_layer,
     prepare_events_layer,
     timestamp_layer,
 )
-from napari.layers import Layer
 
 if TYPE_CHECKING:
-    from arcos_gui.temp_data_storage import data_storage
+    from arcos_gui.processing import data_storage
     from napari import viewer
 
 
