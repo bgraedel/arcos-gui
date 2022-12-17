@@ -13,9 +13,7 @@ def remove_layers_after_columnpicker(viewer: napari.viewer.Viewer, arcos_layers:
     layer_list = get_layer_list(viewer)
     print(layer_list)
     for layer in arcos_layers:
-        print(layer)
         if layer in layer_list:
-            print("removing")
             viewer.layers.remove(layer)
 
 

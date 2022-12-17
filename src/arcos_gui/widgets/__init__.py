@@ -9,7 +9,6 @@ from arcos_gui.widgets._dialog_widgets import columnpicker, timestamp_options
 from arcos_gui.widgets._exporting_widget import ExportWidget
 from arcos_gui.widgets._filter_widget import FilterDataWidget
 from arcos_gui.widgets._input_data_widget import InputDataWidget
-from arcos_gui.widgets._main_widget import MainWindow
 from arcos_gui.widgets._plot_widgets import collevplot_widget, tsplot_widget
 from arcos_gui.widgets._visualization_settings_widget import LayerPropertiesWidget
 
@@ -23,5 +22,4 @@ __all__ = [
     "collevplot_widget",
     "columnpicker",
     "timestamp_options",
-    "MainWindow",
 ]

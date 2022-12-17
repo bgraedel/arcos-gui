@@ -3,9 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from arcos_gui.processing import DataLoader, read_data_header
-from arcos_gui.tools import remove_layers_after_columnpicker
-from arcos_gui.tools._config import ARCOS_LAYERS
+from arcos_gui.processing import DataLoader, DataPreprocessor, read_data_header
+from arcos_gui.tools import ARCOS_LAYERS, remove_layers_after_columnpicker
 from arcos_gui.widgets import columnpicker
 from napari.utils.notifications import show_info
 from qtpy import QtCore, QtWidgets, uic
@@ -13,6 +12,7 @@ from qtpy.QtCore import QThread
 from qtpy.QtGui import QIcon, QMovie
 
 if TYPE_CHECKING:
+    import pandas as pd
     from arcos_gui.processing import data_storage
     from napari.viewer import Viewer
 
@@ -97,7 +97,7 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         self.picker.set_column_names(columns)
         self._set_choices_names_from_previous(self.picker, old_picked_columns)
         self.picker.show()
-        self._load_csv_data(delimiter_value, self.picker)
+        self.run_data_loading(csv_file, delimiter_value)
 
     def _set_choices_names_from_previous(self, picker: columnpicker, col_names):
         """Sets the column names from the previous loaded data."""
@@ -106,40 +106,73 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
             if column_name in AllItems:
                 ui_element.setCurrentText(column_name)
 
-    def _load_csv_data(self, delimiter, picker):
-        """Loads data from a csv file and stores it in the data storage."""
-        # not sure if this is the best way to do it the idea is to load csv files in the background
-        # while the user is selecting columns. Maybe re-write some part here.
-        csv_file = self.file_LineEdit.text()
-        self.run_data_loading(picker, csv_file, delimiter)
-
-    def run_data_loading(self, picker: columnpicker, filename, delimiter=None):
-        self.thread = QThread()
-        self.worker = DataLoader(
-            picker, self.data_storage_instance, filename, delimiter
-        )
+    def run_data_loading(self, filename, delimiter=None):
+        self.loading_thread = QThread()
+        self.loading_worker = DataLoader(filename, delimiter)
         self.start_loading_icon()
-        self.worker.moveToThread(self.thread)
+        self.loading_worker.moveToThread(self.loading_thread)
         # Connect signals and slots
         # this signal ensures that if a user closes the columnpicker window with X
         # the loaded data is not updated in the data storage object and layers are not deleted
         # aswell as the columnnames are not updated
-        self.worker.new_data.connect(self._set_datastorage_to_default)
-        self.worker.new_data.connect(self._remove_old_layers)
 
-        self.thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
+        self.loading_thread.started.connect(self.loading_worker.run)
+        self.loading_worker.finished.connect(self.loading_thread.quit)
+        self.loading_worker.finished.connect(self.loading_worker.deleteLater)
+        self.loading_thread.finished.connect(self.loading_thread.deleteLater)
 
-        self.thread.start()
+        self.loading_worker.new_data.connect(self.run_data_preprocessing)
+
+        self.loading_thread.start()
+        self.open_file_button.setEnabled(False)
 
         # Final resets
-        self.open_file_button.setEnabled(False)
-        self.thread.finished.connect(lambda: self.open_file_button.setEnabled(True))
-        self.thread.finished.connect(self.stop_loading_icon)
+        self.loading_thread.finished.connect(self.stop_loading_icon)
+        # self.thread.finished.connect(self.stop_loading_icon)
+        self.loading_thread.finished.connect(
+            lambda: print(self.data_storage_instance.columns)
+        )
 
-        self.thread.finished.connect(lambda: print(self.data_storage_instance.columns))
+    def run_data_preprocessing(self, loaded_data: pd.DataFrame):
+        self.proprocessing_thread = QThread()
+        self.preprocessing_worker = DataPreprocessor(
+            loaded_data, self.picker, self.data_storage_instance
+        )
+
+        self.preprocessing_worker.moveToThread(self.proprocessing_thread)
+        self.preprocessing_worker.finished.connect(self.proprocessing_thread.quit)
+        self.preprocessing_worker.finished.connect(
+            self.preprocessing_worker.deleteLater
+        )
+        self.proprocessing_thread.finished.connect(
+            self.proprocessing_thread.deleteLater
+        )
+
+        self.proprocessing_thread.started.connect(self.preprocessing_worker.run)
+        self.proprocessing_thread.start()
+
+        self.preprocessing_worker.new_data.connect(self.succesfully_loaded)
+        self.preprocessing_worker.aborted.connect(self.loading_aborted)
+
+    def succesfully_loaded(self, dataframe: pd.DataFrame, measuremt_name: str):
+        """Updates the data storage with the loaded data."""
+        self._remove_old_layers()
+        self._set_datastorage_to_default()
+        self.data_storage_instance.columns = self.picker.as_columnames_object
+        self.data_storage_instance.columns.measurement_column = measuremt_name
+        self.data_storage_instance.original_data.value = dataframe
+
+    def loading_aborted(self, err_code):
+        """If the loading of the data is aborted, the data storage is not updated."""
+        self.open_file_button.setEnabled(True)
+        if err_code == 0:
+            return
+        if err_code == 1:
+            show_info("Loading aborted")
+            return
+        elif err_code == 2:
+            show_info("Loading aborted by error, no columns selected")
+            return
 
     def _remove_old_layers(self):
         remove_layers_after_columnpicker(self.viewer, ARCOS_LAYERS.values())

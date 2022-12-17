@@ -3,7 +3,7 @@ display_name: napari ARCOS
 contributions:
   commands:
     - id: arcos-gui.MainWindow
-      python_name: arcos_gui.widgets:MainWindow
+      python_name: arcos_gui._main_widget:MainWindow
       title: Opens filedialog to import csv
     - id: arcos-gui.data.arcos_sample_data
       title: Import sample data

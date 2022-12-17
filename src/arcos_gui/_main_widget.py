@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 class _MainUI:
 
-    UI_FILE = str(Path(__file__).parent.parent / "_ui" / "main_widget.ui")
+    UI_FILE = str(Path(__file__).parent / "_ui" / "main_widget.ui")
 
     # The UI_FILE above contains these objects:
     tabWidget: QtWidgets.QTabWidget

@@ -1,19 +1,18 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import napari
 from qtpy import QtWidgets, uic
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
 
 if TYPE_CHECKING:
-    import napari.layers
     import napari.viewer
+    from arcos_gui.processing import data_storage
 
 # local imports
-from arcos_gui.processing import data_storage
-from arcos_gui.tools import ARCOS_LAYERS
-from arcos_gui.tools._ui_util_func import get_layer_list
+from arcos_gui.tools import ARCOS_LAYERS, get_layer_list
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 
 # icons
@@ -53,7 +52,7 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
     ):
         super().__init__(parent)
         self.setup_ui()
-        self.viewer: napari.viewer.Viewer = viewer
+        self.viewer = viewer
         self.data_storage_instance = data_storage_instance
 
         self.LUT.addItems(AVAILABLE_COLORMAPS)
@@ -191,8 +190,8 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.processing import data_storage
-    from napari.viewer import Viewer
+    from arcos_gui.processing import data_storage  # noqa: F811
+    from napari import Viewer
 
     viewer = Viewer()
     app = QtWidgets.QApplication(sys.argv)

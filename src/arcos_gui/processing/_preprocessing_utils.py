@@ -342,24 +342,20 @@ class process_input:
 
 class DataLoader(QObject):
     finished = Signal()
-    new_data = Signal()
+    new_data = Signal(pd.DataFrame)
 
     def __init__(
         self,
-        columnpicker_instance: columnpicker,
-        stored_data_instance: data_storage,
         filepath: str,
         delimiter: str,
         parent=None,
     ):
         super().__init__(parent)
-        self.stored_data_instance = stored_data_instance
-        self.columnpicker_instance = columnpicker_instance
         self.filepath = filepath
         self.delimiter = delimiter
 
     def run(self):
-        """Long-running task."""
+        """Task to load data."""
         self.load_data(self.filepath, self.delimiter)
 
         self.finished.emit()
@@ -370,25 +366,56 @@ class DataLoader(QObject):
             df = pd.read_csv(filepath, delimiter=delimiter)
         else:
             df = pd.read_csv(filepath)
+
+        self.new_data.emit(df)
+
+
+class DataPreprocessor(QObject):
+    finished = Signal()
+    aborted = Signal(int)  # 0 = not aborted, 1 = aborted by user, 2 = aborted by error
+    new_data = Signal(pd.DataFrame, str)
+
+    def __init__(
+        self,
+        dataframe: pd.DataFrame,
+        columnpicker_instance: columnpicker,
+        stored_data_instance: data_storage,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self.dataframe = dataframe
+        self.columnpicker_instance = columnpicker_instance
+        self.stored_data_instance = stored_data_instance
+
+    def run(self):
+        """Task to load data."""
+        self.preprocess_data()
+        self.finished.emit()
+
+    def preprocess_data(self):
+        """Preprocesses data and stores it in the data storage."""
         while self.columnpicker_instance.isVisible():
             time.sleep(0.1)
 
         if not self.columnpicker_instance.ok_pressed:
-            return None, None
+            self.aborted.emit(1)
+            return
+        try:
+            frame_col = self.columnpicker_instance.frame.currentText()
+            op = self.columnpicker_instance.measurement_math.currentText()
+            in_meas1 = self.columnpicker_instance.measurment.currentText()
+            in_meas2 = self.columnpicker_instance.second_measurment.currentText()
 
-        self.new_data.emit()
+            meas_name, df = preprocess_data(
+                self.dataframe, frame_col, op, in_meas1, in_meas2, OPERATOR_DICTIONARY
+            )
+            # carefull this has to be in the order like below otherwise the subsequent callbacks will
+            # start before the measurement column is set to the proper value since it listens for changes in the
+            # original data
+        except Exception as e:
+            print(e)
+            self.aborted.emit(2)
+            return
 
-        frame_col = self.stored_data_instance.columns.frame_column
-        op = self.stored_data_instance.columns.measurement_math_operatoin
-        in_meas1 = self.stored_data_instance.columns.measurement_column_1
-        in_meas2 = self.stored_data_instance.columns.measurement_column_2
-
-        meas_name, df = preprocess_data(
-            df, frame_col, op, in_meas1, in_meas2, OPERATOR_DICTIONARY
-        )
-        # carefull this has to be in the order like below otherwise the subsequent callbacks will
-        # start before the measurement column is set to the proper value since it listens for changes in the
-        # original data
-
-        self.stored_data_instance.columns.measurement_column = meas_name
-        self.stored_data_instance.original_data = df
+        self.new_data.emit(df, meas_name)
+        self.aborted.emit(0)

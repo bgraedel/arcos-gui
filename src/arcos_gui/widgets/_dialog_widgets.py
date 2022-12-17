@@ -89,19 +89,16 @@ class columnpicker(QtWidgets.QDialog):
         self.label_7.setVisible(False)
 
         self.Ok.clicked.connect(self._on_ok)
-        self.abort_button.clicked.connect(self.close)
-        self.closeEvent = self._on_close
+        self.abort_button.clicked.connect(self._on_abort)
         self.ok_pressed = False
 
     def _on_ok(self, event):
         self.ok_pressed = True
         self.close()
 
-    def _on_close(self, event):
-        if self.columnames_instance:
-            self._update_columnnames_in_datastorage()
-        else:
-            self.get_column_names()
+    def _on_abort(self, event):
+        self.ok_pressed = False
+        self.close()
 
     def setupUi(self):
         self.setObjectName("columnpicker")
@@ -171,6 +168,8 @@ class columnpicker(QtWidgets.QDialog):
         self.Ok.setObjectName("Ok")
 
         self.abort_button = QtWidgets.QPushButton("Abort")
+        self.abort_button.setObjectName("Abort")
+        self.abort_button.setStyleSheet("background-color : #7C0A02; color : white")
 
         self.gridLayout.addWidget(self.frame, 1, 1, 1, 1)
         self.gridLayout.addWidget(self.label, 1, 0, 1, 1)
@@ -271,27 +270,6 @@ class columnpicker(QtWidgets.QDialog):
             self.measurement_math.currentText(),
         }
 
-    def _update_columnnames_in_datastorage(self):
-        # set column_names
-        self.columnames_instance.frame_column = self.frame.currentText()
-        self.columnames_instance.position_id = self.field_of_view_id.currentText()
-        self.columnames_instance.object_id = self.track_id.currentText()
-        self.columnames_instance.x_column = self.x_coordinates.currentText()
-        self.columnames_instance.y_column = self.y_coordinates.currentText()
-        self.columnames_instance.z_column = self.z_coordinates.currentText()
-        self.columnames_instance.measurement_column_1 = self.measurment.currentText()
-        self.columnames_instance.measurement_column_2 = (
-            self.second_measurment.currentText()
-        )
-        self.columnames_instance.additional_filter_column = (
-            self.additional_filter.currentText()
-        )
-        self.columnames_instance.measurement_math_operatoin = (
-            self.measurement_math.currentText()
-        )
-
-        print(self.columnames_instance)
-
     def toggle_visible_second_measurment(self):
         curr_value = self.measurement_math.currentText()
         if curr_value in ["None", "1/X"]:
@@ -315,6 +293,27 @@ class columnpicker(QtWidgets.QDialog):
             self.additional_filter,
             self.measurement_math,
         )
+
+    @property
+    def as_columnames_object(self):
+        # set column_names
+        columnames_instance = columnnames()
+        columnames_instance.frame_column = self.frame.currentText()
+        columnames_instance.position_id = self.field_of_view_id.currentText()
+        columnames_instance.object_id = self.track_id.currentText()
+        columnames_instance.x_column = self.x_coordinates.currentText()
+        columnames_instance.y_column = self.y_coordinates.currentText()
+        columnames_instance.z_column = self.z_coordinates.currentText()
+        columnames_instance.measurement_column_1 = self.measurment.currentText()
+        columnames_instance.measurement_column_2 = self.second_measurment.currentText()
+        columnames_instance.additional_filter_column = (
+            self.additional_filter.currentText()
+        )
+        columnames_instance.measurement_math_operatoin = (
+            self.measurement_math.currentText()
+        )
+
+        return columnames_instance
 
 
 if __name__ == "__main__":
