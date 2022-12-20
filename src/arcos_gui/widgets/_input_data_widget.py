@@ -13,7 +13,7 @@ from qtpy.QtGui import QIcon, QMovie
 
 if TYPE_CHECKING:
     import pandas as pd
-    from arcos_gui.processing import data_storage
+    from arcos_gui.processing import DataStorage
     from napari.viewer import Viewer
 
 # icons
@@ -57,13 +57,12 @@ class _input_dataUI:
 
 
 class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
-    def __init__(
-        self, viewer: Viewer, data_storage_instance: data_storage, parent=None
-    ):
+    def __init__(self, viewer: Viewer, data_storage_instance: DataStorage, parent=None):
         self.viewer = viewer
         self.data_storage_instance = data_storage_instance
         super().__init__(parent)
         self.setup_ui()
+        self.picker = columnpicker()
 
         # set up file browser
         self.browse_file.clicked.connect(self._browse_files)
@@ -83,7 +82,10 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         extension = [".csv", ".csv.gz"]
         csv_file = self.file_LineEdit.text()
         if not csv_file.endswith(tuple(extension)):
-            show_info("Not a csv file")
+            show_info("File type not supported")
+            return
+        if not Path(csv_file).exists():
+            show_info("File does not exist")
             return
         csv_file = self.file_LineEdit.text()
         columns, delimiter_value = read_data_header(csv_file)
@@ -107,7 +109,7 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
                 ui_element.setCurrentText(column_name)
 
     def run_data_loading(self, filename, delimiter=None):
-        self.loading_thread = QThread()
+        self.loading_thread = QThread(self)
         self.loading_worker = DataLoader(filename, delimiter)
         self.start_loading_icon()
         self.loading_worker.moveToThread(self.loading_thread)
@@ -128,28 +130,25 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
 
         # Final resets
         self.loading_thread.finished.connect(self.stop_loading_icon)
-        # self.thread.finished.connect(self.stop_loading_icon)
-        self.loading_thread.finished.connect(
-            lambda: print(self.data_storage_instance.columns)
-        )
 
     def run_data_preprocessing(self, loaded_data: pd.DataFrame):
-        self.proprocessing_thread = QThread()
+        self.preprocessing_thread = QThread(self)
         self.preprocessing_worker = DataPreprocessor(
-            loaded_data, self.picker, self.data_storage_instance
+            loaded_data,
+            self.picker,
         )
 
-        self.preprocessing_worker.moveToThread(self.proprocessing_thread)
-        self.preprocessing_worker.finished.connect(self.proprocessing_thread.quit)
+        self.preprocessing_worker.moveToThread(self.preprocessing_thread)
+        self.preprocessing_worker.finished.connect(self.preprocessing_thread.quit)
         self.preprocessing_worker.finished.connect(
             self.preprocessing_worker.deleteLater
         )
-        self.proprocessing_thread.finished.connect(
-            self.proprocessing_thread.deleteLater
+        self.preprocessing_thread.finished.connect(
+            self.preprocessing_thread.deleteLater
         )
 
-        self.proprocessing_thread.started.connect(self.preprocessing_worker.run)
-        self.proprocessing_thread.start()
+        self.preprocessing_thread.started.connect(self.preprocessing_worker.run)
+        self.preprocessing_thread.start()
 
         self.preprocessing_worker.new_data.connect(self.succesfully_loaded)
         self.preprocessing_worker.aborted.connect(self.loading_aborted)
@@ -171,7 +170,11 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
             show_info("Loading aborted")
             return
         elif err_code == 2:
-            show_info("Loading aborted by error, no columns selected")
+            show_info("Loading aborted by error")
+            return
+        elif err_code == Exception:
+            show_info("Loading aborted by error")
+            print(err_code)
             return
 
     def _remove_old_layers(self):
@@ -184,12 +187,12 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.processing import data_storage  # noqa: F811
+    from arcos_gui.processing import DataStorage  # noqa: F811
     from napari.viewer import Viewer  # noqa: F811
 
     viewer = Viewer()
 
     app = QtWidgets.QApplication(sys.argv)
-    widget = InputDataWidget(viewer, data_storage())
+    widget = InputDataWidget(viewer, DataStorage())
     widget.show()
     sys.exit(app.exec_())

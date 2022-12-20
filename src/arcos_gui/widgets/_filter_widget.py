@@ -11,7 +11,7 @@ from qtpy.QtCore import Qt
 from superqt import QRangeSlider
 
 if TYPE_CHECKING:
-    from arcos_gui.processing import data_storage
+    from arcos_gui.processing import DataStorage
 
 
 class _filter_dataUI:
@@ -19,8 +19,7 @@ class _filter_dataUI:
 
     # The UI_FILE above contains these objects:
     frame_interval_label: QtWidgets.QLabel
-    min_tracklength_label: QtWidgets.QLabel
-    max_tracklength_label: QtWidgets.QLabel
+    tracklength_label: QtWidgets.QLabel
     position_label: QtWidgets.QLabel
     position: QtWidgets.QComboBox
     additional_filter_combobox: QtWidgets.QComboBox
@@ -39,7 +38,7 @@ class _filter_dataUI:
 
 
 class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
-    def __init__(self, data_storage_instance: data_storage, parent=None):
+    def __init__(self, data_storage_instance: DataStorage, parent=None):
         super().__init__(parent)
         self.setup_ui()
         self._init_ranged_sliderts()
@@ -199,9 +198,9 @@ if __name__ == "__main__":
     import sys
 
     import pandas as pd
-    from arcos_gui.processing import data_storage  # noqa: F811
+    from arcos_gui.processing import DataStorage  # noqa: F811
 
-    data_storage_instance = data_storage()
+    data_storage_instance = DataStorage()
 
     app = QtWidgets.QApplication(sys.argv)
     widget = FilterDataWidget(data_storage_instance=data_storage_instance)

@@ -8,7 +8,7 @@ from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 
 if TYPE_CHECKING:
-    from arcos_gui.processing import data_storage
+    from arcos_gui.processing import DataStorage
 
 
 class _arcosWidget:
@@ -58,7 +58,7 @@ class _arcosWidget:
 
 
 class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
-    def __init__(self, data_storage_instance: data_storage, parent=None):
+    def __init__(self, data_storage_instance: DataStorage, parent=None):
         super().__init__(parent)
         self.setup_ui()
         self._what_to_run: set = set()
@@ -174,25 +174,25 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
         """Adds 'all' to the what_to_run attirbute,
         that is used in the main function to check if what to run
         when certain field have updated values."""
+        self._clear_what_to_run()
         self._what_to_run.add("binarization")
         self._what_to_run.add("tracking")
         self._what_to_run.add("filtering")
-        print(self._what_to_run)
 
     def _update_what_to_run_tracking(self):
         """Adds 'from_tracking' to the what_to_run attirbute,
         that is used in the main function to check if what to run
         when certain field have updated values."""
+        self._clear_what_to_run()
         self._what_to_run.add("tracking")
         self._what_to_run.add("filtering")
-        print(self._what_to_run)
 
     def _update_what_to_run_filtering(self):
         """Adds 'from_filtering' to the what_to_run attirbute,
         that is used in the main function to check if what to run
         when certain field have updated values."""
+        self._clear_what_to_run()
         self._what_to_run.add("filtering")
-        print(self._what_to_run)
 
     def _clear_what_to_run(self):
         """Clears the what_to_run attribute."""
@@ -282,12 +282,12 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.processing import data_storage  # noqa: F811
+    from arcos_gui.processing import DataStorage  # noqa: F811
     from napari import Viewer
 
     viewer = Viewer()
 
     app = QtWidgets.QApplication(sys.argv)
-    widget = ArcosWidget(data_storage())
+    widget = ArcosWidget(DataStorage())
     widget.show()
     sys.exit(app.exec_())

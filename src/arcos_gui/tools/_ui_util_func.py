@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 def remove_layers_after_columnpicker(viewer: napari.viewer.Viewer, arcos_layers: list):
     """Remove existing arcos layers before loading new data"""
     layer_list = get_layer_list(viewer)
-    print(layer_list)
     for layer in arcos_layers:
         if layer in layer_list:
             viewer.layers.remove(layer)

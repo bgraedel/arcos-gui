@@ -19,8 +19,8 @@ class columnnames:
     z_column: str = "z"
     measurement_column_1: str = "measurement"
     measurement_column_2: str = "measurement_2"
-    additional_filter_column: str = "additoinal_filter"
-    measurement_math_operatoin: str = "multiplication"
+    additional_filter_column: str = "additional_filter"
+    measurement_math_operatoin: str = "None"
     measurement_bin: Union[str, None] = None
     measurement_resc: Union[str, None] = None
     collid_name: str = "collid"
@@ -132,6 +132,7 @@ class arcos_parameters:
                 ["total_event_size", self.total_event_size],
             ],
         )
+        df["value"] = df["value"].astype(str)
         return df
 
 
@@ -140,11 +141,11 @@ class timestamp_parameters:
     """Stores the parameters for the timestamp options that can be set in the timestamp widget"""
 
     start_time: int = 0
-    step_time: int = 0
+    step_time: int = 1
     prefix: str = "t"
     suffix: str = ""
     position: str = "upper_left"
-    size: int = 0
+    size: int = 1
     x_shift: int = 0
     y_shift: int = 0
 
@@ -228,7 +229,7 @@ class value_calback:
         return repr(self._value)
 
 
-class data_storage:
+class DataStorage:
     """Stores data for the GUI."""
 
     def __init__(self):
@@ -408,17 +409,20 @@ class data_storage:
             raise ValueError(f"Data must be of type {timestamp_parameters}")
         self._timestamp_parameters.value = value
 
-    def load_data(self, filename):
+    def load_data(self, filename, trigger_callback=True):
         """Loads data from a csv file."""
-        self.original_data = pd.read_csv(filename)
+        if trigger_callback:
+            self.original_data = pd.read_csv(filename)
+        else:
+            self.original_data._value = pd.read_csv(filename)
 
 
 if __name__ == "__main__":
-    ds = data_storage()
+    ds = DataStorage()
     ds.timestamp_parameters.value_changed_connect(
         lambda: print("original data changed")
     )
-    print(ds.timestamp_parameters)
+    print(ds.filtered_data.value.empty)
     # # ds.load_data("C:/Users/benig/test.csv")
     # print(ds.columns)
     # print(ds.original_data)

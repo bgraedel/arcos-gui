@@ -4,15 +4,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from arcos_gui.layerutils import Layermaker
-from arcos_gui.processing import data_storage
+from arcos_gui.processing import DataStorage
 from arcos_gui.widgets import (
     ArcosWidget,
     ExportWidget,
     FilterDataWidget,
     InputDataWidget,
     LayerPropertiesWidget,
-    collevplot_widget,
-    tsplot_widget,
+    collevPlotWidget,
+    tsPlotWidget,
 )
 from qtpy import QtWidgets, uic
 
@@ -52,7 +52,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.viewer: napari.viewer.Viewer = viewer
         self.setup_ui()
 
-        self.data_storage_instance = data_storage()
+        self.data_storage_instance = DataStorage()
         # self.data_storage_instance.make_verbose() # uncomment to make callbacks verbose
 
         self.input_data_widget = InputDataWidget(
@@ -71,8 +71,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             data_storage_instance=self.data_storage_instance,
             parent=self,
         )
-        self.ts_plots_widget = tsplot_widget(self.viewer, self.data_storage_instance)
-        self.collev_plots_widget = collevplot_widget(
+        self.ts_plots_widget = tsPlotWidget(self.viewer, self.data_storage_instance)
+        self.collev_plots_widget = collevPlotWidget(
             self.viewer, self.data_storage_instance
         )
         self.export_widget = ExportWidget(

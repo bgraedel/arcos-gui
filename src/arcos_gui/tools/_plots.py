@@ -787,6 +787,15 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         Method to clear the data from the plot.
         """
         self.ax.clear()
+        self.dataframe = pd.DataFrame()
+        self.dataframe_resc = pd.DataFrame()
+        self.frame_col = None
+        self.track_id_col = None
+        self.x_coord_col = None
+        self.y_coord_col = None
+        self.measurement = None
+        self.measurement_resc_col = None
+        self.object_id_number = None
 
     def update_plot(
         self,

@@ -14,14 +14,14 @@ from ._layer_data_tuple import (
 )
 
 if TYPE_CHECKING:
-    from arcos_gui.processing import data_storage
+    from arcos_gui.processing import DataStorage
     from napari import viewer
 
 
 class Layermaker:
     """Class to make layers for napari."""
 
-    def __init__(self, viewer: viewer.Viewer, data_storage_instance: data_storage):
+    def __init__(self, viewer: viewer.Viewer, data_storage_instance: DataStorage):
         self.data_storage_instance = data_storage_instance
         self.viewer = viewer
 

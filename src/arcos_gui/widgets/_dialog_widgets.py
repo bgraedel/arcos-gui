@@ -85,7 +85,7 @@ class columnpicker(QtWidgets.QDialog):
         self.measurement_math.currentTextChanged.connect(
             self.toggle_visible_second_measurment
         )
-        self.second_measurment.setVisible(False)
+        self.second_measurement.setVisible(False)
         self.label_7.setVisible(False)
 
         self.Ok.clicked.connect(self._on_ok)
@@ -137,14 +137,14 @@ class columnpicker(QtWidgets.QDialog):
         self.label_6 = QtWidgets.QLabel("Measurement Column:")
         self.label_6.setObjectName("measurment_label")
 
-        self.measurment = QtWidgets.QComboBox()
-        self.measurment.setObjectName("measurment")
+        self.measurement = QtWidgets.QComboBox()
+        self.measurement.setObjectName("measurment")
 
         self.label_7 = QtWidgets.QLabel("Second Measurement Column:")
         self.label_7.setObjectName("second_measurment_label")
 
-        self.second_measurment = QtWidgets.QComboBox()
-        self.second_measurment.setObjectName("second_measurment")
+        self.second_measurement = QtWidgets.QComboBox()
+        self.second_measurement.setObjectName("second_measurment")
 
         self.label_8 = QtWidgets.QLabel("Field of View/Position Column:")
         self.label_8.setObjectName("field_of_view_id_label")
@@ -182,9 +182,9 @@ class columnpicker(QtWidgets.QDialog):
         self.gridLayout.addWidget(self.label_5, 5, 0, 1, 1)
         self.gridLayout.addWidget(self.z_coordinates, 5, 1, 1, 1)
         self.gridLayout.addWidget(self.label_6, 6, 0, 1, 1)
-        self.gridLayout.addWidget(self.measurment, 6, 1, 1, 1)
+        self.gridLayout.addWidget(self.measurement, 6, 1, 1, 1)
         self.gridLayout.addWidget(self.label_7, 7, 0, 1, 1)
-        self.gridLayout.addWidget(self.second_measurment, 7, 1, 1, 1)
+        self.gridLayout.addWidget(self.second_measurement, 7, 1, 1, 1)
         self.gridLayout.addWidget(self.label_8, 8, 0, 1, 1)
         self.gridLayout.addWidget(self.field_of_view_id, 8, 1, 1, 1)
         self.gridLayout.addWidget(self.label_9, 9, 0, 1, 1)
@@ -202,8 +202,8 @@ class columnpicker(QtWidgets.QDialog):
         self.x_coordinates.setToolTip("Column with x coordinates")
         self.y_coordinates.setToolTip("Column with y coordinates")
         self.z_coordinates.setToolTip("Column with z coordinates")
-        self.measurment.setToolTip("Column with measurement")
-        self.second_measurment.setToolTip(
+        self.measurement.setToolTip("Column with measurement")
+        self.second_measurement.setToolTip(
             "Select second measurement for measurement math"
         )
         self.field_of_view_id.setToolTip(
@@ -227,8 +227,8 @@ class columnpicker(QtWidgets.QDialog):
         self.x_coordinates.clear()
         self.y_coordinates.clear()
         self.z_coordinates.clear()
-        self.measurment.clear()
-        self.second_measurment.clear()
+        self.measurement.clear()
+        self.second_measurement.clear()
         self.field_of_view_id.clear()
         self.additional_filter.clear()
 
@@ -237,47 +237,48 @@ class columnpicker(QtWidgets.QDialog):
         self.x_coordinates.addItems(column_names)
         self.y_coordinates.addItems(column_names)
         self.z_coordinates.addItems(column_names)
-        self.measurment.addItems(column_names)
-        self.second_measurment.addItems(column_names)
+        self.measurement.addItems(column_names)
+        self.second_measurement.addItems(column_names)
         self.field_of_view_id.addItems(column_names)
         self.additional_filter.addItems(column_names)
 
         self.additional_filter.addItem("None", None)
         self.field_of_view_id.addItem("None", None)
         self.z_coordinates.addItem("None", None)
-        self.second_measurment.addItem("None", None)
+        self.second_measurement.addItem("None", None)
 
         self.additional_filter.setCurrentText("None")
         self.field_of_view_id.setCurrentText("None")
         self.z_coordinates.setCurrentText("None")
-        self.second_measurment.setCurrentText("None")
+        self.second_measurement.setCurrentText("None")
 
     def set_measurement_math(self, measurement_math):
         self.measurement_math.clear()
         self.measurement_math.addItems(measurement_math)
 
+    def toggle_visible_second_measurment(self):
+        curr_value = self.measurement_math.currentText()
+        if curr_value in ["None", "1/X"]:
+            self.second_measurement.setVisible(False)
+            self.label_7.setVisible(False)
+        else:
+            self.second_measurement.setVisible(True)
+            self.label_7.setVisible(True)
+
+    @property
     def get_column_names(self):
-        return {
+        return [
             self.frame.currentText(),
             self.track_id.currentText(),
             self.x_coordinates.currentText(),
             self.y_coordinates.currentText(),
             self.z_coordinates.currentText(),
-            self.measurment.currentText(),
-            self.second_measurment.currentText(),
+            self.measurement.currentText(),
+            self.second_measurement.currentText(),
             self.field_of_view_id.currentText(),
             self.additional_filter.currentText(),
             self.measurement_math.currentText(),
-        }
-
-    def toggle_visible_second_measurment(self):
-        curr_value = self.measurement_math.currentText()
-        if curr_value in ["None", "1/X"]:
-            self.second_measurment.setVisible(False)
-            self.label_7.setVisible(False)
-        else:
-            self.second_measurment.setVisible(True)
-            self.label_7.setVisible(True)
+        ]
 
     @property
     def settable_columns(self):
@@ -288,8 +289,8 @@ class columnpicker(QtWidgets.QDialog):
             self.x_coordinates,
             self.y_coordinates,
             self.z_coordinates,
-            self.measurment,
-            self.second_measurment,
+            self.measurement,
+            self.second_measurement,
             self.additional_filter,
             self.measurement_math,
         )
@@ -304,8 +305,8 @@ class columnpicker(QtWidgets.QDialog):
         columnames_instance.x_column = self.x_coordinates.currentText()
         columnames_instance.y_column = self.y_coordinates.currentText()
         columnames_instance.z_column = self.z_coordinates.currentText()
-        columnames_instance.measurement_column_1 = self.measurment.currentText()
-        columnames_instance.measurement_column_2 = self.second_measurment.currentText()
+        columnames_instance.measurement_column_1 = self.measurement.currentText()
+        columnames_instance.measurement_column_2 = self.second_measurement.currentText()
         columnames_instance.additional_filter_column = (
             self.additional_filter.currentText()
         )
@@ -325,4 +326,5 @@ if __name__ == "__main__":
     window.set_column_names(["a", "b", "c", "d", "e", "f", "g", "h", "i"])
     window.show()
     window2.show()
+    print(window.get_column_names)
     sys.exit(app.exec_())

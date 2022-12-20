@@ -97,7 +97,7 @@
       </widget>
      </item>
      <item row="4" column="0">
-      <widget class="QLabel" name="min_tracklength_label">
+      <widget class="QLabel" name="tracklength_label">
        <property name="toolTip">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Filter tracklenght of source data. Can be usefull if lots of incompleate tracks are present.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>

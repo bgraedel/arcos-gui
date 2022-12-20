@@ -6,7 +6,7 @@ __version__ = "0.0.6"
 
 
 from ._arcos_wrapper import arcos_wrapper
-from ._data_storage import columnnames, data_storage, timestamp_parameters
+from ._data_storage import DataStorage, columnnames, timestamp_parameters
 from ._preprocessing_utils import (
     DataLoader,
     DataPreprocessor,
@@ -17,7 +17,7 @@ from ._preprocessing_utils import (
 )
 
 __all__ = [
-    "data_storage",
+    "DataStorage",
     "columnnames",
     "timestamp_parameters",
     "filter_data",

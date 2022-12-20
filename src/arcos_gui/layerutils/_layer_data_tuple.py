@@ -261,7 +261,7 @@ def timestamp_layer(
             "face_color": kw_timestamp["face_color"],
             "edge_color": kw_timestamp["edge_color"],
             "shape_type": kw_timestamp["shape_type"],
-            "text": kw_timestamp["text"],
+            "text": kw_timestamp["string"],
             "opacity": kw_timestamp["opacity"],
             "name": "Timestamp",
         },

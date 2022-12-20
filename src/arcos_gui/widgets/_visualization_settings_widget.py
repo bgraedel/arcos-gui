@@ -9,7 +9,7 @@ from superqt import QDoubleRangeSlider
 
 if TYPE_CHECKING:
     import napari.viewer
-    from arcos_gui.processing import data_storage
+    from arcos_gui.processing import DataStorage
 
 # local imports
 from arcos_gui.tools import ARCOS_LAYERS, get_layer_list
@@ -47,7 +47,7 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
     def __init__(
         self,
         viewer: napari.viewer.Viewer,
-        data_storage_instance: data_storage,
+        data_storage_instance: DataStorage,
         parent=None,
     ):
         super().__init__(parent)
@@ -190,11 +190,11 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.processing import data_storage  # noqa: F811
+    from arcos_gui.processing import DataStorage  # noqa: F811
     from napari import Viewer
 
     viewer = Viewer()
     app = QtWidgets.QApplication(sys.argv)
-    widget = LayerPropertiesWidget(viewer, data_storage(), parent=None)
+    widget = LayerPropertiesWidget(viewer, DataStorage(), parent=None)
     widget.show()
     sys.exit(app.exec_())

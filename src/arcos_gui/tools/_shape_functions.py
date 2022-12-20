@@ -12,7 +12,7 @@ from scipy.spatial import ConvexHull, QhullError
 
 # text parameters for the timestamp
 text_parameters = {
-    "text": "{label}",
+    "string": "{label}",
     "size": 12,
     "color": "white",
     "anchor": "center",
@@ -41,7 +41,7 @@ def make_timestamp(
         raise ValueError(f'"position" must be one of: {anchors}')
 
     text_parameters_tmstp = {
-        "text": "{label}",
+        "string": "{label}",
         "size": size,
         "color": "white",
         "anchor": position,
@@ -314,7 +314,7 @@ def get_bbox(
     if text_size < 1:
         text_size = 1
     text_parameters = {
-        "text": "Event Nbr: {label}",
+        "string": "Event Nbr: {label}",
         "size": text_size,
         "color": "white",
         "anchor": "upper_left",

@@ -10,7 +10,7 @@ from arcos4py.tools import calcCollevStats, filterCollev
 from ._preprocessing_utils import check_for_collid_column
 
 if TYPE_CHECKING:
-    from ._data_storage import data_storage
+    from ._data_storage import DataStorage
 
 
 def init_arcos_object(
@@ -107,7 +107,6 @@ def binarization(
     # if corresponding checkbox was selected run interpolate measurments
     if interpolate_meas:
         arcos.interpolate_measurements()
-        print("interpolate measurements")
 
     # if corresponding checkbock was selected run clip_measuremnts
     if clip_meas:
@@ -242,14 +241,14 @@ class arcos_wrapper:
     """Runs arcos with the current parameters defined in the ArcosWidget."""
 
     def __init__(
-        self, data_storage_instance: data_storage, what_to_run: set, std_out: Callable
+        self, data_storage_instance: DataStorage, what_to_run: set, std_out: Callable
     ):
 
         self.data_storage_instance = data_storage_instance
         self.what_to_run = what_to_run
         self.std_out = std_out
         self.arcos_object: Union[ARCOS, None] = None
-        self.arcos_raw_output: Union[pd.DataFrame, None] = None
+        self.arcos_raw_output: pd.DataFrame = pd.DataFrame()
 
     def run_arcos(
         self,
@@ -312,8 +311,14 @@ class arcos_wrapper:
             self.data_storage_instance.arcos_binarization = self.arcos_object.data
 
         if "tracking" in self.what_to_run:
-
-            if self.arcos_object is None:
+            try:
+                bin_col = self.data_storage_instance.columns.measurement_bin
+                n_bin = self.data_storage_instance.arcos_binarization.value[
+                    bin_col
+                ].nunique()
+            except KeyError:
+                n_bin = 0
+            if self.data_storage_instance.arcos_binarization is None or n_bin < 2:
                 self.std_out("No Binarized Data. Adjust Binazation Parameters.")
                 return
 
@@ -325,7 +330,7 @@ class arcos_wrapper:
             )
 
         if "filtering" in self.what_to_run:
-            if self.arcos_raw_output is None:
+            if self.arcos_raw_output.empty:
                 self.std_out(
                     "No Collective Events detected. Adjust Event Detection Parameters."
                 )

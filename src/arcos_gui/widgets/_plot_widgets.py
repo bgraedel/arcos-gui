@@ -9,7 +9,7 @@ from qtpy import QtCore, QtWidgets
 from qtpy.QtGui import QIcon
 
 if TYPE_CHECKING:
-    from arcos_gui.processing import data_storage
+    from arcos_gui.processing import DataStorage
 
 
 class DataPlot(QtWidgets.QDialog):
@@ -25,11 +25,11 @@ ICONS = Path(__file__).parent.parent / "_icons"
 # still need to rewrite actual plots to be a bit nicer
 
 
-class tsplot_widget(QtWidgets.QWidget):
+class tsPlotWidget(QtWidgets.QWidget):
     def __init__(
         self,
         viewer: napari.viewer.Viewer,
-        data_storage_instance: data_storage,
+        data_storage_instance: DataStorage,
         parent=None,
     ):
         super().__init__(parent)
@@ -75,9 +75,6 @@ class tsplot_widget(QtWidgets.QWidget):
     def _on_data_clear(self):
         self.timeseriesplot._data_clear()
 
-    def _print_track_id(self):
-        print(self._data_storage_instance.selected_object_id.value)
-
     def _add_icon(self):
         expand_plot_icon = QIcon(str(ICONS / "enlarge_window.png"))
         self.expand_plot.setIcon(expand_plot_icon)
@@ -112,11 +109,11 @@ class tsplot_widget(QtWidgets.QWidget):
         self.expand_plot.clicked.connect(self._open_data_plot)
 
 
-class collevplot_widget(QtWidgets.QWidget):
+class collevPlotWidget(QtWidgets.QWidget):
     def __init__(
         self,
         viewer: napari.viewer.Viewer,
-        data_storage_instance: data_storage,
+        data_storage_instance: DataStorage,
         parent=None,
     ):
         super().__init__(parent)
@@ -149,7 +146,7 @@ class collevplot_widget(QtWidgets.QWidget):
         y_coord = self._data_storage_instance.columns.y_column
         z_coord = self._data_storage_instance.columns.z_column
         point_size = self._data_storage_instance.point_size
-        arcos_data = self._data_storage_instance.arcos_output.value
+        arcos_data = self._data_storage_instance.arcos_output.value.copy()
         self.collevplot.update_plot(
             frame_col, oid_col, x_coord, y_coord, z_coord, arcos_data, point_size
         )
@@ -198,11 +195,11 @@ class collevplot_widget(QtWidgets.QWidget):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.processing import data_storage  # noqa: F811
+    from arcos_gui.processing import DataStorage  # noqa: F811
 
     viewer = napari.Viewer()
     app = QtWidgets.QApplication(sys.argv)
-    ds = data_storage()
-    window = collevplot_widget(viewer, ds)
+    ds = DataStorage()
+    window = collevPlotWidget(viewer, ds)
     window.show()
     sys.exit(app.exec_())

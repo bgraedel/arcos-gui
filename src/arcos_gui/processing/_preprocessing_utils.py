@@ -6,7 +6,6 @@ import time
 from typing import TYPE_CHECKING, Callable, Union
 
 if TYPE_CHECKING:
-    from arcos_gui.processing import data_storage
     from arcos_gui.widgets import columnpicker
 
 import pandas as pd
@@ -20,7 +19,7 @@ def subtract_timeoffset(data, frame_col):
     return data
 
 
-def calculate_measurment(
+def calculate_measurement(
     data: pd.DataFrame,
     operation: str,
     in_meas_1_name: str,
@@ -160,7 +159,7 @@ def filter_data(
 
     if df_in.empty or field_of_view_id_name == measurement_name:
         st_out("No data loaded, or not loaded correctly")
-        return None, None, None
+        return pd.DataFrame([]), None, None
 
     # if the position column was not chosen in columnpicker,
     # dont filter by position
@@ -186,11 +185,19 @@ def filter_data(
     in_data.frame_interval(frame_interval)
 
     filtered_data = in_data.return_pd_df()
+    filtered_data.reset_index(drop=True, inplace=True)
+    try:
+        filtered_data = subtract_timeoffset(filtered_data, frame_name)
+    except (KeyError, TypeError) as err:
+        raise type(err)(
+            f"Frame column not set properly, has to be int or float.\
+                Set column is {frame_name} and available columns are {filtered_data.columns}"
+        ) from err
 
     # get min and max values
     if filtered_data.empty:
         st_out("No data loaded, or not loaded correctly")
-        return None, None, None
+        return pd.DataFrame([]), None, None
     max_meas = max(filtered_data[measurement_name])
     min_meas = min(filtered_data[measurement_name])
     st_out("Data Filtered!")
@@ -205,35 +212,11 @@ def check_for_collid_column(data: pd.DataFrame, collid_column="collid", suffix="
     return data
 
 
-def preprocess_data(
-    df: pd.DataFrame, frame_col: str, op: str, meas_1: str, meas_2: str, op_dict: dict
-):
+def preprocess_data(df: pd.DataFrame, op: str, meas_1: str, meas_2: str, op_dict: dict):
     try:
-        df = subtract_timeoffset(df, frame_col)
-    except KeyError as err:
-        raise KeyError(
-            f"Frame column not set properly, has to be int or float.\
-                Set column is {frame_col} and available columns are {df.columns}"
-        ) from err
-    except TypeError as err:
-        raise TypeError(
-            f"Frame column not set properly, has to be int or float.\
-                Set column is {frame_col} and available columns are {df.columns}"
-        ) from err
-    try:
-        return calculate_measurment(df, op, meas_1, meas_2, op_dict)
-    except KeyError as err:
-        raise KeyError(
-            f"Measurement columns not set properly, has to be int or float.\
-                Set column is {meas_1} and {meas_2} and available columns are {df.columns}"
-        ) from err
-    except TypeError:
-        raise TypeError(
-            f"Measurement columns not set properly, has to be int or float.\
-                set column is {meas_1} and {meas_2} and available columns are {df.columns}"
-        )
-    except ValueError as err:
-        raise ValueError(
+        return calculate_measurement(df, op, meas_1, meas_2, op_dict)
+    except (KeyError, TypeError, ValueError) as err:
+        raise type(err)(
             f"Measurement columns not set properly, has to be int or float.\
                 Set column is {meas_1} and {meas_2} and available columns are {df.columns}"
         ) from err
@@ -270,13 +253,12 @@ def read_data_header(filename: str):
 class process_input:
     def __init__(
         self,
+        df: pd.DataFrame,
         field_of_view_column: str,
         frame_column: str,
         pos_columns: list,
         track_id_column: str,
         measurement_column: str,
-        csv_file=None,
-        df=None,
     ):
 
         self.field_of_view_column = field_of_view_column
@@ -284,12 +266,7 @@ class process_input:
         self.pos_columns = pos_columns
         self.measurment_column = measurement_column
         self.track_id_column = track_id_column
-
-        if df is not None:
-            self.df = df
-        else:
-            self.csv_file = csv_file
-            self.df = None
+        self.df = df
 
     def filter_position(self, fov_to_select=None, return_dataframe=False):
         if fov_to_select is not None:
@@ -336,7 +313,7 @@ class process_input:
         if factor > 1:
             self.df[self.frame_column] = self.df[self.frame_column] / factor
 
-    def return_pd_df(self):
+    def return_pd_df(self) -> pd.DataFrame:
         return self.df
 
 
@@ -353,12 +330,14 @@ class DataLoader(QObject):
         super().__init__(parent)
         self.filepath = filepath
         self.delimiter = delimiter
+        self.running = False
 
     def run(self):
         """Task to load data."""
+        self.running = True
         self.load_data(self.filepath, self.delimiter)
-
         self.finished.emit()
+        self.running = False
 
     def load_data(self, filepath, delimiter=None):
         """Loads data from a csv file and stores it in the data storage."""
@@ -372,27 +351,34 @@ class DataLoader(QObject):
 
 class DataPreprocessor(QObject):
     finished = Signal()
-    aborted = Signal(int)  # 0 = not aborted, 1 = aborted by user, 2 = aborted by error
+    aborted = Signal(
+        object
+    )  # 0 = not aborted, 1 = aborted by user, 2 = aborted by error
     new_data = Signal(pd.DataFrame, str)
 
     def __init__(
         self,
         dataframe: pd.DataFrame,
         columnpicker_instance: columnpicker,
-        stored_data_instance: data_storage,
         parent=None,
     ):
         super().__init__(parent)
+        self.running = False
         self.dataframe = dataframe
         self.columnpicker_instance = columnpicker_instance
-        self.stored_data_instance = stored_data_instance
 
     def run(self):
-        """Task to load data."""
-        self.preprocess_data()
+        """Calculate the measurement."""
+        self.running = True
+        try:
+            self._preprocess_data()
+        except Exception as e:
+            self.aborted.emit(e)
+            print(e)
         self.finished.emit()
+        self.running = False
 
-    def preprocess_data(self):
+    def _preprocess_data(self):
         """Preprocesses data and stores it in the data storage."""
         while self.columnpicker_instance.isVisible():
             time.sleep(0.1)
@@ -400,22 +386,14 @@ class DataPreprocessor(QObject):
         if not self.columnpicker_instance.ok_pressed:
             self.aborted.emit(1)
             return
-        try:
-            frame_col = self.columnpicker_instance.frame.currentText()
-            op = self.columnpicker_instance.measurement_math.currentText()
-            in_meas1 = self.columnpicker_instance.measurment.currentText()
-            in_meas2 = self.columnpicker_instance.second_measurment.currentText()
 
-            meas_name, df = preprocess_data(
-                self.dataframe, frame_col, op, in_meas1, in_meas2, OPERATOR_DICTIONARY
-            )
-            # carefull this has to be in the order like below otherwise the subsequent callbacks will
-            # start before the measurement column is set to the proper value since it listens for changes in the
-            # original data
-        except Exception as e:
-            print(e)
-            self.aborted.emit(2)
-            return
+        op = self.columnpicker_instance.measurement_math.currentText()
+        in_meas1 = self.columnpicker_instance.measurement.currentText()
+        in_meas2 = self.columnpicker_instance.second_measurement.currentText()
+
+        meas_name, df = preprocess_data(
+            self.dataframe, op, in_meas1, in_meas2, OPERATOR_DICTIONARY
+        )
 
         self.new_data.emit(df, meas_name)
         self.aborted.emit(0)

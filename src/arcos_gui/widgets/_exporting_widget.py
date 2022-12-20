@@ -14,7 +14,7 @@ from qtpy.QtGui import QIcon
 
 if TYPE_CHECKING:
     import napari.viewer
-    from arcos_gui.processing import data_storage
+    from arcos_gui.processing import DataStorage
 
 # icons
 ICONS = Path(__file__).parent.parent / "_icons"
@@ -52,7 +52,7 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
     def __init__(
         self,
         viewer: napari.viewer.Viewer,
-        data_storage_instance: data_storage,
+        data_storage_instance: DataStorage,
         parent=None,
     ):
         super().__init__(parent)
@@ -73,7 +73,7 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
             path = Path(self.file_LineEdit_data.text())
             output_name = f"{self.current_date}_{self.base_name_LineEdit_data.text()}_arcos_output.csv"
             outpath = os.path.join(path, output_name)
-            self._data_storage_instance.arcos_output.value.to_csv(outpath)
+            self._data_storage_instance.arcos_output.value.to_csv(outpath, index=False)
             show_info(f"wrote csv file to {outpath}")
 
     def _export_arcos_stats(self):
@@ -83,7 +83,7 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
             path = Path(self.file_LineEdit_data.text())
             output_name = f"{self.current_date}_{self.base_name_LineEdit_data.text()}_arcos_stats.csv"
             outpath = os.path.join(path, output_name)
-            self._data_storage_instance.arcos_stats.value.to_csv(outpath)
+            self._data_storage_instance.arcos_stats.value.to_csv(outpath, index=False)
             show_info(f"wrote csv file to {outpath}")
 
     def _export_arcos_params(self):
@@ -93,7 +93,9 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
             path = Path(self.file_LineEdit_data.text())
             output_name = f"{self.current_date}_{self.base_name_LineEdit_data.text()}_arcos_params.csv"
             outpath = os.path.join(path, output_name)
-            self._data_storage_instance.arcos_parameters.as_dataframe.to_csv(outpath)
+            self._data_storage_instance.arcos_parameters.as_dataframe.to_csv(
+                outpath, index=False
+            )
             show_info(f"wrote csv file to {outpath}")
 
     def _export_image_series(self):
@@ -163,13 +165,13 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
 if __name__ == "__main__":
     import sys
 
-    from arcos_gui.processing import data_storage  # noqa: F811
+    from arcos_gui.processing import DataStorage  # noqa: F811
     from napari import Viewer
 
     viewer = Viewer()
 
     app = QtWidgets.QApplication(sys.argv)
-    ds = data_storage()
+    ds = DataStorage()
     window = ExportWidget(viewer, ds)
     ds.timestamp_parameters.value_changed_connect(
         lambda: print(ds.timestamp_parameters)
