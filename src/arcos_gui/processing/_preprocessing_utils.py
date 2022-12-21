@@ -6,7 +6,7 @@ import time
 from typing import TYPE_CHECKING, Callable, Union
 
 if TYPE_CHECKING:
-    from arcos_gui.widgets import columnpicker
+    pass
 
 import pandas as pd
 from arcos_gui.tools import OPERATOR_DICTIONARY
@@ -319,81 +319,74 @@ class process_input:
 
 class DataLoader(QObject):
     finished = Signal()
-    new_data = Signal(pd.DataFrame)
+    loading_finished = Signal()
+    new_data = Signal(pd.DataFrame, str)
+    aborted = Signal(object)
 
     def __init__(
         self,
         filepath: str,
         delimiter: str,
+        wait_for_columnpicker=False,
         parent=None,
     ):
         super().__init__(parent)
         self.filepath = filepath
         self.delimiter = delimiter
-        self.running = False
+        self.wait_for_columnpicker = wait_for_columnpicker
+        self.abort_loading = False
+
+        self.op = None
+        self.meas_1 = None
+        self.meas_2 = None
 
     def run(self):
         """Task to load data."""
-        self.running = True
-        self.load_data(self.filepath, self.delimiter)
-        self.finished.emit()
-        self.running = False
-
-    def load_data(self, filepath, delimiter=None):
-        """Loads data from a csv file and stores it in the data storage."""
-        if delimiter:
-            df = pd.read_csv(filepath, delimiter=delimiter)
-        else:
-            df = pd.read_csv(filepath)
-
-        self.new_data.emit(df)
-
-
-class DataPreprocessor(QObject):
-    finished = Signal()
-    aborted = Signal(
-        object
-    )  # 0 = not aborted, 1 = aborted by user, 2 = aborted by error
-    new_data = Signal(pd.DataFrame, str)
-
-    def __init__(
-        self,
-        dataframe: pd.DataFrame,
-        columnpicker_instance: columnpicker,
-        parent=None,
-    ):
-        super().__init__(parent)
-        self.running = False
-        self.dataframe = dataframe
-        self.columnpicker_instance = columnpicker_instance
-
-    def run(self):
-        """Calculate the measurement."""
-        self.running = True
         try:
-            self._preprocess_data()
+            df = self._load_data(self.filepath, self.delimiter)
+            self._preprocess_data(df)
+            self.aborted.emit(0)
         except Exception as e:
-            self.aborted.emit(e)
             print(e)
+            self.aborted.emit(e)
         self.finished.emit()
-        self.running = False
 
-    def _preprocess_data(self):
+    def _load_data(self, filepath, delimiter=None):
+        """Loads data from a csv file and stores it in the data storage."""
+        df = []
+        df_iterator = pd.read_csv(filepath, delimiter=delimiter, chunksize=100000)
+        for chunk in df_iterator:
+            df.append(chunk)
+            if self.abort_loading:
+                break
+        if len(df) < 2:
+            df = df[0]
+        else:
+            df = pd.concat(df, ignore_index=True).reset_index(drop=True)
+        self.loading_finished.emit()
+
+        return df
+
+    def _preprocess_data(self, dataframe):
         """Preprocesses data and stores it in the data storage."""
-        while self.columnpicker_instance.isVisible():
+        while self.wait_for_columnpicker:
             time.sleep(0.1)
 
-        if not self.columnpicker_instance.ok_pressed:
+        if self.abort_loading:
             self.aborted.emit(1)
             return
 
-        op = self.columnpicker_instance.measurement_math.currentText()
-        in_meas1 = self.columnpicker_instance.measurement.currentText()
-        in_meas2 = self.columnpicker_instance.second_measurement.currentText()
+        op = self.op
+        in_meas1 = self.meas_1
+        in_meas2 = self.meas_2
+        names_list = [op, in_meas1, in_meas2]
 
-        meas_name, df = preprocess_data(
-            self.dataframe, op, in_meas1, in_meas2, OPERATOR_DICTIONARY
+        if names_list.count(None) == len(names_list):
+            self.new_data.emit(dataframe, "None")
+            return
+
+        meas_name, df_new = preprocess_data(
+            dataframe, op, in_meas1, in_meas2, OPERATOR_DICTIONARY
         )
 
-        self.new_data.emit(df, meas_name)
-        self.aborted.emit(0)
+        self.new_data.emit(df_new, meas_name)

@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 from arcos_gui.processing._preprocessing_utils import (
     DataLoader,
-    DataPreprocessor,
     calculate_measurement,
     check_for_collid_column,
     filter_data,
@@ -19,7 +18,7 @@ from arcos_gui.processing._preprocessing_utils import (
 )
 from arcos_gui.tools import OPERATOR_DICTIONARY
 from arcos_gui.widgets import columnpicker
-from qtpy.QtCore import QEventLoop, QThread
+from qtpy.QtCore import QEventLoop, Qt, QThread
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -384,18 +383,54 @@ def test_rescale_measurment(process_input_fixture: process_input):
     pd.testing.assert_frame_equal(out, test_df)
 
 
-def test_data_loader_thread(qtbot):
-    thread = QThread()
+def test_data_loader_thread_no_meas(qtbot):
+    loop = QEventLoop()
+    thread = QThread(loop)
     data_loader = DataLoader(
         "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ","
     )
 
-    def assert_data(data):
-        assert isinstance(data, pd.DataFrame)
+    def assert_data(df, meas_name):
+        assert meas_name == "None"
+        assert isinstance(df, pd.DataFrame)
+
+    # create event loop so the test function does not end
+    # before the thread can finish
+
+    # move worker to thread
+    data_loader.moveToThread(thread)
+    # set up starting callbacks
+    thread.started.connect(data_loader.run)
+    # set up finished callbacks
+    data_loader.finished.connect(data_loader.deleteLater)
+
+    thread.finished.connect(thread.deleteLater)
+    data_loader.finished.connect(thread.quit)
+    thread.finished.connect(loop.quit)
+
+    # connect the assert function to the data signal
+    data_loader.new_data.connect(assert_data)
+    # start the thread and the event loop
+    thread.start()
+    loop.exec_()
+
+
+def test_data_loader_thread_meas(qtbot):
+    def assert_data(df, meas_name):
+        assert meas_name == "m"
+        assert isinstance(df, pd.DataFrame)
 
     # create event loop so the test function does not end
     # before the thread can finish
     loop = QEventLoop()
+    thread = QThread()
+    data_loader = DataLoader(
+        "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ","
+    )
+    data_loader.op = "None"
+    data_loader.meas_1 = "m"
+    data_loader.meas_2 = "None"
+
     # move worker to thread
     data_loader.moveToThread(thread)
     # set up starting callbacks
@@ -414,42 +449,55 @@ def test_data_loader_thread(qtbot):
     loop.exec_()
 
 
-def test_data_preprocessor_thread(qtbot: QtBot):
+def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
     def assert_data(df, meas_name):
         assert meas_name == "m"
         assert isinstance(df, pd.DataFrame)
 
-    df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
-    picker_widget = columnpicker()
+    def set_loading_worker_columns(self):
+        data_loader.op = picker_widget.measurement_math.currentText()
+        data_loader.meas_1 = picker_widget.measurement.currentText()
+        data_loader.meas_2 = picker_widget.second_measurement.currentText()
+        data_loader.wait_for_columnpicker = False
 
-    # set columnnames for the columnpicker
-    picker_widget.set_column_names(df.columns)
-    # set the columnpicker to the correct values needed for the test
-    picker_widget.measurement_math.setCurrentText("None")
-    picker_widget.measurement.setCurrentText("m")
-    picker_widget.second_measurement.setCurrentText("None")
-    # need to click ok to set ok_clicked to true
-
-    qtbot.addWidget(picker_widget)
-    picker_widget.ok_pressed = True
-    thread = QThread()
-    data_preprocessor = DataPreprocessor(df, picker_widget)
     # create event loop so the test function does not end
     # before the thread can finish
     loop = QEventLoop()
+    thread = QThread()
+    # now with option True to make sure that the data loader waits for the colosing of columnpicker
+    data_loader = DataLoader(
+        "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ",", True
+    )
+    picker_widget = columnpicker()
+    qtbot.addWidget(picker_widget)
+
+    # set columnnames for the columnpicker
+    picker_widget.set_column_names(["m"])
+
+    # connect callback to set wait_for_picker to False
+    # Quite important otherwise the test will not end
+    picker_widget.Ok.clicked.connect(set_loading_worker_columns)
+
     # move worker to thread
-    data_preprocessor.moveToThread(thread)
+    data_loader.moveToThread(thread)
     # set up starting callbacks
-    thread.started.connect(data_preprocessor.run)
+    thread.started.connect(data_loader.run)
     # set up finished callbacks
-    data_preprocessor.finished.connect(data_preprocessor.deleteLater)
-    data_preprocessor.finished.connect(thread.quit)
+    data_loader.finished.connect(data_loader.deleteLater)
+    data_loader.finished.connect(thread.quit)
 
     thread.finished.connect(thread.deleteLater)
     thread.finished.connect(loop.quit)
 
-    data_preprocessor.new_data.connect(assert_data)
+    data_loader.new_data.connect(assert_data)
 
     # start the thread and the event loop
     thread.start()
+
+    # set the columnpicker to the correct values needed for the test
+    picker_widget.measurement_math.setCurrentText("None")
+    picker_widget.measurement.setCurrentText("m")
+    picker_widget.second_measurement.setCurrentText("None")
+    qtbot.mouseClick(picker_widget.Ok, Qt.LeftButton)
+
     loop.exec_()

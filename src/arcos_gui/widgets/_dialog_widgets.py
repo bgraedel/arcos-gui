@@ -284,13 +284,13 @@ class columnpicker(QtWidgets.QDialog):
     def settable_columns(self):
         return (
             self.frame,
-            self.field_of_view_id,
             self.track_id,
             self.x_coordinates,
             self.y_coordinates,
             self.z_coordinates,
             self.measurement,
             self.second_measurement,
+            self.field_of_view_id,
             self.additional_filter,
             self.measurement_math,
         )

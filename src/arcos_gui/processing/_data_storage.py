@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Any, Union
 
 import pandas as pd
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
@@ -31,27 +31,19 @@ class columnnames:
         """returns a list of all column names that can be set in the columnpicker_widget"""
         return [
             self.frame_column,
-            self.position_id,
             self.object_id,
             self.x_column,
             self.y_column,
             self.z_column,
             self.measurement_column_1,
             self.measurement_column_2,
+            self.position_id,
             self.additional_filter_column,
             self.measurement_math_operatoin,
         ]
 
     @property
-    def posCol_list(self):
-        """returns a ist of position columns depending on wether a z coordinate column wsa selected or not."""
-        if self.z_column != "None":
-            posCols = [self.x_column, self.y_column, self.z_column]
-            return posCols
-        return [self.x_column, self.y_column]
-
-    @property
-    def coordinate_columns(self):
+    def posCol(self):
         """returns a list of all coordinate columns"""
         if self.z_column != "None":
             return [self.x_column, self.y_column, self.z_column]
@@ -199,8 +191,8 @@ class data_frame_storage:
 
 
 @dataclass
-class value_calback:
-    _value: Union[int, str, None]
+class value_callback:
+    _value: Union[int, str, None, Any]
     _callbacks: list = field(default_factory=list)
     verbous = False
 
@@ -229,29 +221,41 @@ class value_calback:
         return repr(self._value)
 
 
+@dataclass
 class DataStorage:
     """Stores data for the GUI."""
 
-    def __init__(self):
-        self._original_data: data_frame_storage = data_frame_storage(pd.DataFrame())
-        self._filtered_data: data_frame_storage = data_frame_storage(pd.DataFrame())
-        self._arcos_binarization: data_frame_storage = data_frame_storage(
-            pd.DataFrame()
-        )
-        self._arcos_output: data_frame_storage = data_frame_storage(pd.DataFrame())
-        self._arcos_stats: data_frame_storage = data_frame_storage(pd.DataFrame())
-        self._columns: columnnames = columnnames()
-        self._arcos_parameters: arcos_parameters = arcos_parameters()
-        self.min_max_meas: tuple = (0, 0.5)
-        self.colormaps = list(AVAILABLE_COLORMAPS)
-        self.point_size = 10
-        self._selected_object_id: value_calback = value_calback(None)
-        self.lut = "inferno"
-        self._filename_for_sample_data: value_calback(None) = value_calback(None)
-        self._timestamp_parameters: value_calback = value_calback(
-            timestamp_parameters()
-        )
-        self.verbous = False
+    _original_data: data_frame_storage = field(
+        default_factory=lambda: data_frame_storage(pd.DataFrame())
+    )
+    _filtered_data: data_frame_storage = field(
+        default_factory=lambda: data_frame_storage(pd.DataFrame())
+    )
+    _arcos_binarization: data_frame_storage = field(
+        default_factory=lambda: data_frame_storage(pd.DataFrame())
+    )
+    _arcos_output: data_frame_storage = field(
+        default_factory=lambda: data_frame_storage(pd.DataFrame())
+    )
+    _arcos_stats: data_frame_storage = field(
+        default_factory=lambda: data_frame_storage(pd.DataFrame())
+    )
+    _columns: columnnames = field(default_factory=columnnames)
+    _arcos_parameters: arcos_parameters = field(default_factory=arcos_parameters)
+    min_max_meas: tuple = field(default=(0, 0.5))
+    colormaps: list = field(default_factory=lambda: list(AVAILABLE_COLORMAPS))
+    point_size = 10
+    _selected_object_id: value_callback = field(
+        default_factory=lambda: value_callback(None)
+    )
+    lut: str = "inferno"
+    _filename_for_sample_data: value_callback = field(
+        default_factory=lambda: value_callback(None)
+    )
+    _timestamp_parameters: value_callback = field(
+        default_factory=lambda: value_callback(timestamp_parameters())
+    )
+    verbous: bool = False
 
     def reset_all_attributes(self, trigger_callback=False):
         if trigger_callback:
@@ -415,6 +419,43 @@ class DataStorage:
             self.original_data = pd.read_csv(filename)
         else:
             self.original_data._value = pd.read_csv(filename)
+
+    def __eq__(self, other):
+        if isinstance(other, DataStorage):
+            try:
+                pd.testing.assert_frame_equal(
+                    self._original_data.value, other._original_data.value
+                )
+                pd.testing.assert_frame_equal(
+                    self._filtered_data.value, other._filtered_data.value
+                )
+                pd.testing.assert_frame_equal(
+                    self._arcos_binarization.value, other._arcos_binarization.value
+                )
+                pd.testing.assert_frame_equal(
+                    self._arcos_output.value, other._arcos_output.value
+                )
+                pd.testing.assert_frame_equal(
+                    self._arcos_stats.value, other._arcos_stats.value
+                )
+                return (
+                    self._columns == other._columns
+                    and self._arcos_parameters == other._arcos_parameters
+                    and self.min_max_meas == other.min_max_meas
+                    and self.colormaps == other.colormaps
+                    and self.point_size == other.point_size
+                    and self._selected_object_id.value
+                    == other._selected_object_id.value
+                    and self.lut == other.lut
+                    and self._filename_for_sample_data.value
+                    == other._filename_for_sample_data.value
+                    and self._timestamp_parameters.value
+                    == other._timestamp_parameters.value
+                    and self.verbous == other.verbous
+                )
+            except AssertionError:
+                return False
+        return False
 
 
 if __name__ == "__main__":

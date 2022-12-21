@@ -13,12 +13,14 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture()
-def make_input_widget(qtbot, make_napari_viewer) -> tuple[InputDataWidget, QtBot]:
+def make_input_widget(qtbot, make_napari_viewer):
     viewer = make_napari_viewer()
     ds = DataStorage()
     widget = InputDataWidget(viewer, ds)
     qtbot.addWidget(widget)
-    return widget, qtbot
+    yield widget, qtbot
+    widget.close()
+    del widget
 
 
 def test_open_widget(make_input_widget):
@@ -56,7 +58,10 @@ def test_open_columnpicker(make_input_widget: tuple[InputDataWidget, QtBot]):
 
     # assert that the columnpicker window was opened
     assert widget.picker.isVisibleTo(widget)
-    widget.picker.close()
+    qtbot.mouseClick(widget.picker.abort_button, Qt.LeftButton)
+    widget.loading_thread.quit()
+    widget.loading_thread.exit()
+    widget.close()
 
 
 def test_open_columnpicker_with_invalid_file(
@@ -131,18 +136,25 @@ def test_set_choices_names_from_previous(
         "Position",
         "None",
     ]
+    qtbot.mouseClick(widget.picker.Ok, Qt.LeftButton)
 
-    sorted(widget.picker.get_column_names) == sorted(column_names)
+    assert sorted(widget.picker.get_column_names) == sorted(column_names)
+    widget.loading_thread.quit()
+    widget.loading_thread.exit()
+    widget.close()
 
 
 def test_data_loading(make_input_widget: tuple[InputDataWidget, QtBot]):
+    # need this event loop thingy to wait for the creation of the preprocessing worker
+    loopy = QEventLoop()
     widget, qtbot = make_input_widget
 
     # set the file_LineEdit field to a csv file path
     widget.file_LineEdit.setText("src/arcos_gui/_tests/test_data/arcos_data.csv")
-
+    print("testing")
     # simulate a click on the open_file_button
     qtbot.mouseClick(widget.open_file_button, Qt.LeftButton)
+    # simulate setting the column names
     widget.picker.frame.setCurrentText("t")
     widget.picker.track_id.setCurrentText("id")
     widget.picker.x_coordinates.setCurrentText("x")
@@ -151,19 +163,18 @@ def test_data_loading(make_input_widget: tuple[InputDataWidget, QtBot]):
     widget.picker.measurement.setCurrentText("m")
     widget.picker.measurement_math.setCurrentText("None")
     widget.picker.second_measurement.setCurrentText("None")
-    widget.picker.field_of_view_id.setCurrentText("Position")
+    widget.picker.field_of_view_id.setCurrentText("None")
     widget.picker.additional_filter.setCurrentText("None")
-    # press ok to close the picker widget
+    widget.loading_thread.started.connect(lambda: print("started"))
+    widget.loading_thread.finished.connect(lambda: print("finished"))
+    widget.loading_worker.finished.connect(lambda: print("worker finished"))
+    # quit event loop when the thread is finished
+    widget.loading_thread.finished.connect(loopy.quit)
 
     qtbot.mouseClick(widget.picker.Ok, Qt.LeftButton)
+    # press ok to close the picker widget
 
-    def wait_for_preprocessing():
-        widget.preprocessing_worker.finished.connect(loop.quit)
-
-    # need this event loop thingy to wait for the creation of the preprocessing worker
-    loop = QEventLoop()
-    widget.loading_worker.finished.connect(wait_for_preprocessing)
-    loop.exec_()
+    loopy.exec_()
     assert not widget.data_storage_instance.original_data.value.empty
 
 
@@ -185,14 +196,11 @@ def test_data_loading_abort(make_input_widget: tuple[InputDataWidget, QtBot], ca
     widget.picker.second_measurement.setCurrentText("None")
     widget.picker.field_of_view_id.setCurrentText("Position")
     widget.picker.additional_filter.setCurrentText("None")
-    # press ok to close the picker widget
-
-    def wait_for_preprocessing():
-        widget.preprocessing_worker.finished.connect(loop.quit)
 
     # need this event loop thingy to wait for the creation of the preprocessing worker
-    loop = QEventLoop()
-    widget.loading_worker.finished.connect(wait_for_preprocessing)
+    loop = QEventLoop(parent=widget)
+    widget.loading_thread.finished.connect(loop.quit)
+    # press abort to close the picker widget
     widget.picker.abort_button.click()
     loop.exec_()
     catptured = capsys.readouterr()

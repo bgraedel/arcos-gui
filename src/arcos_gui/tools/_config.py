@@ -44,4 +44,5 @@ ARCOS_LAYERS = {
     "collective_events_cells": "Collective Events Cells",
     "event_hulls": "Collective Events",
     "event_boundingbox": "Event Bounding Box",
+    "timestamp": "Timestamp",
 }

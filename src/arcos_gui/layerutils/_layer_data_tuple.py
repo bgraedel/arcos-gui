@@ -30,10 +30,9 @@ def prepare_all_cells_layer(
     ----------
     df_all : pd.DataFrame
         dataframe with all cells
-    frame_col_name : str
-        name of frame column
     vColsCore : list
-        list with core columns
+        list with core columns in dataframe
+        order: [framecol, ycol, xcol, zcol(optional)]
     measurement_name : str
         name of measurement
     lut : str
@@ -78,7 +77,7 @@ def prepare_all_cells_layer(
     return all_cells
 
 
-def prepare_active_cells(
+def prepare_active_cells_layer(
     df_bin: pd.DataFrame, vColsCore: list, measbin_col: str, size: float
 ) -> Union[tuple, None]:
     """Prepare active cells layer.
@@ -88,7 +87,8 @@ def prepare_active_cells(
     df_bin : pd.DataFrame
         dataframe with binarized data
     vColsCore : list
-        list with core columns
+        list with core columns in dataframe
+        order: [framecol, ycol, xcol, zcol(optional)]
     measbin_col : str
         name of binarized measurement column
 
@@ -130,7 +130,8 @@ def prepare_events_layer(
     df_coll : pd.DataFrame
         dataframe with events
     vColsCore : list
-        list with core columns
+        list with core columns in dataframe
+        order: [framecol, ycol, xcol, zcol(optional)]
     size : float
         size of cells
 
@@ -181,7 +182,8 @@ def prepare_convex_hull_layer(
     collid_name : str
         name of collid column
     vColsCore : list
-        list with core columns
+        list with core columns in dataframe
+        order: [framecol, ycol, xcol, zcol(optional)]
 
     Returns
     -------
@@ -189,7 +191,7 @@ def prepare_convex_hull_layer(
         tuple with convex hull layer
     """
 
-    if df_coll["collid"].to_numpy().size == 0:
+    if df_coll[collid_name].to_numpy().size == 0:
         return None
 
     if len(vColsCore) == 3:
@@ -246,7 +248,7 @@ def prepare_convex_hull_layer(
     return coll_events
 
 
-def timestamp_layer(
+def prepare_timestamp_layer(
     viewer, start_time, step_time, position, prefix, suffix, size, x_shift, y_shift
 ):
 
@@ -261,9 +263,9 @@ def timestamp_layer(
             "face_color": kw_timestamp["face_color"],
             "edge_color": kw_timestamp["edge_color"],
             "shape_type": kw_timestamp["shape_type"],
-            "text": kw_timestamp["string"],
+            "text": kw_timestamp["text"],
             "opacity": kw_timestamp["opacity"],
-            "name": "Timestamp",
+            "name": ARCOS_LAYERS["timestamp"],
         },
         "shapes",
     )

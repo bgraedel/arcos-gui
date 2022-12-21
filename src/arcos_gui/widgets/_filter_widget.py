@@ -130,7 +130,7 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
         )
         selected_frame_column = self.data_storage_instance.columns.frame_column
         measurement_name_column = self.data_storage_instance.columns.measurement_column
-        coordinate_column = self.data_storage_instance.columns.posCol_list
+        coordinate_column = self.data_storage_instance.columns.posCol
 
         # filter data
         self.data_filtered, max_meas, min_meas = filter_data(

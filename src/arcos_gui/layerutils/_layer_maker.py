@@ -6,11 +6,11 @@ from arcos_gui.tools import ARCOS_LAYERS
 from napari.layers import Layer
 
 from ._layer_data_tuple import (
-    prepare_active_cells,
+    prepare_active_cells_layer,
     prepare_all_cells_layer,
     prepare_convex_hull_layer,
     prepare_events_layer,
-    timestamp_layer,
+    prepare_timestamp_layer,
 )
 
 if TYPE_CHECKING:
@@ -90,7 +90,7 @@ class Layermaker:
         )
 
         layers.append(
-            prepare_active_cells(
+            prepare_active_cells_layer(
                 self.data_storage_instance.arcos_binarization.value,
                 VcolsCore,
                 self.data_storage_instance.columns.measurement_bin,
@@ -125,7 +125,7 @@ class Layermaker:
         return layers
 
     def _connect_all_cells_point_select(self):
-        self.viewer.layers["All Cells"].events.emitters["current_properties"].connect(
+        self.viewer.layers["All Cells"].events.current_properties.connect(
             self._pick_event
         )
         self._prev_point_data = None
@@ -159,7 +159,7 @@ class Layermaker:
         if "Timestamp" in layer_list:
             self.viewer.layers.remove("Timestamp")
 
-        ts_layer_data = timestamp_layer(
+        ts_layer_data = prepare_timestamp_layer(
             self.viewer,
             start_time,
             step_time,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from arcos_gui.processing import DataLoader, DataPreprocessor, read_data_header
+from arcos_gui.processing import DataLoader, read_data_header
 from arcos_gui.tools import ARCOS_LAYERS, remove_layers_after_columnpicker
 from arcos_gui.widgets import columnpicker
 from napari.utils.notifications import show_info
@@ -62,7 +62,7 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         self.data_storage_instance = data_storage_instance
         super().__init__(parent)
         self.setup_ui()
-        self.picker = columnpicker()
+        self.picker = columnpicker(self)
 
         # set up file browser
         self.browse_file.clicked.connect(self._browse_files)
@@ -93,7 +93,7 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
             self.data_storage_instance.columns.pickablepickable_columns_names
         )
         self.picker = columnpicker(
-            parent=self.parent(), columnames_instance=self.data_storage_instance.columns
+            parent=self, columnames_instance=self.data_storage_instance.columns
         )
 
         self.picker.set_column_names(columns)
@@ -110,7 +110,12 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
 
     def run_data_loading(self, filename, delimiter=None):
         self.loading_thread = QThread(self)
-        self.loading_worker = DataLoader(filename, delimiter)
+        self.loading_worker = DataLoader(
+            filename, delimiter, wait_for_columnpicker=True
+        )
+        self.picker.abort_button.clicked.connect(self.abort_loading_worker)
+        self.picker.Ok.clicked.connect(self.set_loading_worker_columns)
+
         self.start_loading_icon()
         self.loading_worker.moveToThread(self.loading_thread)
         # Connect signals and slots
@@ -118,40 +123,30 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         # the loaded data is not updated in the data storage object and layers are not deleted
         # aswell as the columnnames are not updated
 
+        self.loading_worker.new_data.connect(self.succesfully_loaded)
+        self.loading_worker.aborted.connect(self.loading_aborted)
+
         self.loading_thread.started.connect(self.loading_worker.run)
-        self.loading_worker.finished.connect(self.loading_thread.quit)
+
         self.loading_worker.finished.connect(self.loading_worker.deleteLater)
         self.loading_thread.finished.connect(self.loading_thread.deleteLater)
+        self.loading_worker.finished.connect(self.loading_thread.quit)
 
-        self.loading_worker.new_data.connect(self.run_data_preprocessing)
-
+        self.loading_worker.loading_finished.connect(self.stop_loading_icon)
         self.loading_thread.start()
+        # self.loading_worker.loading_finished.connect(lambda: print("loading finished"))
+        # self.loading_thread.finished.connect(lambda: print("thread finished"))
         self.open_file_button.setEnabled(False)
 
-        # Final resets
-        self.loading_thread.finished.connect(self.stop_loading_icon)
+    def set_loading_worker_columns(self):
+        self.loading_worker.op = self.picker.measurement_math.currentText()
+        self.loading_worker.meas_1 = self.picker.measurement.currentText()
+        self.loading_worker.meas_2 = self.picker.second_measurement.currentText()
+        self.loading_worker.wait_for_columnpicker = False
 
-    def run_data_preprocessing(self, loaded_data: pd.DataFrame):
-        self.preprocessing_thread = QThread(self)
-        self.preprocessing_worker = DataPreprocessor(
-            loaded_data,
-            self.picker,
-        )
-
-        self.preprocessing_worker.moveToThread(self.preprocessing_thread)
-        self.preprocessing_worker.finished.connect(self.preprocessing_thread.quit)
-        self.preprocessing_worker.finished.connect(
-            self.preprocessing_worker.deleteLater
-        )
-        self.preprocessing_thread.finished.connect(
-            self.preprocessing_thread.deleteLater
-        )
-
-        self.preprocessing_thread.started.connect(self.preprocessing_worker.run)
-        self.preprocessing_thread.start()
-
-        self.preprocessing_worker.new_data.connect(self.succesfully_loaded)
-        self.preprocessing_worker.aborted.connect(self.loading_aborted)
+    def abort_loading_worker(self):
+        self.loading_worker.wait_for_columnpicker = False
+        self.loading_worker.abort_loading = True
 
     def succesfully_loaded(self, dataframe: pd.DataFrame, measuremt_name: str):
         """Updates the data storage with the loaded data."""

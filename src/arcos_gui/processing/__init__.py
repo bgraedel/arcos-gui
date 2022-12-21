@@ -9,7 +9,6 @@ from ._arcos_wrapper import arcos_wrapper
 from ._data_storage import DataStorage, columnnames, timestamp_parameters
 from ._preprocessing_utils import (
     DataLoader,
-    DataPreprocessor,
     filter_data,
     get_tracklengths,
     process_input,
@@ -24,7 +23,6 @@ __all__ = [
     "get_tracklengths",
     "process_input",
     "DataLoader",
-    "DataPreprocessor",
     "read_data_header",
     "arcos_wrapper",
 ]

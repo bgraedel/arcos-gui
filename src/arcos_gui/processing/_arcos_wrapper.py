@@ -270,7 +270,7 @@ class arcos_wrapper:
     ):
         # get the stored variables
         df_filtered = self.data_storage_instance.filtered_data.value
-        posCols = self.data_storage_instance.columns.coordinate_columns
+        posCols = self.data_storage_instance.columns.posCol
         meas = self.data_storage_instance.columns.measurement_column
         frame = self.data_storage_instance.columns.frame_column
         track_id_col_name = self.data_storage_instance.columns.object_id
