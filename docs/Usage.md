@@ -5,49 +5,60 @@ The following section shows how to use arcos-gui.
 ## Open Main Widget, Load Data, and run ARCOS
 
 #### Open Widget
-1. Make sure the arcos-gui and napari are installed.
-2. Open napari and dock the ARCOS main widget:
+Make sure the arcos-gui and napari are installed.
 
-![load_plugin](screenshots/load_plugin.png){ width="500" }
+0. Open napari and dock the ARCOS main widget:
 
+![load_plugin](screenshots/Widget_screenshots-0008.png)
 
 #### Load Data
-3. Load and filter the data:
+Load and filter the data:
 
-    a. Open file browser and select CSV file with data in long format. CSV file can be either comma, semicolon or tab separated. Additionally arcos-gui supports loading csv.gz files.
+1. Tabs represent different steps taken during the processing. Select the Input Data Tab to load a csv file.
 
-    b. Load CSV file.
+2. Open file browser by clicking on the folder icon and select CSV file with data in long format.
+    CSV file can be either comma, semicolon or tab separated. Additionally arcos-gui supports loading csv.gz files. Then press the "Load Data" button.
 
-    c. In the popup dialogue, select columns corresponding to the indicated label. For Z-coordinates, Position and Additional Filter (e.g Well) can be None if this column does not exist.
+3. In the popup dialogue, select columns corresponding to the indicated label. For Z-coordinates, Position and Additional Filter (e.g Well) can be None if this column does not exist.
     Optionally mathematical operations can be performed either between columns (i.e for Ratios of fluorescent biosensors). Depending on the selection of the operation via radio buttons,
     an additional column can be specified as second measurement. Default is None.
 
-    d. Filter input data. Parameters can be used to select track length, rescale frame interval and rescale measurement.
+4. Optional: Filter input data. Parameters can be used to select track length, rescale frame interval and rescale measurement.
 
-![load_and_filter](screenshots/load_filter.png){ width="300" } ![columnpicker](screenshots/select_from_dropdown.png){ width="400" }
+![load_and_filter](screenshots/Widget_screenshots-0002.png)
+![columnpicker](screenshots/Widget_screenshots-0000.png)
 
 
 #### Run ARCOS
-4. Select ARCOS parameters and run the algorithm.
+Select ARCOS parameters and run the algorithm.
 
-    a. Change ARCOS parameters, see the [ARCOS parameters](#arcos-parameters) section for in detail explanation.
+5. Toggle on wether you want to interpolated your measurement column and if you want to clip your measurement values.
 
-    b. Update ARCOS. Will run the algorithm and generate layers.
+6. Change Binarizatoin parameters, see the [ARCOS parameters](#arcos-parameters) section for in detail explanation. As a first step, try the None detrending method, since it is the simples
+    and requires the least tuning of input parameters. To validate binariztoin you can either look at the created layers. One of which "Active Cells" indicates which objects were detected as being on/ active.
 
-![arcos_parameters](screenshots/select_arcos_parameters.png){ width="400" }
+7. Optionally press "Binarize Data" button to only run the binarizatoin process. This can be usefull if the collective event detection takes a while.
+
+8. Change the Collective event detection parameters, see the [ARCOS parameters](#arcos-parameters) for more details or hover over individual parameters to get tooltipps about individual settings.
+
+7. Update ARCOS. Will run the algorithm and generate layers.
+
+![arcos_parameters](screenshots/Widget_screenshots-0006.png){ width="400" }
 
 ## Generated Layers
 
-![collective_events](screenshots/collev_.png){ width="600" }
+This is what en example dataset looks like:
+![collective_events](screenshots/Widget_screenshots-0007.png){ width="600" }
 
-- a. Detected collective event with its convex hull.
+1. Widget
+2. Detected collective event with its convex hull.
 
-- b. Generated layers are:
+3. Generated layers are:
 
-    1. all_cells: centroid of cells with the color code representing the measurement.
-    2. active cells: points represent active cells according to binarization
-    3. coll cells: Points marking cells that are part of a collective event, colored by collective event id.
-    4. coll event: the convex hull of collective events, colored by collective event id.
+    All Cells: centroid of cells with the color code representing the measurement.
+    Active cells: points represent active cells according to binarization
+    Cellective Events Cells: Points marking cells that are part of a collective event, colored by collective event id.
+    Collective Event: the convex hull of collective events, colored by collective event id.
 
 ## Other Widgets
 
