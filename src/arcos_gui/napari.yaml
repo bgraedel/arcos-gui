@@ -2,18 +2,12 @@ name: arcos-gui
 display_name: napari ARCOS
 contributions:
   commands:
-    - id: arcos-gui.export_data
-      python_name: arcos_gui._arcos_widgets:export_data
-      title: Gui to export_data
-    - id: arcos-gui.add_timestamp
-      python_name: arcos_gui._arcos_widgets:add_timestamp
-      title: Gui to add a timestamp
     - id: arcos-gui.MainWindow
-      python_name: arcos_gui._arcos_widgets:MainWindow
+      python_name: arcos_gui._main_widget:MainWindow
       title: Opens filedialog to import csv
     - id: arcos-gui.data.arcos_sample_data
       title: Import sample data
-      python_name: arcos_gui._sample_data:load_sample_data
+      python_name: arcos_gui.tools:load_sample_data
   sample_data:
     - key: arcos_sample_data
       display_name: ARCOS Sample Data
@@ -21,7 +15,3 @@ contributions:
   widgets:
     - command: arcos-gui.MainWindow
       display_name: ARCOS Main Widget
-    - command: arcos-gui.add_timestamp
-      display_name: Timestamp
-    - command: arcos-gui.export_data
-      display_name: Data Export
