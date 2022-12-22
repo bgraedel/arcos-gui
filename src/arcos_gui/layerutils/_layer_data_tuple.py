@@ -49,6 +49,7 @@ def prepare_all_cells_layer(
     """
 
     # np matrix with all cells
+    df_all = df_all.copy()
     df_all.interpolate(method="linear", inplace=True)
     datAll = df_all[vColsCore].to_numpy()
     datID = df_all[track_id_col].to_numpy()

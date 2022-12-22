@@ -5,6 +5,7 @@ __email__ = "benjamin.graedel@unibe.ch"
 __version__ = "0.0.6"
 
 from arcos_gui.widgets._arcos_widget import ArcosWidget
+from arcos_gui.widgets._bottom_bar_widget import BottomBarWidget
 from arcos_gui.widgets._dialog_widgets import columnpicker, timestamp_options
 from arcos_gui.widgets._exporting_widget import ExportWidget
 from arcos_gui.widgets._filter_widget import FilterDataWidget
@@ -22,4 +23,5 @@ __all__ = [
     "collevPlotWidget",
     "columnpicker",
     "timestamp_options",
+    "BottomBarWidget",
 ]

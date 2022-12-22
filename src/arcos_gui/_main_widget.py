@@ -7,6 +7,7 @@ from arcos_gui.layerutils import Layermaker
 from arcos_gui.processing import DataStorage
 from arcos_gui.widgets import (
     ArcosWidget,
+    BottomBarWidget,
     ExportWidget,
     FilterDataWidget,
     InputDataWidget,
@@ -35,6 +36,11 @@ class _MainUI:
 
     evplots_layout: QtWidgets.QVBoxLayout
     tsplots_layout: QtWidgets.QVBoxLayout
+
+    bottom_bar_layout: QtWidgets.QVBoxLayout
+
+    nbr_collev_display: QtWidgets.QLCDNumber
+    help_button: QtWidgets.QPushButton
 
     def setup_ui(self):
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
@@ -81,6 +87,11 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             parent=self,
         )
 
+        self.bottom_bar_widget = BottomBarWidget(
+            data_storage_instance=self.data_storage_instance,
+            parent=self,
+        )
+
         self.layermaker = Layermaker(self.viewer, self.data_storage_instance)
 
         self._add_widgets()
@@ -106,6 +117,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.tsplots_layout.addWidget(self.ts_plots_widget)
         self.evplots_layout.addWidget(self.collev_plots_widget)
         self.export_layout.addWidget(self.export_widget)
+        self.bottom_bar_layout.addWidget(self.bottom_bar_widget)
 
 
 if __name__ == "__main__":
