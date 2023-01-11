@@ -249,6 +249,13 @@ class arcos_wrapper:
         self.std_out = std_out
         self.arcos_object: Union[ARCOS, None] = None
         self.arcos_raw_output: pd.DataFrame = pd.DataFrame()
+        self.data_storage_instance.filtered_data.value_changed_connect(self._new_data)
+
+    def _new_data(self):
+        # set stats to default without triggering the value_changed signal
+        self.data_storage_instance.arcos_stats.value = pd.DataFrame()
+        self.data_storage_instance.arcos_output.value = pd.DataFrame()
+        self.data_storage_instance.arcos_binarization.value = pd.DataFrame()
 
     def run_arcos(
         self,
@@ -307,6 +314,7 @@ class arcos_wrapper:
             self.data_storage_instance.columns.measurement_resc = (
                 self.arcos_object.resc_col
             )
+            self.data_storage_instance.arcos_stats.value = pd.DataFrame()
 
             self.data_storage_instance.arcos_binarization = self.arcos_object.data
 
@@ -351,8 +359,5 @@ class arcos_wrapper:
             arcos_stats = calculate_arcos_stats(
                 arcos_df_filtered, frame, collid_name, track_id_col_name, posCols
             )
-        else:
-            arcos_stats = pd.DataFrame()
-            arcos_df_filtered = pd.DataFrame()
-        self.data_storage_instance.arcos_stats = arcos_stats
-        self.data_storage_instance.arcos_output = arcos_df_filtered
+            self.data_storage_instance.arcos_stats = arcos_stats
+            self.data_storage_instance.arcos_output = arcos_df_filtered

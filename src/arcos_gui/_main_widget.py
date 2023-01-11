@@ -59,15 +59,16 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.setup_ui()
 
         self.data_storage_instance = DataStorage()
-        # self.data_storage_instance.make_verbose() # uncomment to make callbacks verbose
+        # self.data_storage_instance.make_verbose()  # uncomment to make callbacks verbose
 
         self.input_data_widget = InputDataWidget(
-            viewer=self.viewer,
             data_storage_instance=self.data_storage_instance,
             parent=self,
         )
         self.filter_data_widget = FilterDataWidget(
-            data_storage_instance=self.data_storage_instance, parent=self
+            viewer=self.viewer,
+            data_storage_instance=self.data_storage_instance,
+            parent=self,
         )
         self.arcos_widget = ArcosWidget(
             data_storage_instance=self.data_storage_instance, parent=self

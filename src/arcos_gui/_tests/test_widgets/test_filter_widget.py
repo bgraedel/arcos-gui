@@ -13,9 +13,10 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture()
-def make_input_widget(qtbot) -> tuple[FilterDataWidget, QtBot]:
+def make_input_widget(qtbot, make_napari_viewer) -> tuple[FilterDataWidget, QtBot]:
+    viewer = make_napari_viewer()
     ds = DataStorage()
-    widget = FilterDataWidget(ds)
+    widget = FilterDataWidget(viewer, ds)
     qtbot.addWidget(widget)
     return widget, qtbot
 

@@ -4,7 +4,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from arcos_gui.processing import filter_data, get_tracklengths
-from arcos_gui.tools import set_track_lenths
+from arcos_gui.tools import (
+    ARCOS_LAYERS,
+    remove_layers_after_columnpicker,
+    set_track_lenths,
+)
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 from qtpy.QtCore import Qt
@@ -12,6 +16,7 @@ from superqt import QRangeSlider
 
 if TYPE_CHECKING:
     from arcos_gui.processing import DataStorage
+    from napari.viewer import Viewer
 
 
 class _filter_dataUI:
@@ -38,11 +43,13 @@ class _filter_dataUI:
 
 
 class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
-    def __init__(self, data_storage_instance: DataStorage, parent=None):
+    def __init__(self, viewer: Viewer, data_storage_instance: DataStorage, parent=None):
         super().__init__(parent)
+        self.viewer = viewer
         self.setup_ui()
         self._init_ranged_sliderts()
         self._connect_ranged_sliders_to_spinboxes()
+
         self.data_storage_instance = data_storage_instance
         self.data_storage_instance.original_data.value_changed_connect(
             self._original_data_changed
@@ -111,6 +118,7 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
 
     def _filter_data(self):
         """Method to filter the data."""
+        self._remove_old_layers()
         selected_position_value = self.position.currentData()
         selected_additional_filter_value = self.additional_filter_combobox.currentData()
         selected_frame_interval_value = self.frame_interval.value()
@@ -193,17 +201,21 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
             self.max_tracklength_spinbox,
         )
 
+    def _remove_old_layers(self):
+        remove_layers_after_columnpicker(self.viewer, ARCOS_LAYERS.values())
+
 
 if __name__ == "__main__":
     import sys
 
     import pandas as pd
     from arcos_gui.processing import DataStorage  # noqa: F811
+    from napari import Viewer  # noqa: F811
 
     data_storage_instance = DataStorage()
-
+    viewer = Viewer()
     app = QtWidgets.QApplication(sys.argv)
-    widget = FilterDataWidget(data_storage_instance=data_storage_instance)
+    widget = FilterDataWidget(viewer, data_storage_instance=data_storage_instance)
     widget.show()
     ai = pd.read_csv("C:/Users/benig/test.csv")
     data_storage_instance.columns.frame_column = "time"

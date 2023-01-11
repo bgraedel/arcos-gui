@@ -14,9 +14,8 @@ if TYPE_CHECKING:
 
 @pytest.fixture()
 def make_input_widget(qtbot, make_napari_viewer):
-    viewer = make_napari_viewer()
     ds = DataStorage()
-    widget = InputDataWidget(viewer, ds)
+    widget = InputDataWidget(ds)
     qtbot.addWidget(widget)
     yield widget, qtbot
     widget.close()

@@ -220,8 +220,9 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
         self._update_arcos_parameters()
 
     def _run_binarization_only(self):
-        self._what_to_run.clear()
-        self._what_to_run.add("binarization")
+        if self._what_to_run:
+            self._what_to_run.clear()
+            self._what_to_run.add("binarization")
         self.arcos_wrapper_instance.run_arcos(
             self.interpolate_meas.isChecked(),
             self.clip_meas.isChecked(),
@@ -239,8 +240,9 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
             self.min_dur.value(),
             self.total_event_size.value(),
         )
-        self._update_what_to_run_tracking()
-        self._update_arcos_parameters()
+        if self._what_to_run:
+            self._update_what_to_run_tracking()
+            self._update_arcos_parameters()
 
     def _update_arcos_parameters(self):
         """Update the parameters in the data storage instance"""

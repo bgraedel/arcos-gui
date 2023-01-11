@@ -293,6 +293,7 @@ def test_first_all_then_bin(
     assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
     assert viewer.layers[2].name == ARCOS_LAYERS["collective_events_cells"]
     assert viewer.layers[3].name == ARCOS_LAYERS["event_hulls"]
+    mywidget.arcos_widget.bin_threshold.setValue(0.5)
     mywidget.arcos_widget.run_binarization_only.click()
     assert len(viewer.layers) == 2
     assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]

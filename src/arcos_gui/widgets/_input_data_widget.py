@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from arcos_gui.processing import DataLoader, read_data_header
-from arcos_gui.tools import ARCOS_LAYERS, remove_layers_after_columnpicker
 from arcos_gui.widgets import columnpicker
 from napari.utils.notifications import show_info
 from qtpy import QtCore, QtWidgets, uic
@@ -14,7 +13,6 @@ from qtpy.QtGui import QIcon, QMovie
 if TYPE_CHECKING:
     import pandas as pd
     from arcos_gui.processing import DataStorage
-    from napari.viewer import Viewer
 
 # icons
 ICONS = Path(__file__).parent.parent / "_icons"
@@ -57,8 +55,7 @@ class _input_dataUI:
 
 
 class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
-    def __init__(self, viewer: Viewer, data_storage_instance: DataStorage, parent=None):
-        self.viewer = viewer
+    def __init__(self, data_storage_instance: DataStorage, parent=None):
         self.data_storage_instance = data_storage_instance
         super().__init__(parent)
         self.setup_ui()
@@ -150,7 +147,6 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
 
     def succesfully_loaded(self, dataframe: pd.DataFrame, measuremt_name: str):
         """Updates the data storage with the loaded data."""
-        self._remove_old_layers()
         self._set_datastorage_to_default()
         self.data_storage_instance.columns = self.picker.as_columnames_object
         self.data_storage_instance.columns.measurement_column = measuremt_name
@@ -171,9 +167,6 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
             show_info("Loading aborted by error")
             print(err_code)
             return
-
-    def _remove_old_layers(self):
-        remove_layers_after_columnpicker(self.viewer, ARCOS_LAYERS.values())
 
     def _set_datastorage_to_default(self):
         self.data_storage_instance.reset_relevant_attributes(trigger_callback=False)
