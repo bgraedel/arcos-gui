@@ -41,10 +41,12 @@ class Layermaker:
                 if result[1]["name"] == ARCOS_LAYERS["all_cells"]:
                     self._connect_all_cells_point_select()
 
-    def make_layers_all(self, convex_hull: bool = True):
+    def make_layers_all(self, convex_hull: bool | None = None):
         """adds layers from self.layers_to_create,
         whitch itself is upated from run_arcos method"""
         self._remove_old_layers()
+        if convex_hull is None:
+            convex_hull = self.data_storage_instance.arcos_parameters.add_convex_hull
         for result in self._layers_to_create_all(convex_hull):
             if result:
                 self.viewer.add_layer(Layer.create(*result))

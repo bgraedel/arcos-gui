@@ -154,7 +154,7 @@ def get_verticesHull(df, frame, colid, col_x, col_y):
     # map to grouped_array
     convex_hulls = [calculate_convex_hull(i) for i in grouped_array if i.shape[0] > 1]
     color_ids = np.take(
-        np.array(COLOR_CYCLE), [int(i[0, 0]) for i in convex_hulls], mode="wrap"
+        np.array(COLOR_CYCLE), [int(i[0, 0]) for i in convex_hulls if i], mode="wrap"
     )
     # color_ids = recycle_palette(COLOR_CYCLE, len(convex_hulls))
     out = [i[:, 1:] for i in convex_hulls]
