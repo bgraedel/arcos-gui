@@ -40,9 +40,13 @@ def test_the_what_to_run_changes(make_arcos_widget):
     arcos_widget, qtbot = make_arcos_widget
     assert arcos_widget._what_to_run == {"binarization", "tracking", "filtering"}
     qtbot.mouseClick(arcos_widget.run_binarization_only, Qt.LeftButton)
-    assert arcos_widget._what_to_run == {"tracking", "filtering"}
+    assert arcos_widget._what_to_run == {
+        "binarization",
+        "tracking",
+        "filtering",
+    }  # no data so should not change
     qtbot.mouseClick(arcos_widget.update_arcos, Qt.LeftButton)
-    assert arcos_widget._what_to_run == set()
+    assert arcos_widget._what_to_run == {"binarization", "tracking", "filtering"}
     qtbot.mouseClick(arcos_widget.clip_meas, Qt.LeftButton)
     assert arcos_widget._what_to_run == {"tracking", "filtering", "binarization"}
     arcos_widget._what_to_run.clear()

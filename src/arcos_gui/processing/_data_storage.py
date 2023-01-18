@@ -100,6 +100,7 @@ class arcos_parameters:
     nprev_spinbox: int = 0
     min_dur: int = 0
     total_event_size: int = 0
+    add_convex_hull: bool = True
 
     @property
     def as_dataframe(self):

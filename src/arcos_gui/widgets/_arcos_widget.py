@@ -46,7 +46,6 @@ class _arcosWidget:
     min_clustersize: QtWidgets.QSpinBox
     min_dur: QtWidgets.QSpinBox
     total_event_size: QtWidgets.QSpinBox
-    Progress: QtWidgets.QProgressBar
     update_arcos: QtWidgets.QPushButton
     run_binarization_only: QtWidgets.QPushButton
     arcos_group: QtWidgets.QGroupBox
@@ -199,50 +198,45 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
         self._what_to_run.clear()
 
     def _run_arcos(self):
-        self.arcos_wrapper_instance.run_arcos(
-            self.interpolate_meas.isChecked(),
-            self.clip_meas.isChecked(),
-            self.clip_low.value(),
-            self.clip_high.value(),
-            self.smooth_k.value(),
-            self.bias_k.value(),
-            self.bias_method.currentText(),
-            self.polyDeg.value(),
-            self.bin_threshold.value(),
-            self.bin_peak_threshold.value(),
-            self.neighbourhood_size.value(),
-            self.min_clustersize.value(),
-            self.nprev_spinbox.value(),
-            self.min_dur.value(),
-            self.total_event_size.value(),
-        )
-        self._clear_what_to_run()
         self._update_arcos_parameters()
+        self.arcos_wrapper_instance.run_arcos(
+            interpolate_meas=self.interpolate_meas.isChecked(),
+            clip_meas=self.clip_meas.isChecked(),
+            clip_low=self.clip_low.value(),
+            clip_high=self.clip_high.value(),
+            smooth_k=self.smooth_k.value(),
+            bias_k=self.bias_k.value(),
+            bias_method=self.bias_method.currentText(),
+            polyDeg=self.polyDeg.value(),
+            bin_threshold=self.bin_threshold.value(),
+            bin_peak_threshold=self.bin_peak_threshold.value(),
+            neighbourhood_size=self.neighbourhood_size.value(),
+            min_clustersize=self.min_clustersize.value(),
+            nprev=self.nprev_spinbox.value(),
+            min_dur=self.min_dur.value(),
+            total_event_size=self.total_event_size.value(),
+        )
 
     def _run_binarization_only(self):
-        if self._what_to_run:
-            self._what_to_run.clear()
-            self._what_to_run.add("binarization")
-        self.arcos_wrapper_instance.run_arcos(
-            self.interpolate_meas.isChecked(),
-            self.clip_meas.isChecked(),
-            self.clip_low.value(),
-            self.clip_high.value(),
-            self.smooth_k.value(),
-            self.bias_k.value(),
-            self.bias_method.currentText(),
-            self.polyDeg.value(),
-            self.bin_threshold.value(),
-            self.bin_peak_threshold.value(),
-            self.neighbourhood_size.value(),
-            self.min_clustersize.value(),
-            self.nprev_spinbox.value(),
-            self.min_dur.value(),
-            self.total_event_size.value(),
+        self._update_arcos_parameters()
+
+        self.arcos_wrapper_instance.run_bin(
+            interpolate_meas=self.interpolate_meas.isChecked(),
+            clip_meas=self.clip_meas.isChecked(),
+            clip_low=self.clip_low.value(),
+            clip_high=self.clip_high.value(),
+            smooth_k=self.smooth_k.value(),
+            bias_k=self.bias_k.value(),
+            bias_method=self.bias_method.currentText(),
+            polyDeg=self.polyDeg.value(),
+            bin_threshold=self.bin_threshold.value(),
+            bin_peak_threshold=self.bin_peak_threshold.value(),
+            neighbourhood_size=self.neighbourhood_size.value(),
+            min_clustersize=self.min_clustersize.value(),
+            nprev=self.nprev_spinbox.value(),
+            min_dur=self.min_dur.value(),
+            total_event_size=self.total_event_size.value(),
         )
-        if self._what_to_run:
-            self._update_what_to_run_tracking()
-            self._update_arcos_parameters()
 
     def _update_arcos_parameters(self):
         """Update the parameters in the data storage instance"""
@@ -278,6 +272,9 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
         self._data_storage_instance.arcos_parameters.min_dur = self.min_dur.value()
         self._data_storage_instance.arcos_parameters.total_event_size = (
             self.total_event_size.value()
+        )
+        self._data_storage_instance.arcos_parameters.add_convex_hull = (
+            self.add_convex_hull_checkbox.isChecked()
         )
 
 
