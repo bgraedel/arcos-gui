@@ -56,7 +56,7 @@ def prepare_all_cells_layer(
 
     # a dictionary with activities;
     # shown as a color code of all cells
-    datAllProp = {"act": df_all[measurement_name], "id": datID}
+    datAllProp = {"act": df_all[measurement_name].astype(float), "id": datID}
     # tuple to return layer as layer.data.tuple
     all_cells = (
         datAll,

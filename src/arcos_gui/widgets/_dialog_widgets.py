@@ -5,6 +5,7 @@ from typing import Union
 from arcos_gui.processing import columnnames
 from arcos_gui.tools import measurement_math_options
 from qtpy import QtWidgets
+from qtpy.QtCore import Signal
 
 
 class timestamp_options(QtWidgets.QDialog):
@@ -73,10 +74,14 @@ class timestamp_options(QtWidgets.QDialog):
 
 
 class columnpicker(QtWidgets.QDialog):
+    aborted = Signal()
+    ok = Signal()
+
     def __init__(
         self, parent=None, columnames_instance: Union[columnnames, None] = None
     ):
         super().__init__(parent)
+
         self.setupUi()
         self.add_tooltipps()
         self.columnames_instance = columnames_instance
@@ -94,11 +99,11 @@ class columnpicker(QtWidgets.QDialog):
 
     def _on_ok(self, event):
         self.ok_pressed = True
-        self.close()
+        self.accept()
 
     def _on_abort(self, event):
         self.ok_pressed = False
-        self.close()
+        self.reject()
 
     def setupUi(self):
         self.setObjectName("columnpicker")

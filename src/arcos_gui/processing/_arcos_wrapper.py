@@ -361,3 +361,18 @@ class arcos_wrapper:
             )
             self.data_storage_instance.arcos_stats = arcos_stats
             self.data_storage_instance.arcos_output = arcos_df_filtered
+            self.what_to_run.clear()
+
+    def run_bin(self, **kwargs):
+        initial_wtr = self.what_to_run.copy()
+        self.what_to_run.clear()
+        self.what_to_run.add("binarization")
+        self.run_arcos(**kwargs)
+        if not self.data_storage_instance.arcos_binarization.value.empty:
+            self.what_to_run.add("tracking")
+            self.what_to_run.add("filtering")
+        else:
+            self.what_to_run.clear()
+            for i in initial_wtr:
+                self.what_to_run.add(i)
+            self.std_out("No Binarized Data. Adjust Binazation Parameters.")

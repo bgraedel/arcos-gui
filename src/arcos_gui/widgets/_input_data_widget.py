@@ -110,8 +110,8 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         self.loading_worker = DataLoader(
             filename, delimiter, wait_for_columnpicker=True
         )
-        self.picker.abort_button.clicked.connect(self.abort_loading_worker)
-        self.picker.Ok.clicked.connect(self.set_loading_worker_columns)
+        self.picker.rejected.connect(self.abort_loading_worker)
+        self.picker.accepted.connect(self.set_loading_worker_columns)
 
         self.start_loading_icon()
         self.loading_worker.moveToThread(self.loading_thread)
