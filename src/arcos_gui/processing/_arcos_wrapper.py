@@ -160,7 +160,9 @@ def detect_events(
     if 1 not in arcos.data[_bin_col].values:
         return
 
-    arcos_events = arcos.trackCollev(neighbourhood_size, min_clustersize, nPrev_value)
+    arcos_events = arcos.trackCollev(
+        eps=neighbourhood_size, minClsz=min_clustersize, nPrev=nPrev_value
+    )
     return arcos_events
 
 
@@ -198,11 +200,14 @@ def filtering_arcos_events(
         dataframe with filtered events
     """
     filterer = filterCollev(
-        detected_events_df, frame_col_name, collid_name, track_id_col_name
+        data=detected_events_df,
+        frame_column=frame_col_name,
+        collid_column=collid_name,
+        obj_id_column=track_id_col_name,
     )
     arcos_filtered = filterer.filter(
-        min_dur,
-        total_event_size,
+        coll_duration=min_dur,
+        coll_total_size=total_event_size,
     )
 
     # makes filtered collids sequential
@@ -288,15 +293,15 @@ class arcos_wrapper:
                 return
 
             self.arcos_object = init_arcos_object(
-                df_filtered,
-                posCols,
-                meas,
-                frame,
-                track_id_col_name,
+                df_in=df_filtered,
+                posCols=posCols,
+                measurement_name=meas,
+                frame_col_name=frame,
+                track_id_col_name=track_id_col_name,
             )
 
             self.arcos_object = binarization(
-                self.arcos_object,
+                arcos=self.arcos_object,
                 interpolate_meas=interpolate_meas,
                 clip_meas=clip_meas,
                 clip_low=clip_low,
@@ -331,7 +336,7 @@ class arcos_wrapper:
                 return
 
             self.arcos_raw_output = detect_events(
-                self.arcos_object,
+                arcos=self.arcos_object,
                 neighbourhood_size=neighbourhood_size,
                 min_clustersize=min_clustersize,
                 nPrev_value=nprev,
@@ -345,19 +350,23 @@ class arcos_wrapper:
                 return
             collid_name = "collid"
             arcos_df_filtered = filtering_arcos_events(
-                self.arcos_raw_output,
-                frame,
-                collid_name,
-                track_id_col_name,
-                min_dur,
-                total_event_size,
+                detected_events_df=self.arcos_raw_output,
+                frame_col_name=frame,
+                collid_name=collid_name,
+                track_id_col_name=track_id_col_name,
+                min_dur=min_dur,
+                total_event_size=total_event_size,
             )
             if arcos_df_filtered.empty:
                 self.std_out(
                     "No Collective Events detected.Adjust Filtering parameters."
                 )
             arcos_stats = calculate_arcos_stats(
-                arcos_df_filtered, frame, collid_name, track_id_col_name, posCols
+                df_arcos_filtered=arcos_df_filtered,
+                frame_col=frame,
+                collid_name=collid_name,
+                object_id_name=track_id_col_name,
+                posCols=posCols,
             )
             self.data_storage_instance.arcos_stats = arcos_stats
             self.data_storage_instance.arcos_output = arcos_df_filtered
