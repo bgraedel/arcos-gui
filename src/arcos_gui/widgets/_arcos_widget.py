@@ -28,7 +28,7 @@ class _arcosWidget:
     neighbourhood_label: QtWidgets.QLabel
     min_clustersize_label: QtWidgets.QLabel
     nprev_spinbox: QtWidgets.QSpinBox
-    nprev_spinbox_label: QtWidgets.QLabel
+    nprev_label: QtWidgets.QLabel
     min_dur_label: QtWidgets.QLabel
     tot_size_label: QtWidgets.QLabel
 
@@ -36,13 +36,21 @@ class _arcosWidget:
     clip_meas: QtWidgets.QCheckBox
     clip_low: QtWidgets.QDoubleSpinBox
     clip_high: QtWidgets.QDoubleSpinBox
+
+    bin_advanced_options: QtWidgets.QCheckBox
     bias_method: QtWidgets.QComboBox
     smooth_k: QtWidgets.QSpinBox
     bias_k: QtWidgets.QSpinBox
     polyDeg: QtWidgets.QSpinBox
     bin_peak_threshold: QtWidgets.QDoubleSpinBox
     bin_threshold: QtWidgets.QDoubleSpinBox
+
+    detect_advance_options: QtWidgets.QCheckBox
+    eps_estimation_label: QtWidgets.QLabel
+    eps_estimation_combobox: QtWidgets.QComboBox
     neighbourhood_size: QtWidgets.QSpinBox
+    Cluster_linking_dist_checkbox: QtWidgets.QCheckBox
+    epsPrev_spinbox: QtWidgets.QDoubleSpinBox
     min_clustersize: QtWidgets.QSpinBox
     min_dur: QtWidgets.QSpinBox
     total_event_size: QtWidgets.QSpinBox
@@ -65,18 +73,114 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
         self.arcos_wrapper_instance = arcos_wrapper(
             self._data_storage_instance, self._what_to_run, show_info
         )
+        self.bias_met_advanced_state = {
+            "bias_method": self.bias_method.currentText(),
+            "smoothK": self.smooth_k.value(),
+        }
+        self.detect_advanced_state = {
+            "eps": self.neighbourhood_size.value(),
+            "auto_eps": self.eps_estimation_combobox.currentText(),
+            "cluter_linking_dist_check": self.Cluster_linking_dist_checkbox.isChecked(),
+            "epsPrev": self.epsPrev_spinbox.value(),
+            "nPrev": self.nprev_spinbox.value(),
+        }
         self._init_callbacks_for_whattorun()
         self._init_callbacks_visible_arcosparameters()
         self._set_default_visible()
         self._update_what_to_run_all()
+        self._connect_callbacks()
+        self._connect_ui_callbacks()
+
+    def _connect_callbacks(self):
         self.update_arcos.clicked.connect(self._run_arcos)
         self.run_binarization_only.clicked.connect(self._run_binarization_only)
+
+    def _connect_ui_callbacks(self):
+        self.bin_advanced_options.clicked.connect(self._bin_advanced_options_toggle)
+        self.detect_advance_options.clicked.connect(
+            self._detect_advanced_options_toggle
+        )
+        self.eps_estimation_combobox.currentIndexChanged.connect(
+            self._eps_estimation_toggle
+        )
+        self.Cluster_linking_dist_checkbox.clicked.connect(self._epsPrev_toggle)
 
     def _set_default_visible(self):
         """Method that sets the default visible widgets in the main window."""
         self.clip_meas.setChecked(False)
-        self.polyDeg.setVisible(False)
-        self.polyDeg_label.setVisible(False)
+        self._bin_advanced_options_toggle()
+        self._detect_advanced_options_toggle()
+        self._epsPrev_toggle()
+        self._eps_estimation_toggle()
+
+    def _bin_advanced_options_toggle(self):
+        checked = self.bin_advanced_options.isChecked()
+        if checked:
+            self.bias_method.setCurrentText(self.bias_met_advanced_state["bias_method"])
+            self.smooth_k.setValue(self.bias_met_advanced_state["smoothK"])
+        else:
+            self.bias_met_advanced_state["bias_method"] = self.bias_method.currentText()
+            self.bias_met_advanced_state["smoothK"] = self.smooth_k.value()
+            self.smooth_k.setValue(3)
+            self.bias_method.setCurrentText("none")
+
+        self.smooth_k.setVisible(checked)
+        self.smooth_k_label.setVisible(checked)
+        self.bias_method.setVisible(checked)
+        self.bias_method_label.setVisible(checked)
+
+    def _detect_advanced_options_toggle(self):
+        checked = self.detect_advance_options.isChecked()
+        self.eps_estimation_label.setVisible(checked)
+        self.eps_estimation_combobox.setVisible(checked)
+        self.neighbourhood_label.setVisible(checked)
+        self.neighbourhood_size.setVisible(checked)
+        self.Cluster_linking_dist_checkbox.setVisible(checked)
+        self.epsPrev_spinbox.setVisible(checked)
+        self.nprev_label.setVisible(checked)
+        self.nprev_spinbox.setVisible(checked)
+        if checked:
+            self.eps_estimation_combobox.setCurrentText(
+                self.detect_advanced_state["auto_eps"]
+            )
+            self.neighbourhood_size.setValue(self.detect_advanced_state["eps"])
+            self.Cluster_linking_dist_checkbox.setChecked(
+                self.detect_advanced_state["cluter_linking_dist_check"]
+            )
+            self.epsPrev_spinbox.setValue(self.detect_advanced_state["epsPrev"])
+            self.nprev_spinbox.setValue(self.detect_advanced_state["nPrev"])
+        else:
+            self.detect_advanced_state = {
+                "eps": self.neighbourhood_size.value(),
+                "auto_eps": self.eps_estimation_combobox.currentText(),
+                "cluter_linking_dist_check": self.Cluster_linking_dist_checkbox.isChecked(),
+                "epsPrev": self.epsPrev_spinbox.value(),
+                "nPrev": self.nprev_spinbox.value(),
+            }
+            self.eps_estimation_combobox.setCurrentText("Mean")
+            self.Cluster_linking_dist_checkbox.setChecked(False)
+            self.nprev_spinbox.setValue(1)
+
+    def _eps_estimation_toggle(self):
+        eps_method = self.eps_estimation_combobox.currentText()
+        if eps_method == "Manual":
+            self.neighbourhood_size.setEnabled(True)
+        else:
+            self.neighbourhood_size.setEnabled(False)
+
+    def _epsPrev_toggle(self):
+        checked = self.Cluster_linking_dist_checkbox.isChecked()
+        self.epsPrev_spinbox.setEnabled(checked)
+        if checked:
+            self.neighbourhood_size.valueChanged.disconnect(
+                self._update_epsPrev_from_eps
+            )
+        else:
+            self._update_epsPrev_from_eps()
+            self.neighbourhood_size.valueChanged.connect(self._update_epsPrev_from_eps)
+
+    def _update_epsPrev_from_eps(self):
+        self.epsPrev_spinbox.setValue(self.neighbourhood_size.value())
 
     def _toggle_bias_method_parameter_visibility(self):
         """
