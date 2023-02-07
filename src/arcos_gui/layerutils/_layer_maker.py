@@ -46,7 +46,9 @@ class Layermaker:
         whitch itself is upated from run_arcos method"""
         self._remove_old_layers()
         if convex_hull is None:
-            convex_hull = self.data_storage_instance.arcos_parameters.add_convex_hull
+            convex_hull = (
+                self.data_storage_instance.arcos_parameters.add_convex_hull.value
+            )
         for result in self._layers_to_create_all(convex_hull):
             if result:
                 self.viewer.add_layer(Layer.create(*result))

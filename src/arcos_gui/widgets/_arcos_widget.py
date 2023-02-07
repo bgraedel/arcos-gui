@@ -48,7 +48,7 @@ class _arcosWidget:
     detect_advance_options: QtWidgets.QCheckBox
     eps_estimation_label: QtWidgets.QLabel
     eps_estimation_combobox: QtWidgets.QComboBox
-    neighbourhood_size: QtWidgets.QSpinBox
+    neighbourhood_size: QtWidgets.QDoubleSpinBox
     Cluster_linking_dist_checkbox: QtWidgets.QCheckBox
     epsPrev_spinbox: QtWidgets.QDoubleSpinBox
     min_clustersize: QtWidgets.QSpinBox
@@ -90,6 +90,7 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
         self._update_what_to_run_all()
         self._connect_callbacks()
         self._connect_ui_callbacks()
+        self._connect_arcos_parameter_callbacks()
 
     def _connect_callbacks(self):
         self.update_arcos.clicked.connect(self._run_arcos)
@@ -108,6 +109,7 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
     def _set_default_visible(self):
         """Method that sets the default visible widgets in the main window."""
         self.clip_meas.setChecked(False)
+        self._toggle_bias_method_parameter_visibility()
         self._bin_advanced_options_toggle()
         self._detect_advanced_options_toggle()
         self._epsPrev_toggle()
@@ -157,16 +159,22 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
                 "epsPrev": self.epsPrev_spinbox.value(),
                 "nPrev": self.nprev_spinbox.value(),
             }
-            self.eps_estimation_combobox.setCurrentText("Mean")
+            self.eps_estimation_combobox.setCurrentText("mean")
             self.Cluster_linking_dist_checkbox.setChecked(False)
             self.nprev_spinbox.setValue(1)
 
     def _eps_estimation_toggle(self):
         eps_method = self.eps_estimation_combobox.currentText()
-        if eps_method == "Manual":
+        if eps_method == "manual":
             self.neighbourhood_size.setEnabled(True)
+            self.neighbourhood_size.setButtonSymbols(
+                QtWidgets.QAbstractSpinBox.UpDownArrows
+            )
         else:
             self.neighbourhood_size.setEnabled(False)
+            self.neighbourhood_size.setButtonSymbols(
+                QtWidgets.QAbstractSpinBox.NoButtons
+            )
 
     def _epsPrev_toggle(self):
         checked = self.Cluster_linking_dist_checkbox.isChecked()
@@ -175,9 +183,13 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
             self.neighbourhood_size.valueChanged.disconnect(
                 self._update_epsPrev_from_eps
             )
+            self.epsPrev_spinbox.setButtonSymbols(
+                QtWidgets.QAbstractSpinBox.UpDownArrows
+            )
         else:
             self._update_epsPrev_from_eps()
             self.neighbourhood_size.valueChanged.connect(self._update_epsPrev_from_eps)
+            self.epsPrev_spinbox.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
 
     def _update_epsPrev_from_eps(self):
         self.epsPrev_spinbox.setValue(self.neighbourhood_size.value())
@@ -266,6 +278,10 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
             i.stateChanged.connect(self._update_what_to_run_all)
         for i in [self.neighbourhood_size, self.min_clustersize, self.nprev_spinbox]:
             i.valueChanged.connect(self._update_what_to_run_tracking)
+        for i in [self.epsPrev_spinbox]:
+            i.valueChanged.connect(self._update_what_to_run_tracking)
+        for i in [self.eps_estimation_combobox]:
+            i.currentIndexChanged.connect(self._update_what_to_run_tracking)
         for i in [self.min_dur, self.total_event_size]:
             i.valueChanged.connect(self._update_what_to_run_filtering)
 
@@ -302,6 +318,10 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
         self._what_to_run.clear()
 
     def _run_arcos(self):
+        if self.Cluster_linking_dist_checkbox.isChecked():
+            epsPrev = None
+        else:
+            epsPrev = self.epsPrev_spinbox.value()
         self._update_arcos_parameters()
         self.arcos_wrapper_instance.run_arcos(
             interpolate_meas=self.interpolate_meas.isChecked(),
@@ -314,7 +334,9 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
             polyDeg=self.polyDeg.value(),
             bin_threshold=self.bin_threshold.value(),
             bin_peak_threshold=self.bin_peak_threshold.value(),
+            epsMethod=self.eps_estimation_combobox.currentText(),
             neighbourhood_size=self.neighbourhood_size.value(),
+            epsPrev=epsPrev,
             min_clustersize=self.min_clustersize.value(),
             nprev=self.nprev_spinbox.value(),
             min_dur=self.min_dur.value(),
@@ -322,8 +344,11 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
         )
 
     def _run_binarization_only(self):
+        if self.Cluster_linking_dist_checkbox.isChecked():
+            epsPrev = None
+        else:
+            epsPrev = self.epsPrev_spinbox.value()
         self._update_arcos_parameters()
-
         self.arcos_wrapper_instance.run_bin(
             interpolate_meas=self.interpolate_meas.isChecked(),
             clip_meas=self.clip_meas.isChecked(),
@@ -335,7 +360,9 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
             polyDeg=self.polyDeg.value(),
             bin_threshold=self.bin_threshold.value(),
             bin_peak_threshold=self.bin_peak_threshold.value(),
+            epsMethod=self.eps_estimation_combobox.currentText(),
             neighbourhood_size=self.neighbourhood_size.value(),
+            epsPrev=epsPrev,
             min_clustersize=self.min_clustersize.value(),
             nprev=self.nprev_spinbox.value(),
             min_dur=self.min_dur.value(),
@@ -344,41 +371,68 @@ class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
 
     def _update_arcos_parameters(self):
         """Update the parameters in the data storage instance"""
-        self._data_storage_instance.arcos_parameters.interpolate_meas = (
+        if not self.Cluster_linking_dist_checkbox.isChecked():
+            epsPrev = None
+        else:
+            epsPrev = self.epsPrev_spinbox.value()
+        self._data_storage_instance.arcos_parameters.interpolate_meas.value = (
             self.interpolate_meas.isChecked()
         )
-        self._data_storage_instance.arcos_parameters.clip_meas = (
+        self._data_storage_instance.arcos_parameters.clip_meas.value = (
             self.clip_meas.isChecked()
         )
-        self._data_storage_instance.arcos_parameters.clip_low = self.clip_low.value()
-        self._data_storage_instance.arcos_parameters.clip_high = self.clip_high.value()
-        self._data_storage_instance.arcos_parameters.smooth_k = self.smooth_k.value()
-        self._data_storage_instance.arcos_parameters.bias_k = self.bias_k.value()
-        self._data_storage_instance.arcos_parameters.bias_method = (
+        self._data_storage_instance.arcos_parameters.clip_low.value = (
+            self.clip_low.value()
+        )
+        self._data_storage_instance.arcos_parameters.clip_high.value = (
+            self.clip_high.value()
+        )
+        self._data_storage_instance.arcos_parameters.smooth_k.value = (
+            self.smooth_k.value()
+        )
+        self._data_storage_instance.arcos_parameters.bias_k.value = self.bias_k.value()
+        self._data_storage_instance.arcos_parameters.bias_method.value = (
             self.bias_method.currentText()
         )
-        self._data_storage_instance.arcos_parameters.polyDeg = self.polyDeg.value()
-        self._data_storage_instance.arcos_parameters.bin_threshold = (
+        self._data_storage_instance.arcos_parameters.polyDeg.value = (
+            self.polyDeg.value()
+        )
+        self._data_storage_instance.arcos_parameters.bin_threshold.value = (
             self.bin_threshold.value()
         )
-        self._data_storage_instance.arcos_parameters.bin_peak_threshold = (
+        self._data_storage_instance.arcos_parameters.bin_peak_threshold.value = (
             self.bin_peak_threshold.value()
         )
-        self._data_storage_instance.arcos_parameters.neighbourhood_size = (
+        self._data_storage_instance.arcos_parameters.neighbourhood_size.value = (
             self.neighbourhood_size.value()
         )
-        self._data_storage_instance.arcos_parameters.min_clustersize = (
+        self._data_storage_instance.arcos_parameters.min_clustersize.value = (
             self.min_clustersize.value()
         )
-        self._data_storage_instance.arcos_parameters.nprev_spinbox = (
+        self._data_storage_instance.arcos_parameters.nprev_spinbox.value = (
             self.nprev_spinbox.value()
         )
-        self._data_storage_instance.arcos_parameters.min_dur = self.min_dur.value()
-        self._data_storage_instance.arcos_parameters.total_event_size = (
+        self._data_storage_instance.arcos_parameters.min_dur.value = (
+            self.min_dur.value()
+        )
+        self._data_storage_instance.arcos_parameters.total_event_size.value = (
             self.total_event_size.value()
         )
-        self._data_storage_instance.arcos_parameters.add_convex_hull = (
+        self._data_storage_instance.arcos_parameters.add_convex_hull.value = (
             self.add_convex_hull_checkbox.isChecked()
+        )
+        self._data_storage_instance.arcos_parameters.epsPrev.value = epsPrev
+        self._data_storage_instance.arcos_parameters.eps_method.value = (
+            self.eps_estimation_combobox.currentText()
+        )
+
+    def _update_neighbourhood_size(self):
+        value = self._data_storage_instance.arcos_parameters.neighbourhood_size.value
+        self.neighbourhood_size.setValue(value)
+
+    def _connect_arcos_parameter_callbacks(self):
+        self._data_storage_instance.arcos_parameters.neighbourhood_size.value_changed_connect(
+            self._update_neighbourhood_size
         )
 
 
@@ -386,9 +440,6 @@ if __name__ == "__main__":
     import sys
 
     from arcos_gui.processing import DataStorage  # noqa: F811
-    from napari import Viewer
-
-    viewer = Viewer()
 
     app = QtWidgets.QApplication(sys.argv)
     widget = ArcosWidget(DataStorage())

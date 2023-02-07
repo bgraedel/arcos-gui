@@ -8,6 +8,71 @@ from napari.utils.colormaps import AVAILABLE_COLORMAPS
 
 
 @dataclass
+class data_frame_storage:
+    _value: pd.DataFrame = field(default_factory=pd.DataFrame)
+    _callbacks: list = field(default_factory=list)
+    verbous = False
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
+        self._notify_observers()
+
+    def _notify_observers(self):
+        for callback in self._callbacks:
+            if self.verbous:
+                print(f"data_frame_storage: value changed executing {callback}")
+            callback()
+
+    def value_changed_connect(self, callback):
+        self._callbacks.append(callback)
+
+    def unregister_callback(self, callback):
+        self._callbacks.remove(callback)
+
+    def __repr__(self):
+        return repr(self._value)
+
+
+@dataclass
+class value_callback:
+    _value: Union[int, str, None, Any]
+    _callbacks: list = field(default_factory=list)
+    verbous = False
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
+        self._notify_observers()
+
+    def _notify_observers(self):
+        for callback in self._callbacks:
+            if self.verbous:
+                print(f"value_calback: value changed, executing {callback}")
+            callback()
+
+    def value_changed_connect(self, callback):
+        self._callbacks.append(callback)
+
+    def unregister_callback(self, callback):
+        self._callbacks.remove(callback)
+
+    def __repr__(self):
+        return repr(self._value)
+
+    def __eq__(self, other):
+        return self._value == other
+
+
+@dataclass
 class columnnames:
     """Stores column names for the dataframes."""
 
@@ -81,26 +146,38 @@ class columnnames:
         return df
 
 
-@dataclass
+@dataclass(frozen=True)
 class arcos_parameters:
     """Stores the parameters for the arcos algorithm that can be set in the arcos widget"""
 
-    interpolate_meas: bool = False
-    clip_meas: bool = False
-    clip_low: float = 0.0
-    clip_high: float = 0.0
-    smooth_k: int = 0
-    bias_k: int = 0
-    bias_method: str = "None"
-    polyDeg: int = 0
-    bin_threshold: float = 0.0
-    bin_peak_threshold: float = 0.0
-    neighbourhood_size: float = 0.0
-    min_clustersize: float = 0.0
-    nprev_spinbox: int = 0
-    min_dur: int = 0
-    total_event_size: int = 0
-    add_convex_hull: bool = True
+    _interpolate_meas: value_callback = field(
+        default_factory=lambda: value_callback(False)
+    )
+    _clip_meas: value_callback = field(default_factory=lambda: value_callback(False))
+    _clip_low: value_callback = field(default_factory=lambda: value_callback(0.0))
+    _clip_high: value_callback = field(default_factory=lambda: value_callback(0.0))
+    _smooth_k: value_callback = field(default_factory=lambda: value_callback(0))
+    _bias_k: value_callback = field(default_factory=lambda: value_callback(0))
+    _bias_method: value_callback = field(default_factory=lambda: value_callback("none"))
+    _polyDeg: value_callback = field(default_factory=lambda: value_callback(0))
+    _bin_threshold: value_callback = field(default_factory=lambda: value_callback(0.0))
+    _bin_peak_threshold: value_callback = field(
+        default_factory=lambda: value_callback(0.0)
+    )
+    _eps_method: value_callback = field(
+        default_factory=lambda: value_callback("manual")
+    )
+    _neighbourhood_size: value_callback = field(
+        default_factory=lambda: value_callback(0.0)
+    )
+    _epsPrev: value_callback = field(default_factory=lambda: value_callback(0.0))
+    _min_clustersize: value_callback = field(default_factory=lambda: value_callback(0))
+    _nprev_spinbox: value_callback = field(default_factory=lambda: value_callback(0))
+    _min_dur: value_callback = field(default_factory=lambda: value_callback(0))
+    _total_event_size: value_callback = field(default_factory=lambda: value_callback(0))
+    _add_convex_hull: value_callback = field(
+        default_factory=lambda: value_callback(True)
+    )
 
     @property
     def as_dataframe(self):
@@ -108,25 +185,200 @@ class arcos_parameters:
         df = pd.DataFrame(
             columns=["parameter", "value"],
             data=[
-                ["interpolate_meas", self.interpolate_meas],
-                ["clip_meas", self.clip_meas],
-                ["clip_low", self.clip_low],
-                ["clip_high", self.clip_high],
-                ["smooth_k", self.smooth_k],
-                ["bias_k", self.bias_k],
-                ["bias_method", self.bias_method],
-                ["polyDeg", self.polyDeg],
-                ["bin_threshold", self.bin_threshold],
-                ["bin_peak_threshold", self.bin_peak_threshold],
-                ["neighbourhood_size", self.neighbourhood_size],
-                ["min_clustersize", self.min_clustersize],
-                ["nprev_spinbox", self.nprev_spinbox],
-                ["min_dur", self.min_dur],
-                ["total_event_size", self.total_event_size],
+                ["interpolate_meas", self.interpolate_meas.value],
+                ["clip_meas", self.clip_meas.value],
+                ["clip_low", self.clip_low.value],
+                ["clip_high", self.clip_high.value],
+                ["smooth_k", self.smooth_k.value],
+                ["bias_k", self.bias_k.value],
+                ["bias_method", self.bias_method.value],
+                ["polyDeg", self.polyDeg.value],
+                ["bin_threshold", self.bin_threshold.value],
+                ["bin_peak_threshold", self.bin_peak_threshold.value],
+                ["eps_method", self.eps_method.value],
+                ["neighbourhood_size", self.neighbourhood_size.value],
+                ["epsPrev", self.epsPrev.value],
+                ["min_clustersize", self.min_clustersize.value],
+                ["nprev_spinbox", self.nprev_spinbox.value],
+                ["min_dur", self.min_dur.value],
+                ["total_event_size", self.total_event_size.value],
             ],
         )
         df["value"] = df["value"].astype(str)
         return df
+
+    def reset_values(self, trigger_callback=True):
+        """resets all values to default"""
+        if trigger_callback:
+            self._interpolate_meas.value = False
+            self._clip_meas.value = False
+            self._clip_low.value = 0.0
+            self._clip_high.value = 0.0
+            self._smooth_k.value = 0
+            self._bias_k.value = 0
+            self._bias_method.value = "none"
+            self._polyDeg.value = 0
+            self._bin_threshold.value = 0.0
+            self._bin_peak_threshold.value = 0.0
+            self._eps_method.value = "manual"
+            self._neighbourhood_size.value = 0.0
+            self._epsPrev.value = 0.0
+            self._min_clustersize.value = 0
+            self._nprev_spinbox.value = 0
+            self._min_dur.value = 0
+            self._total_event_size.value = 0
+            self._add_convex_hull.value = True
+        else:
+            self._interpolate_meas.value = False
+            self._clip_meas.value = False
+            self._clip_low.value = 0.0
+            self._clip_high.value = 0.0
+            self._smooth_k.value = 0
+            self._bias_k.value = 0
+            self._bias_method.value = "none"
+            self._polyDeg.value = 0
+            self._bin_threshold.value = 0.0
+            self._bin_peak_threshold.value = 0.0
+            self._eps_method.value = "manual"
+            self._neighbourhood_size.value = 0.0
+            self._epsPrev.value = 0.0
+            self._min_clustersize.value = 0
+            self._nprev_spinbox.value = 0
+            self._min_dur.value = 0
+            self._total_event_size.value = 0
+            self._add_convex_hull.value = True
+
+    def make_verbous(self):
+        """makes the parameters verbous"""
+        self.interpolate_meas.verbous = True
+        self.clip_meas.verbous = True
+        self.clip_low.verbous = True
+        self.clip_high.verbous = True
+        self.smooth_k.verbous = True
+        self.bias_k.verbous = True
+        self.bias_method.verbous = True
+        self.polyDeg.verbous = True
+        self.bin_threshold.verbous = True
+        self.bin_peak_threshold.verbous = True
+        self.eps_method.verbous = True
+        self.neighbourhood_size.verbous = True
+        self.epsPrev.verbous = True
+        self.min_clustersize.verbous = True
+        self.nprev_spinbox.verbous = True
+        self.min_dur.verbous = True
+        self.total_event_size.verbous = True
+        self.add_convex_hull.verbous = True
+
+    def make_quiet(self):
+        """makes the parameters quiet"""
+        self.interpolate_meas.verbous = False
+        self.clip_meas.verbous = False
+        self.clip_low.verbous = False
+        self.clip_high.verbous = False
+        self.smooth_k.verbous = False
+        self.bias_k.verbous = False
+        self.bias_method.verbous = False
+        self.polyDeg.verbous = False
+        self.bin_threshold.verbous = False
+        self.bin_peak_threshold.verbous = False
+        self.eps_method.verbous = False
+        self.neighbourhood_size.verbous = False
+        self.epsPrev.verbous = False
+        self.min_clustersize.verbous = False
+        self.nprev_spinbox.verbous = False
+        self.min_dur.verbous = False
+        self.total_event_size.verbous = False
+        self.add_convex_hull.verbous = False
+
+    @property
+    def interpolate_meas(self):
+        """interpolate measurement"""
+        return self._interpolate_meas
+
+    @property
+    def clip_meas(self):
+        """clip measurement"""
+        return self._clip_meas
+
+    @property
+    def clip_low(self):
+        """clip low"""
+        return self._clip_low
+
+    @property
+    def clip_high(self):
+        """clip high"""
+        return self._clip_high
+
+    @property
+    def smooth_k(self):
+        """smooth k"""
+        return self._smooth_k
+
+    @property
+    def bias_k(self):
+        """bias k"""
+        return self._bias_k
+
+    @property
+    def bias_method(self):
+        """bias method"""
+        return self._bias_method
+
+    @property
+    def polyDeg(self):
+        """poly deg"""
+        return self._polyDeg
+
+    @property
+    def bin_threshold(self):
+        """bin threshold"""
+        return self._bin_threshold
+
+    @property
+    def bin_peak_threshold(self):
+        """bin peak threshold"""
+        return self._bin_peak_threshold
+
+    @property
+    def eps_method(self):
+        """eps method"""
+        return self._eps_method
+
+    @property
+    def neighbourhood_size(self):
+        """neighbourhood size"""
+        return self._neighbourhood_size
+
+    @property
+    def epsPrev(self):
+        """eps prev"""
+        return self._epsPrev
+
+    @property
+    def min_clustersize(self):
+        """min cluster size"""
+        return self._min_clustersize
+
+    @property
+    def nprev_spinbox(self):
+        """nprev spinbox"""
+        return self._nprev_spinbox
+
+    @property
+    def min_dur(self):
+        """min dur"""
+        return self._min_dur
+
+    @property
+    def total_event_size(self):
+        """total event size"""
+        return self._total_event_size
+
+    @property
+    def add_convex_hull(self):
+        """add convex hull"""
+        return self._add_convex_hull
 
 
 @dataclass(frozen=True)
@@ -158,68 +410,6 @@ class timestamp_parameters:
             ],
         )
         return df
-
-
-@dataclass
-class data_frame_storage:
-    _value: pd.DataFrame = field(default_factory=pd.DataFrame)
-    _callbacks: list = field(default_factory=list)
-    verbous = False
-
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, value):
-        self._value = value
-        self._notify_observers()
-
-    def _notify_observers(self):
-        for callback in self._callbacks:
-            if self.verbous:
-                print(f"data_frame_storage: value changed executing {callback}")
-            callback()
-
-    def value_changed_connect(self, callback):
-        self._callbacks.append(callback)
-
-    def unregister_callback(self, callback):
-        self._callbacks.remove(callback)
-
-    def __repr__(self):
-        return repr(self._value)
-
-
-@dataclass
-class value_callback:
-    _value: Union[int, str, None, Any]
-    _callbacks: list = field(default_factory=list)
-    verbous = False
-
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, value):
-        self._value = value
-        self._notify_observers()
-
-    def _notify_observers(self):
-        for callback in self._callbacks:
-            if self.verbous:
-                print(f"value_calback: value changed, executing {callback}")
-            callback()
-
-    def value_changed_connect(self, callback):
-        self._callbacks.append(callback)
-
-    def unregister_callback(self, callback):
-        self._callbacks.remove(callback)
-
-    def __repr__(self):
-        return repr(self._value)
 
 
 @dataclass
@@ -266,7 +456,7 @@ class DataStorage:
             self._arcos_output.value = pd.DataFrame()
             self._arcos_stats.value = pd.DataFrame()
             self._columns = columnnames()
-            self._arcos_parameters = arcos_parameters()
+            self._arcos_parameters.reset_values()
             self.min_max_meas = (0, 0.5)
             self.colormaps = list(AVAILABLE_COLORMAPS)
             self.point_size = 10
@@ -282,7 +472,7 @@ class DataStorage:
             self._arcos_output._value = pd.DataFrame()
             self._arcos_stats._value = pd.DataFrame()
             self._columns = columnnames()
-            self._arcos_parameters = arcos_parameters()
+            self._arcos_parameters.reset_values(trigger_callback=False)
             self.min_max_meas = (0, 0.5)
             self.colormaps = list(AVAILABLE_COLORMAPS)
             self.point_size = 10
@@ -316,6 +506,7 @@ class DataStorage:
         self._selected_object_id.verbous = False
         self._filename_for_sample_data.verbous = False
         self._timestamp_parameters.verbous = False
+        self.arcos_parameters.make_quiet()
 
     def make_verbose(self):
         self.verbous = True
@@ -327,6 +518,7 @@ class DataStorage:
         self._selected_object_id.verbous = True
         self._filename_for_sample_data.verbous = True
         self._timestamp_parameters.verbous = True
+        self.arcos_parameters.make_verbous()
 
     @property
     def filename_for_sample_data(self):

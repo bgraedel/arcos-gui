@@ -23,13 +23,18 @@ def test_arcos_widget_defaults(make_arcos_widget):
     assert arcos_widget.clip_meas.isChecked() is False
     assert arcos_widget.clip_low.value() == 0.001
     assert arcos_widget.clip_high.value() == 0.999
-    assert arcos_widget.bias_method.currentText() == "runmed"
-    assert arcos_widget.smooth_k.value() == 1
+    assert arcos_widget.bin_advanced_options.isChecked() is False
+    assert arcos_widget.bias_method.currentText() == "none"
+    assert arcos_widget.smooth_k.value() == 3
     assert arcos_widget.bias_k.value() == 25
     assert arcos_widget.polyDeg.value() == 1
     assert arcos_widget.bin_peak_threshold.value() == 0.2
-    assert arcos_widget.bin_threshold.value() == 0.1
+    assert arcos_widget.bin_threshold.value() == 0.5
+    assert arcos_widget.detect_advance_options.isChecked() is False
+    assert arcos_widget.eps_estimation_combobox.currentText() == "mean"
     assert arcos_widget.neighbourhood_size.value() == 40
+    assert arcos_widget.Cluster_linking_dist_checkbox.isChecked() is False
+    assert arcos_widget.epsPrev_spinbox.value() == 40
     assert arcos_widget.nprev_spinbox.value() == 1
     assert arcos_widget.min_clustersize.value() == 5
     assert arcos_widget.min_dur.value() == 3
@@ -59,7 +64,10 @@ def test_the_what_to_run_changes(make_arcos_widget):
     arcos_widget.clip_high.setValue(0.88)
     assert arcos_widget._what_to_run == {"tracking", "filtering", "binarization"}
     arcos_widget._what_to_run.clear()
+    assert arcos_widget.bias_method.currentText() == "none"
     arcos_widget.bias_method.setCurrentText("none")
+    assert arcos_widget._what_to_run == set()
+    arcos_widget.bias_method.setCurrentText("runmed")
     assert arcos_widget._what_to_run == {"tracking", "filtering", "binarization"}
     arcos_widget._what_to_run.clear()
     arcos_widget.smooth_k.setValue(2)
@@ -76,6 +84,10 @@ def test_the_what_to_run_changes(make_arcos_widget):
     arcos_widget._what_to_run.clear()
     arcos_widget.bin_threshold.setValue(0.2)
     assert arcos_widget._what_to_run == {"tracking", "filtering", "binarization"}
+    arcos_widget._what_to_run.clear()
+    arcos_widget.eps_estimation_combobox.setCurrentIndex(0)
+    arcos_widget.eps_estimation_combobox.setCurrentIndex(1)
+    assert arcos_widget._what_to_run == {"tracking", "filtering"}
     arcos_widget._what_to_run.clear()
     arcos_widget.neighbourhood_size.setValue(50)
     assert arcos_widget._what_to_run == {"tracking", "filtering"}
@@ -146,21 +158,23 @@ def test_toggle_biasmethod_visibility(make_arcos_widget):
 def test_update_arcos_parameters(make_arcos_widget):
     # makes a DataStorage object and fills it with the default parameters
     ds_test = DataStorage()
-    ds_test.arcos_parameters.interpolate_meas = True
-    ds_test.arcos_parameters.clip_meas = False
-    ds_test.arcos_parameters.clip_low = 0.001
-    ds_test.arcos_parameters.clip_high = 0.999
-    ds_test.arcos_parameters.bias_method = "runmed"
-    ds_test.arcos_parameters.smooth_k = 1
-    ds_test.arcos_parameters.bias_k = 25
-    ds_test.arcos_parameters.polyDeg = 1
-    ds_test.arcos_parameters.bin_threshold = 0.1
-    ds_test.arcos_parameters.bin_peak_threshold = 0.2
-    ds_test.arcos_parameters.neighbourhood_size = 40
-    ds_test.arcos_parameters.min_clustersize = 5
-    ds_test.arcos_parameters.nprev_spinbox = 1
-    ds_test.arcos_parameters.min_dur = 3
-    ds_test.arcos_parameters.total_event_size = 10
+    ds_test.arcos_parameters.interpolate_meas.value = True
+    ds_test.arcos_parameters.clip_meas.value = False
+    ds_test.arcos_parameters.clip_low.value = 0.001
+    ds_test.arcos_parameters.clip_high.value = 0.999
+    ds_test.arcos_parameters.bias_method.value = "none"
+    ds_test.arcos_parameters.smooth_k.value = 3
+    ds_test.arcos_parameters.bias_k.value = 25
+    ds_test.arcos_parameters.polyDeg.value = 1
+    ds_test.arcos_parameters.bin_threshold.value = 0.5
+    ds_test.arcos_parameters.bin_peak_threshold.value = 0.2
+    ds_test.arcos_parameters.eps_method.value = "mean"
+    ds_test.arcos_parameters.neighbourhood_size.value = 40
+    ds_test.arcos_parameters.epsPrev.value = None
+    ds_test.arcos_parameters.min_clustersize.value = 5
+    ds_test.arcos_parameters.nprev_spinbox.value = 1
+    ds_test.arcos_parameters.min_dur.value = 3
+    ds_test.arcos_parameters.total_event_size.value = 10
     # updates the DataStorage instance linked to the arcos widget
     ds_test.arcos_parameters
     arcos_widget, qtbot = make_arcos_widget
