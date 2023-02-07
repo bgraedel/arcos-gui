@@ -142,13 +142,13 @@ def test_columnames_properties_4():
 def test_arcos_parameters_default_values():
     params = arcos_parameters()
 
-    assert params.interpolate_meas is False
-    assert params.clip_meas is False
+    assert params.interpolate_meas == False  # noqa E712
+    assert params.clip_meas == False  # noqa E712
     assert params.clip_low == 0.0
     assert params.clip_high == 0.0
     assert params.smooth_k == 0
     assert params.bias_k == 0
-    assert params.bias_method == "None"
+    assert params.bias_method == "none"
     assert params.polyDeg == 0
     assert params.bin_threshold == 0.0
     assert params.bin_peak_threshold == 0.0
@@ -157,6 +157,79 @@ def test_arcos_parameters_default_values():
     assert params.nprev_spinbox == 0
     assert params.min_dur == 0
     assert params.total_event_size == 0
+
+
+def test_arcos_parameters_callback(mocker, capsys):
+    params = arcos_parameters()
+
+    test_func = mocker.Mock()
+    params_stuff = [
+        params.interpolate_meas,
+        params.clip_meas,
+        params.clip_low,
+        params.clip_high,
+        params.smooth_k,
+        params.bias_k,
+        params.bias_method,
+        params.polyDeg,
+        params.bin_threshold,
+        params.bin_peak_threshold,
+        params.eps_method,
+        params.neighbourhood_size,
+        params.epsPrev,
+        params.min_clustersize,
+        params.nprev_spinbox,
+        params.min_dur,
+        params.total_event_size,
+        params.add_convex_hull,
+    ]
+    for i in params_stuff:
+        i.value_changed_connect(test_func)
+
+    params.interpolate_meas.value = True
+    params.clip_meas.value = True
+    params.clip_low.value = 1.0
+    params.clip_high.value = 1.0
+    params.smooth_k.value = 1
+    params.bias_k.value = 1
+    params.bias_method.value = "none"
+    params.polyDeg.value = 1
+    params.bin_threshold.value = 1.0
+    params.bin_peak_threshold.value = 1.0
+    params.eps_method.value = "none"
+    params.neighbourhood_size.value = 1.0
+    params.epsPrev.value = 1.0
+    params.min_clustersize.value = 1.0
+    params.nprev_spinbox.value = 1
+    params.min_dur.value = 1
+    params.total_event_size.value = 1
+    params.add_convex_hull.value = True
+
+    assert test_func.call_count == 18
+
+    for i in params_stuff:
+        i.unregister_callback(test_func)
+
+    params.interpolate_meas.value = True
+    params.clip_meas.value = True
+    params.clip_low.value = 1.0
+    params.clip_high.value = 1.0
+    params.smooth_k.value = 1
+    params.bias_k.value = 1
+    params.bias_method.value = "none"
+    params.polyDeg.value = 1
+    params.bin_threshold.value = 1.0
+    params.bin_peak_threshold.value = 1.0
+    params.eps_method.value = "none"
+    params.neighbourhood_size.value = 1.0
+    params.epsPrev.value = 1.0
+    params.min_clustersize.value = 1.0
+    params.nprev_spinbox.value = 1
+    params.min_dur.value = 1
+    params.total_event_size.value = 1
+    params.add_convex_hull.value = True
+
+    assert test_func.call_count == 18
 
 
 def test_arcos_parameters_as_dataframe():
@@ -172,42 +245,43 @@ def test_arcos_parameters_as_dataframe():
             ["clip_high", "0.0"],
             ["smooth_k", "0"],
             ["bias_k", "0"],
-            ["bias_method", "None"],
+            ["bias_method", "none"],
             ["polyDeg", "0"],
             ["bin_threshold", "0.0"],
             ["bin_peak_threshold", "0.0"],
+            ["eps_method", "manual"],
             ["neighbourhood_size", "0.0"],
-            ["min_clustersize", "0.0"],
+            ["epsPrev", "0.0"],
+            ["min_clustersize", "0"],
             ["nprev_spinbox", "0"],
             ["min_dur", "0"],
             ["total_event_size", "0"],
         ],
-    )
+    ).astype(str)
 
     pd.testing.assert_frame_equal(df, expected_df)
 
 
 def test_arcos_parameters_with_custom_values():
-    params = arcos_parameters(
-        interpolate_meas=True,
-        clip_meas=True,
-        clip_low=1.0,
-        clip_high=2.0,
-        smooth_k=3,
-        bias_k=4,
-        bias_method="Method",
-        polyDeg=5,
-        bin_threshold=6.0,
-        bin_peak_threshold=7.0,
-        neighbourhood_size=8.0,
-        min_clustersize=9.0,
-        nprev_spinbox=10,
-        min_dur=11,
-        total_event_size=12,
-    )
+    params = arcos_parameters()
+    params.interpolate_meas.value = True
+    params.clip_meas.value = True
+    params.clip_low.value = 1.0
+    params.clip_high.value = 2.0
+    params.smooth_k.value = 3
+    params.bias_k.value = 4
+    params.bias_method.value = "Method"
+    params.polyDeg.value = 5
+    params.bin_threshold.value = 6.0
+    params.bin_peak_threshold.value = 7.0
+    params.neighbourhood_size.value = 8.0
+    params.min_clustersize.value = 9.0
+    params.nprev_spinbox.value = 10
+    params.min_dur.value = 11
+    params.total_event_size.value = 12
 
-    assert params.interpolate_meas is True
-    assert params.clip_meas is True
+    assert params.interpolate_meas == True  # noqa E712
+    assert params.clip_meas == True  # noqa E712
     assert params.clip_low == 1.0
     assert params.clip_high == 2.0
     assert params.smooth_k == 3
@@ -547,7 +621,7 @@ def test_reset_all_attributes_method():
         {"col1": [1, 2, 3], "col2": [4, 5, 6]}
     )
     data_storage._columns = columnnames(frame_column="time")
-    data_storage._arcos_parameters.interpolate_meas = True
+    data_storage._arcos_parameters.interpolate_meas.value = True
     data_storage.min_max_meas = (0, 1)
     data_storage.colormaps = ["viridis", "plasma", "inferno", "magma", "cividis"]
     data_storage.point_size = 12

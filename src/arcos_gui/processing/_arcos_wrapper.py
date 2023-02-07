@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Callable, Union
 import numpy as np
 import pandas as pd
 from arcos4py import ARCOS
-from arcos4py.tools import calcCollevStats, filterCollev
+from arcos4py.tools import calcCollevStats, estimate_eps, filterCollev
 
 from ._preprocessing_utils import check_for_collid_column
 
@@ -132,6 +132,7 @@ def binarization(
 def detect_events(
     arcos: ARCOS,
     neighbourhood_size: float,
+    epsPrev: float | None,
     min_clustersize: int,
     nPrev_value: int,
 ):
@@ -161,9 +162,58 @@ def detect_events(
         return
 
     arcos_events = arcos.trackCollev(
-        eps=neighbourhood_size, minClsz=min_clustersize, nPrev=nPrev_value
+        eps=neighbourhood_size,
+        epsPrev=epsPrev,
+        minClsz=min_clustersize,
+        nPrev=nPrev_value,
     )
     return arcos_events
+
+
+def get_eps(arcos: ARCOS, method: str, minClustersize: int):
+    """
+    Estimate eps value for arcos trackCollev method.
+
+    Parameters
+    ----------
+    arcos : ARCOS
+        arcos object
+    method : str
+        method to estimate eps value
+    minClustersize : int
+        minimum cluster size to consider for event detection
+
+    Returns
+    -------
+    eps : float
+        eps value
+    """
+    methods = ["manual", "kneepoint", "mean"]
+    if method not in methods:
+        raise ValueError(f"Method must be one of {methods}")
+
+    if method == "manual":
+        return
+
+    if method == "kneepoint":
+        return estimate_eps(
+            data=arcos.data[arcos.data[arcos.bin_col] > 0],
+            method="kneepoint",
+            pos_cols=arcos.posCols,
+            frame_col=arcos.frame_column,
+            n_neighbors=minClustersize,
+            plot=False,
+        )
+
+    if method == "mean":
+        return estimate_eps(
+            arcos.data,
+            method="mean",
+            pos_cols=arcos.posCols,
+            frame_col=arcos.frame_column,
+            n_neighbors=minClustersize,
+            plot=False,
+        )
 
 
 def filtering_arcos_events(
@@ -224,6 +274,7 @@ def filtering_arcos_events(
         axis=0,
     )[clids_reverse_i]
     seq_colids_from_one = np.add(seq_colids, 1)
+    arcos_filtered = arcos_filtered.copy()
     arcos_filtered.loc[:, collid_name] = seq_colids_from_one
 
     return arcos_filtered
@@ -274,7 +325,9 @@ class arcos_wrapper:
         polyDeg: int,
         bin_threshold: float,
         bin_peak_threshold: float,
+        epsMethod: str,
         neighbourhood_size: float,
+        epsPrev: float | None,
         min_clustersize: int,
         min_dur: int,
         total_event_size: int,
@@ -335,9 +388,21 @@ class arcos_wrapper:
                 self.std_out("No Binarized Data. Adjust Binazation Parameters.")
                 return
 
+            eps = get_eps(
+                arcos=self.arcos_object,
+                method=epsMethod,
+                minClustersize=min_clustersize,
+            )
+
+            if not eps:
+                eps = neighbourhood_size
+            eps = round(eps, 2)
+            self.data_storage_instance.arcos_parameters.neighbourhood_size.value = eps
+
             self.arcos_raw_output = detect_events(
                 arcos=self.arcos_object,
-                neighbourhood_size=neighbourhood_size,
+                neighbourhood_size=eps,
+                epsPrev=epsPrev,
                 min_clustersize=min_clustersize,
                 nPrev_value=nprev,
             )
@@ -361,6 +426,7 @@ class arcos_wrapper:
                 self.std_out(
                     "No Collective Events detected.Adjust Filtering parameters."
                 )
+                return
             arcos_stats = calculate_arcos_stats(
                 df_arcos_filtered=arcos_df_filtered,
                 frame_col=frame,
@@ -368,6 +434,7 @@ class arcos_wrapper:
                 object_id_name=track_id_col_name,
                 posCols=posCols,
             )
+            arcos_stats = arcos_stats.dropna()
             self.data_storage_instance.arcos_stats = arcos_stats
             self.data_storage_instance.arcos_output = arcos_df_filtered
             self.what_to_run.clear()
@@ -380,8 +447,9 @@ class arcos_wrapper:
         if not self.data_storage_instance.arcos_binarization.value.empty:
             self.what_to_run.add("tracking")
             self.what_to_run.add("filtering")
-        else:
-            self.what_to_run.clear()
-            for i in initial_wtr:
-                self.what_to_run.add(i)
-            self.std_out("No Binarized Data. Adjust Binazation Parameters.")
+            return
+
+        self.what_to_run.clear()
+        for i in initial_wtr:
+            self.what_to_run.add(i)
+        self.std_out("No Binarized Data. Adjust Binazation Parameters.")

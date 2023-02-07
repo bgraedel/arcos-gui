@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 from arcos4py import ARCOS
 from arcos_gui.processing import DataStorage
 from arcos_gui.processing._arcos_wrapper import (
@@ -9,6 +10,7 @@ from arcos_gui.processing._arcos_wrapper import (
     calculate_arcos_stats,
     detect_events,
     filtering_arcos_events,
+    get_eps,
     init_arcos_object,
 )
 
@@ -45,7 +47,11 @@ def test_detect_events():
         arcos_object, True, False, 0.01, 0.99, 1, 3, 0.5, 0.5, 1, "none"
     )
     arcos_events = detect_events(
-        arcos=arcos_object, neighbourhood_size=20, min_clustersize=4, nPrev_value=1
+        arcos=arcos_object,
+        neighbourhood_size=20,
+        epsPrev=20,
+        min_clustersize=4,
+        nPrev_value=1,
     )
     assert isinstance(arcos_events, pd.DataFrame)
     assert not arcos_events.empty
@@ -58,7 +64,11 @@ def test_filtering_arcos_events_high_values():
         arcos_object, True, False, 0.01, 0.99, 1, 3, 0.5, 0.5, 1, "none"
     )
     arcos_events = detect_events(
-        arcos=arcos_object, neighbourhood_size=20, min_clustersize=4, nPrev_value=1
+        arcos=arcos_object,
+        neighbourhood_size=20,
+        epsPrev=20,
+        min_clustersize=4,
+        nPrev_value=1,
     )
     arcos_filtered = filtering_arcos_events(
         detected_events_df=arcos_events,
@@ -80,7 +90,11 @@ def test_filtering_arcos_events_low_values():
         arcos_object, True, False, 0.01, 0.99, 1, 3, 0.5, 0.5, 1, "none"
     )
     arcos_events = detect_events(
-        arcos=arcos_object, neighbourhood_size=20, min_clustersize=4, nPrev_value=1
+        arcos=arcos_object,
+        neighbourhood_size=20,
+        epsPrev=20,
+        min_clustersize=4,
+        nPrev_value=1,
     )
     arcos_filtered = filtering_arcos_events(
         detected_events_df=arcos_events,
@@ -101,7 +115,11 @@ def test_calculate_arcos_stats():
         arcos_object, True, False, 0.01, 0.99, 1, 3, 0.5, 0.5, 1, "none"
     )
     arcos_events = detect_events(
-        arcos=arcos_object, neighbourhood_size=20, min_clustersize=4, nPrev_value=1
+        arcos=arcos_object,
+        neighbourhood_size=20,
+        epsPrev=20,
+        min_clustersize=4,
+        nPrev_value=1,
     )
     arcos_filtered = filtering_arcos_events(
         detected_events_df=arcos_events,
@@ -121,6 +139,22 @@ def test_calculate_arcos_stats():
     assert isinstance(arcos_stats, pd.DataFrame)
     assert not arcos_stats.empty
     assert arcos_stats["collid"].nunique() == 1
+
+
+def test_get_eps():
+    df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
+    arcos_object = init_arcos_object(df, ["x", "y"], "m", "t", "id")
+    arcos_object = binarization(
+        arcos_object, True, False, 0.01, 0.99, 1, 3, 0.5, 0.5, 1, "none"
+    )
+    eps = get_eps(arcos_object, "mean", 3)
+    assert isinstance(eps, float)
+    eps = get_eps(arcos_object, "kneepoint", 3)
+    assert isinstance(eps, float)
+    eps = get_eps(arcos_object, "manual", 3)
+    assert eps is None
+    with pytest.raises(ValueError):
+        eps = get_eps(arcos_object, "wrong", 3)
 
 
 def test_arcos_wrapper_run_all():
@@ -155,7 +189,9 @@ def test_arcos_wrapper_run_all():
         polyDeg=1,
         bin_threshold=0.5,
         bin_peak_threshold=0.5,
+        epsMethod="manual",
         neighbourhood_size=20,
+        epsPrev=20,
         min_clustersize=4,
         nprev=1,
         min_dur=1,
@@ -191,7 +227,9 @@ def test_arcos_wrapper_run_no_data(capsys):
         polyDeg=1,
         bin_threshold=0.5,
         bin_peak_threshold=0.5,
+        epsMethod="manual",
         neighbourhood_size=20,
+        epsPrev=20,
         min_clustersize=4,
         nprev=1,
         min_dur=1,
@@ -235,6 +273,8 @@ def test_arcos_wrapper_run_no_bin_data(capsys):
         bin_threshold=10,
         bin_peak_threshold=10,
         neighbourhood_size=20,
+        epsMethod="manual",
+        epsPrev=20,
         min_clustersize=4,
         nprev=1,
         min_dur=1,
@@ -277,7 +317,9 @@ def test_arcos_wrapper_run_no_detected_events_data(capsys):
         polyDeg=1,
         bin_threshold=0.5,
         bin_peak_threshold=0.5,
-        neighbourhood_size=0.001,
+        epsMethod="manual",
+        neighbourhood_size=0.01,
+        epsPrev=0.01,
         min_clustersize=4,
         nprev=1,
         min_dur=50,
@@ -323,7 +365,9 @@ def test_arcos_wrapper_run_no_filtered_data(capsys):
         polyDeg=1,
         bin_threshold=0.5,
         bin_peak_threshold=0.5,
+        epsMethod="manual",
         neighbourhood_size=20,
+        epsPrev=20,
         min_clustersize=4,
         nprev=1,
         min_dur=50,
@@ -371,6 +415,8 @@ def test_arcos_wrapper_run_specific_parts():
         bin_threshold=0.5,
         bin_peak_threshold=0.5,
         neighbourhood_size=20,
+        epsMethod="manual",
+        epsPrev=20,
         min_clustersize=4,
         nprev=1,
         min_dur=1,
@@ -395,7 +441,9 @@ def test_arcos_wrapper_run_specific_parts():
         polyDeg=1,
         bin_threshold=0.5,
         bin_peak_threshold=0.5,
+        epsMethod="manual",
         neighbourhood_size=20,
+        epsPrev=20,
         min_clustersize=4,
         nprev=1,
         min_dur=1,
@@ -419,7 +467,9 @@ def test_arcos_wrapper_run_specific_parts():
         polyDeg=1,
         bin_threshold=0.5,
         bin_peak_threshold=0.5,
+        epsMethod="manual",
         neighbourhood_size=20,
+        epsPrev=20,
         min_clustersize=4,
         nprev=1,
         min_dur=1,
@@ -430,3 +480,50 @@ def test_arcos_wrapper_run_specific_parts():
     assert not ds.arcos_binarization.value.empty
     assert not ds.arcos_output.value.empty
     assert not ds.arcos_stats.value.empty
+
+
+def test_arcos_wrapper_epsMethod():
+    what_to_run = {"binarization", "tracking", "filtering"}
+    ds = DataStorage()
+    ds.filtered_data.value = pd.read_csv(
+        "src/arcos_gui/_tests/test_data/arcos_data.csv"
+    )
+    ds.columns.frame_column = "t"
+    ds.columns.object_id = "id"
+    ds.columns.x_column = "x"
+    ds.columns.y_column = "y"
+    ds.columns.z_column = "None"
+    ds.columns.measurement_column = "m"
+    ds.columns.position_id = "None"
+    ds.columns.additional_filter_column = "None"
+    ds.columns.measurement_math_operatoin = "None"
+    ds.columns.measurement_bin = "m.bin"
+    ds.columns.measurement_resc = "m.resc"
+    assert not ds.filtered_data.value.empty
+    assert ds.arcos_binarization.value.empty
+    assert ds.arcos_output.value.empty
+    assert ds.arcos_stats.value.empty
+    arcos_wrapper(ds, what_to_run, print).run_arcos(
+        interpolate_meas=True,
+        clip_meas=False,
+        clip_low=0.01,
+        clip_high=0.99,
+        bias_method="none",
+        smooth_k=1,
+        bias_k=3,
+        polyDeg=1,
+        bin_threshold=0.5,
+        bin_peak_threshold=0.5,
+        epsMethod="mean",
+        neighbourhood_size=0,
+        epsPrev=20,
+        min_clustersize=4,
+        nprev=1,
+        min_dur=1,
+        total_event_size=1,
+    )
+    assert not ds.arcos_binarization.value.empty
+    assert not ds.arcos_output.value.empty
+    assert not ds.arcos_stats.value.empty
+
+    assert ds.arcos_parameters.neighbourhood_size != 0
