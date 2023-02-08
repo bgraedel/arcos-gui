@@ -74,6 +74,11 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         )
         self.file_LineEdit.setText(self.filename[0])
 
+    def load_sample_data(self, path, columns):
+        self.file_LineEdit.setText(path)
+        self.data_storage_instance.columns = columns
+        self.open_file_button.click()
+
     def _open_columnpicker(self):
         """Opens a columnpicker window."""
         extension = [".csv", ".csv.gz"]

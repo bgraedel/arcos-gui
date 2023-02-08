@@ -602,6 +602,9 @@
         <property name="toolTip">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Minimum size for a cluster to be identified as a collective event&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
+        <property name="minimum">
+         <number>2</number>
+        </property>
         <property name="maximum">
          <number>1000</number>
         </property>

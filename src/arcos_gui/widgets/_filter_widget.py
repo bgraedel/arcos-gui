@@ -193,6 +193,7 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
             self.data_storage_instance.original_data.value,
             self.data_storage_instance.columns.position_id,
             self.data_storage_instance.columns.object_id,
+            self.data_storage_instance.columns.additional_filter_column,
         )
         set_track_lenths(
             (min_t, max_t),
