@@ -2,7 +2,7 @@
 
 __author__ = """Benjamin Graedel"""
 __email__ = "benjamin.graedel@unibe.ch"
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 
 from ._arcos_wrapper import arcos_wrapper
