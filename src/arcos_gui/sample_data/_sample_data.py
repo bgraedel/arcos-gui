@@ -64,12 +64,12 @@ def load_synthetic_dataset():
     return []
 
 
-def load_real_dataset():
+def load_real_dataset(load_image: bool = True):
     """Load sample data and get image correspoinding to the data"""
     widget = _main_widget.MainWindow.get_last_instance()
     image_url = "https://macdobry.net/ARCOS/data/MDCK_example_event.tif"
     img_path = resolve("MDCK_example_event.tif")
-    if not os.path.exists(img_path):
+    if not os.path.exists(img_path) and load_image:
         try:
             show_info("Image not found: Downloading example image")
             download(image_url, img_path)
