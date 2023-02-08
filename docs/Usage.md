@@ -225,4 +225,4 @@ polygons/surfaces can take some time.
 Sample data can be found under the napari sample-data menu (Toolbar: File.. Open Sample.. arcos-gui..).
 Two datasets are provided:
 - A synthetically generated dataset of an expanding wave, the measurement is provided as binary values.
-- A real dataset of a collective event triggered after an apoptotic event. Data is taken from an MDCK epithelium expressing an ERK FRET probe (dataset from Paolo Gagliardi). A good binary threshold value for this dataset is 0.5.
+- A real dataset of a collective event triggered after an apoptotic event. Data is taken from an MDCK epithelium expressing an ERK FRET probe (dataset from Paolo Gagliardi). A good binary threshold value for this dataset is 0.5. Will also try to download the corresponding time-series.
