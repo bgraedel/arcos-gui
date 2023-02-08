@@ -14,13 +14,13 @@ if TYPE_CHECKING:
 # local imports
 from arcos_gui.tools import ARCOS_LAYERS, get_layer_list
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
+from scipy.spatial import KDTree
 
 # icons
 ICONS = Path(__file__).parent / "_icons"
 
 
 class _layer_propertiesUI:
-
     UI_FILE = str(Path(__file__).parent.parent / "_ui" / "Layer_properties.ui")
 
     # The UI_FILE above contains these objects:
@@ -169,22 +169,25 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
         updates values in lut mapping sliders
         """
         data = self.data_storage_instance.original_data.value
+        data = self.data_storage_instance.filtered_data.value
         x_coord = self.data_storage_instance.columns.x_column
         y_coord = self.data_storage_instance.columns.y_column
+        frame_col = self.data_storage_instance.columns.frame_column
+
         if not data.empty:
-            minx = min(data[x_coord])
-            maxx = max(data[x_coord])
-            miny = min(data[y_coord])
-            maxy = max(data[y_coord])
-
-            max_coord_diff = max(maxx - minx, maxy - miny)
-            self.point_size.setValue(
-                0.75482
-                + 0.00523857 * max_coord_diff
-                + 9.0618311e-6 * max_coord_diff**2
+            data_po_np = data[data[frame_col] == 0][[x_coord, y_coord]].to_numpy()
+            avg_nn_dist = (
+                KDTree(data_po_np).query(data_po_np, k=2)[0][:, 1].mean() * 0.75
             )
+            # minx = min(data[x_coord])
+            # maxx = max(data[x_coord])
+            # miny = min(data[y_coord])
+            # maxy = max(data[y_coord])
 
-        self.data_storage_instance.point_size = self.point_size.value()
+            # max_coord_diff = max(maxx - minx, maxy - miny)
+            self.point_size.setValue(avg_nn_dist)
+
+        self.data_storage_instance.point_size = avg_nn_dist
 
 
 if __name__ == "__main__":
