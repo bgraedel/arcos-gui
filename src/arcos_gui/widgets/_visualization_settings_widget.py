@@ -179,15 +179,10 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
             avg_nn_dist = (
                 KDTree(data_po_np).query(data_po_np, k=2)[0][:, 1].mean() * 0.75
             )
-            # minx = min(data[x_coord])
-            # maxx = max(data[x_coord])
-            # miny = min(data[y_coord])
-            # maxy = max(data[y_coord])
 
-            # max_coord_diff = max(maxx - minx, maxy - miny)
             self.point_size.setValue(avg_nn_dist)
 
-        self.data_storage_instance.point_size = avg_nn_dist
+            self.data_storage_instance.point_size = avg_nn_dist
 
 
 if __name__ == "__main__":

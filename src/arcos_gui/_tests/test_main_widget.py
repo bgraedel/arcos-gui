@@ -51,6 +51,17 @@ def test_init(dock_arcos_widget):
     assert "ARCOS Main Widget (arcos-gui)" in [i for i in viewer.window._dock_widgets]
 
 
+def test_get_instance(dock_arcos_widget):
+    viewer, mywidget = dock_arcos_widget
+    assert mywidget.get_last_instance() is not None
+
+
+def test_get_instance_no_instance():
+    from arcos_gui._main_widget import MainWindow
+
+    assert MainWindow.get_last_instance() is None
+
+
 @patch("qtpy.QtWidgets.QFileDialog.getOpenFileName")
 def test_load_data(
     mock_browse_data, dock_arcos_widget: tuple[napari.viewer.Viewer, MainWindow]
