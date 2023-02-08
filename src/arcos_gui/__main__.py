@@ -6,7 +6,8 @@ if TYPE_CHECKING:
     from . import _main_widget
 
 
-def main(viewer: napari.Viewer) -> _main_widget.MainWindow:
+def main(viewer: napari.Viewer):
+    mywidget: _main_widget.MainWindow
     viewer, mywidget = viewer.window.add_plugin_dock_widget(
         plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
     )
