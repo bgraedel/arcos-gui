@@ -22,6 +22,8 @@ def dock_arcos_widget(make_napari_viewer, qtbot):
     )
     yield viewer, mywidget[1]
     viewer.close()
+    del mywidget
+    del viewer
     gc.collect()
 
 
@@ -46,6 +48,12 @@ def dock_arcos_widget_w_colnames_set(
     return viewer, mywidget
 
 
+def test_get_instance_no_instance():
+    from arcos_gui._main_widget import MainWindow
+
+    assert MainWindow.get_last_instance() is None
+
+
 def test_init(dock_arcos_widget):
     viewer, mywidget = dock_arcos_widget
     assert "ARCOS Main Widget (arcos-gui)" in [i for i in viewer.window._dock_widgets]
@@ -54,12 +62,6 @@ def test_init(dock_arcos_widget):
 def test_get_instance(dock_arcos_widget):
     viewer, mywidget = dock_arcos_widget
     assert mywidget.get_last_instance() is not None
-
-
-def test_get_instance_no_instance():
-    from arcos_gui._main_widget import MainWindow
-
-    assert MainWindow.get_last_instance() is None
 
 
 @patch("qtpy.QtWidgets.QFileDialog.getOpenFileName")
