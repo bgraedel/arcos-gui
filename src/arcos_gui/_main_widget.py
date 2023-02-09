@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
 
 class _MainUI:
-
     UI_FILE = str(Path(__file__).parent / "_ui" / "main_widget.ui")
 
     # The UI_FILE above contains these objects:
@@ -56,6 +55,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         """Constructs class with provided arguments."""
         super().__init__()
         self.viewer: napari.viewer.Viewer = viewer
+        MainWindow._instance = self
         self.setup_ui()
 
         self.data_storage_instance = DataStorage()
@@ -98,6 +98,13 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self._add_widgets()
 
         self._connect_signals()
+
+    @classmethod
+    def get_last_instance(cls) -> MainWindow | None:
+        try:
+            return cls._instance
+        except AttributeError:
+            return None
 
     def _connect_signals(self):
         self.data_storage_instance.arcos_binarization.value_changed_connect(

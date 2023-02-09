@@ -739,6 +739,12 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         self.sample_number.setValue(20)
 
         self.button = QtWidgets.QPushButton("Update Plot")
+        self.resc_check = QtWidgets.QCheckBox("Show Rescaled")
+        self.resc_check.setVisible(False)
+        self.resc_check.setChecked(True)
+        self.orig_check = QtWidgets.QCheckBox("Show Original")
+        self.orig_check.setVisible(False)
+        self.orig_check.setChecked(True)
 
         # label
         self.spinbox_title = QtWidgets.QLabel("Sample Size")
@@ -766,8 +772,12 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         # add widgets to sub_layouts
         layout_combobox.addWidget(self.button)
         layout_combobox.addWidget(self.combo_box)
+
         layout_spinbox.addWidget(self.spinbox_title)
         layout_spinbox.addWidget(self.sample_number)
+        layout_spinbox.addWidget(self.resc_check)
+        layout_spinbox.addWidget(self.orig_check)
+
         layout.addLayout(layout_combobox)
         layout.addLayout(layout_spinbox)
 
@@ -778,6 +788,8 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         self.combo_box.currentIndexChanged.connect(self._update)
         self.update_layout()
         self.button.clicked.connect(self._update_from_button)
+        self.orig_check.stateChanged.connect(self._update)
+        self.resc_check.stateChanged.connect(self._update)
 
     def update_layout(self):
         self.fig.tight_layout(pad=0.1, w_pad=0.001, h_pad=0.05)
@@ -851,6 +863,8 @@ class TimeSeriesPlots(QtWidgets.QWidget):
             if plottype == "tracklength histogram":
                 self.sample_number.setVisible(False)
                 self.spinbox_title.setVisible(False)
+                self.resc_check.setVisible(False)
+                self.orig_check.setVisible(False)
                 track_length = self.dataframe.groupby(self.track_id_col).size()
                 self.ax.hist(track_length)
                 self.ax.set_xlabel("tracklength")
@@ -860,6 +874,8 @@ class TimeSeriesPlots(QtWidgets.QWidget):
             elif plottype == "measurment density plot":
                 self.sample_number.setVisible(False)
                 self.spinbox_title.setVisible(False)
+                self.resc_check.setVisible(False)
+                self.orig_check.setVisible(False)
                 density = gaussian_kde(self.dataframe[self.measurement].interpolate())
                 x = np.linspace(
                     min(self.dataframe[self.measurement]),
@@ -879,6 +895,8 @@ class TimeSeriesPlots(QtWidgets.QWidget):
                     if measurement_resc_values.size != 0:
                         self.sample_number.setVisible(False)
                         self.spinbox_title.setVisible(False)
+                        self.resc_check.setVisible(False)
+                        self.orig_check.setVisible(False)
                         density = gaussian_kde(measurement_resc_values)
                         x = np.linspace(
                             min(measurement_resc_values),
@@ -894,6 +912,8 @@ class TimeSeriesPlots(QtWidgets.QWidget):
             elif plottype == "x/t-plot":
                 self.sample_number.setVisible(True)
                 self.spinbox_title.setVisible(True)
+                self.resc_check.setVisible(False)
+                self.orig_check.setVisible(False)
                 sample = pd.Series(self.dataframe[self.track_id_col].unique()).sample(
                     n, replace=True
                 )
@@ -922,19 +942,22 @@ class TimeSeriesPlots(QtWidgets.QWidget):
                 self.ax.set_ylabel("Position Y")
 
             elif plottype == "original vs detreded":
-                if not self.dataframe_resc.empty:
-                    self.sample_number.setVisible(True)
-                    self.sample_number.setValue(1)
-                    n_samples = self.sample_number.value()
+                self.sample_number.setVisible(False)
+                self.spinbox_title.setVisible(False)
 
+                self.resc_check.setVisible(True)
+                self.orig_check.setVisible(True)
+
+                if not self.dataframe_resc.empty:
                     if self.object_id_number:
                         vals = self.object_id_number
                     else:
                         vals = np.random.choice(
                             self.dataframe_resc[self.track_id_col].unique(),
-                            n_samples,
+                            1,
                             replace=False,
                         )
+                        self.object_id_number = vals
                     self.dataframe_resc_cp = (
                         self.dataframe_resc.set_index(self.track_id_col)
                         .loc[vals]
@@ -942,27 +965,37 @@ class TimeSeriesPlots(QtWidgets.QWidget):
                         .copy(deep=True)
                     )
                     grouped = self.dataframe_resc_cp.groupby(self.track_id_col)
+                    plot_data_types = []
+                    if self.resc_check.isChecked():
+                        plot_data_types.append(self.measurement_resc_col)
+                    if self.orig_check.isChecked():
+                        plot_data_types.append(self.measurement)
                     for val in vals:
                         df_g = grouped.get_group(val)
-                        df_g.plot(
-                            x=self.frame_col,
-                            y=[self.measurement, self.measurement_resc_col],
-                            ax=self.ax,
-                        )
-                        x = df_g[df_g[f"{self.measurement}.bin"] != 0][self.frame_col]
-                        y = np.repeat(0, x.size)
-                        indices = np.where(np.diff(x) != 1)[0] + 1
-                        x_split = np.split(x, indices)
-                        y_split = np.split(y, indices)
-                        for idx, (x, y) in enumerate(zip(x_split, y_split)):
-                            if idx == 0:
-                                self.ax.plot(x, y, color="red", lw=2, label="bin")
-                            else:
-                                self.ax.plot(x, y, color="red", lw=2)
-
-                    self.ax.legend(loc=2, prop={"size": 6})
+                        if not plot_data_types:
+                            self.ax.plot()
+                        else:
+                            df_g.plot(
+                                x=self.frame_col,
+                                y=plot_data_types,
+                                ax=self.ax,
+                            )
+                            x = df_g[df_g[f"{self.measurement}.bin"] != 0][
+                                self.frame_col
+                            ]
+                            y = np.repeat(self.ax.get_ylim()[0], x.size)
+                            indices = np.where(np.diff(x) != 1)[0] + 1
+                            x_split = np.split(x, indices)
+                            y_split = np.split(y, indices)
+                            for idx, (x, y) in enumerate(zip(x_split, y_split)):
+                                if idx == 0:
+                                    self.ax.plot(x, y, color="red", lw=2, label="bin")
+                                else:
+                                    self.ax.plot(x, y, color="red", lw=2)
+                    if plot_data_types:
+                        self.ax.legend(loc=2, prop={"size": 6})
                     self.ax.set_xlabel("Frame")
-                    self.ax.set_ylabel("Measurement Value")
+                    self.ax.set_ylabel("Mes Value")
 
             self.fig.canvas.draw_idle()
         else:

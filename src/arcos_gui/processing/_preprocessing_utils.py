@@ -58,7 +58,9 @@ def calculate_measurement(
     return out_meas_name, data_in
 
 
-def get_tracklengths(df: pd.DataFrame, field_of_view_id: str, track_id: str) -> tuple:
+def get_tracklengths(
+    df: pd.DataFrame, field_of_view_id: str, track_id: str, second_filter_id: str
+) -> tuple:
     """
     Groups filtered data by track_id and
     returns minimum and maximum tracklenght.
@@ -84,16 +86,17 @@ def get_tracklengths(df: pd.DataFrame, field_of_view_id: str, track_id: str) -> 
     if df.empty:
         return 0, 0
 
-    if field_of_view_id != "None":
-        track_lenths = df.groupby(
-            [
-                field_of_view_id,
-                track_id,
-            ]
-        ).size()
+    if field_of_view_id != "None" and second_filter_id != "None":
+        track_lenths = df.groupby([field_of_view_id, second_filter_id, track_id])[
+            track_id
+        ].agg("count")
+    elif field_of_view_id != "None":
+        track_lenths = df.groupby([field_of_view_id, track_id])[track_id].agg("count")
+    elif second_filter_id != "None":
+        track_lenths = df.groupby([second_filter_id, track_id])[track_id].agg("count")
     else:
-        track_lenths = df.groupby([track_id]).size()
-    minmax = (min(track_lenths), max(track_lenths))
+        track_lenths = df.groupby([track_id])[track_id].agg("count")
+    minmax = (track_lenths.min(), track_lenths.max())
     return minmax
 
 
@@ -260,7 +263,6 @@ class process_input:
         track_id_column: str,
         measurement_column: str,
     ):
-
         self.field_of_view_column = field_of_view_column
         self.frame_column = frame_column
         self.pos_columns = pos_columns

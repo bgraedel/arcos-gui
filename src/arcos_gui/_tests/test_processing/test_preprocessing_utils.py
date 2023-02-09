@@ -124,7 +124,7 @@ def test_get_tracklengths(test_df):
     # create dataframe
     df = test_df
     # get tracklengths
-    tracklengths = get_tracklengths(df, "None", "track_id")
+    tracklengths = get_tracklengths(df, "None", "track_id", "None")
     # check if tracklengths are calculated
     assert tracklengths == (3, 3)
 
@@ -134,7 +134,7 @@ def test_tracklengths_with_pos(test_df):
     # create dataframe
     df = test_df
     # get tracklengths
-    tracklengths = get_tracklengths(df, "pos", "track_id")
+    tracklengths = get_tracklengths(df, "pos", "track_id", "None")
     # check if tracklengths are calculated
     assert tracklengths == (1, 3)
 
