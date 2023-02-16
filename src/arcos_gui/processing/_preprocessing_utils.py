@@ -193,8 +193,7 @@ def filter_data(
         filtered_data = subtract_timeoffset(filtered_data, frame_name)
     except (KeyError, TypeError) as err:
         raise type(err)(
-            f"Frame column not set properly, has to be int or float.\
-                Set column is {frame_name} and available columns are {filtered_data.columns}"
+            f"Frame column not set properly, has to be int or float. Set column is '{frame_name}' and available columns are {filtered_data.columns.tolist()}"  # noqa: E501
         ) from err
 
     # get min and max values
@@ -220,8 +219,7 @@ def preprocess_data(df: pd.DataFrame, op: str, meas_1: str, meas_2: str, op_dict
         return calculate_measurement(df, op, meas_1, meas_2, op_dict)
     except (KeyError, TypeError, ValueError) as err:
         raise type(err)(
-            f"Measurement columns not set properly, has to be int or float.\
-                Set column is {meas_1} and {meas_2} and available columns are {df.columns}"
+            f"Measurement columns not set properly, has to be int or float. Trying to {op.lower()} columns '{meas_1}' and '{meas_2}' and available columns are {df.columns.tolist()}"  # noqa: E501
         ) from err
 
 
@@ -349,7 +347,7 @@ class DataLoader(QObject):
             self._preprocess_data(df)
             self.aborted.emit(0)
         except Exception as e:
-            print(e)
+            # print(e)
             self.aborted.emit(e)
         self.finished.emit()
 

@@ -502,8 +502,8 @@ def test_data_storage_init():
     assert data_storage.lut == "inferno"
 
     # test that the _filename_for_sample_data field is initialized correctly
-    assert isinstance(data_storage._filename_for_sample_data, value_callback)
-    assert data_storage._filename_for_sample_data.value is None
+    assert isinstance(data_storage._file_name, value_callback)
+    assert data_storage._file_name.value is None
 
     # test that the _timestamp_parameters field is initialized correctly
     assert isinstance(data_storage._timestamp_parameters, value_callback)
@@ -526,7 +526,7 @@ def test_data_storage_callbacks(mocker):
     data_storage._arcos_output.value_changed_connect(mock_df_callback)
     data_storage._arcos_stats.value_changed_connect(mock_df_callback)
     data_storage._selected_object_id.value_changed_connect(mock_value_callback)
-    data_storage._filename_for_sample_data.value_changed_connect(mock_value_callback)
+    data_storage._file_name.value_changed_connect(mock_value_callback)
     data_storage._timestamp_parameters.value_changed_connect(mock_value_callback)
 
     # set the values of the data_frame_storage and value_callback instances
@@ -546,7 +546,7 @@ def test_data_storage_callbacks(mocker):
         {"col1": [1, 2, 3], "col2": [4, 5, 6]}
     )
     data_storage._selected_object_id.value = 10
-    data_storage._filename_for_sample_data.value = "test_filename"
+    data_storage._file_name.value = "test_filename"
     data_storage._timestamp_parameters.value = timestamp_parameters()
 
     # assert that the mock callbacks were called the correct number of times
@@ -567,7 +567,7 @@ def test_data_storage_reset_all_attributes_callback(mocker):
     data_storage._arcos_output.value_changed_connect(mock_df_callback)
     data_storage._arcos_stats.value_changed_connect(mock_df_callback)
     data_storage._selected_object_id.value_changed_connect(mock_value_callback)
-    data_storage._filename_for_sample_data.value_changed_connect(mock_value_callback)
+    data_storage._file_name.value_changed_connect(mock_value_callback)
     data_storage._timestamp_parameters.value_changed_connect(mock_value_callback)
 
     # reset all attributes with trigger_callback set to True
@@ -591,7 +591,7 @@ def test_data_storage_reset_all_attributes_no_callback(mocker):
     data_storage._arcos_output.value_changed_connect(mock_df_callback)
     data_storage._arcos_stats.value_changed_connect(mock_df_callback)
     data_storage._selected_object_id.value_changed_connect(mock_value_callback)
-    data_storage._filename_for_sample_data.value_changed_connect(mock_value_callback)
+    data_storage._file_name.value_changed_connect(mock_value_callback)
     data_storage._timestamp_parameters.value_changed_connect(mock_value_callback)
 
     # reset all attributes with trigger_callback set to False
@@ -627,7 +627,7 @@ def test_reset_all_attributes_method():
     data_storage.point_size = 12
     data_storage._selected_object_id.value = 10
     data_storage.lut = "viridis"
-    data_storage._filename_for_sample_data.value = "test_filename"
+    data_storage._file_name.value = "test_filename"
     data_storage.timestamp_parameters.value = timestamp_parameters(start_time=50)
 
     assert not data_storage == DataStorage()

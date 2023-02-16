@@ -60,6 +60,7 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         super().__init__(parent)
         self.setup_ui()
         self.picker = columnpicker(self)
+        self.last_path = None
 
         # set up file browser
         self.browse_file.clicked.connect(self._browse_files)
@@ -69,15 +70,25 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
 
     def _browse_files(self):
         """Opens a filedialog and saves path as a string in self.filename"""
+        if self.last_path is None:
+            self.last_path = str(Path.home())
         self.filename = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Load CSV file", str(Path.home()), "csv(*.csv);; csv.gz(*.csv.gz);;"
+            self,
+            "Load CSV file",
+            str(self.last_path),
+            "csv(*.csv);; csv.gz(*.csv.gz);;",
         )
+        self.last_path = str(Path(self.filename[0]).parent)
+        if self.filename[0] == "":
+            return
         self.file_LineEdit.setText(self.filename[0])
+        self.data_storage_instance.file_name = self.filename[0]
 
     def load_sample_data(self, path, columns):
         self.file_LineEdit.setText(path)
         self.data_storage_instance.columns = columns
         self.open_file_button.click()
+        self.data_storage_instance.file_name = path
 
     def _open_columnpicker(self):
         """Opens a columnpicker window."""
@@ -168,8 +179,8 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         elif err_code == 2:
             show_info("Loading aborted by error")
             return
-        elif err_code == Exception:
-            show_info("Loading aborted by error")
+        elif isinstance(err_code, Exception):
+            show_info(f"Loading aborted by error: {err_code}")
             print(err_code)
             return
 
@@ -181,11 +192,8 @@ if __name__ == "__main__":
     import sys
 
     from arcos_gui.processing import DataStorage  # noqa: F811
-    from napari.viewer import Viewer  # noqa: F811
-
-    viewer = Viewer()
 
     app = QtWidgets.QApplication(sys.argv)
-    widget = InputDataWidget(viewer, DataStorage())
+    widget = InputDataWidget(DataStorage())
     widget.show()
     sys.exit(app.exec_())
