@@ -160,6 +160,14 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
         self.browse_file_img.clicked.connect(self._browse_file_img)
         self.img_seq_export_button.clicked.connect(self._export_image_series)
         self.add_timestamp_button.clicked.connect(self._add_timestamp)
+        self._data_storage_instance.file_name.value_changed_connect(
+            self._update_base_name_data
+        )
+
+    def _update_base_name_data(self):
+        base_name = self._data_storage_instance.file_name.value
+        self.base_name_LineEdit_data.setText(Path(base_name).stem)
+        self.base_name_LineEdit_img.setText(Path(base_name).stem)
 
 
 if __name__ == "__main__":

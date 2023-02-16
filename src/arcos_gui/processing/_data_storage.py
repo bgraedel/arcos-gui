@@ -416,6 +416,7 @@ class timestamp_parameters:
 class DataStorage:
     """Stores data for the GUI."""
 
+    _file_name: value_callback = field(default_factory=lambda: value_callback(None))
     _original_data: data_frame_storage = field(
         default_factory=lambda: data_frame_storage(pd.DataFrame())
     )
@@ -440,9 +441,6 @@ class DataStorage:
         default_factory=lambda: value_callback(None)
     )
     lut: str = "inferno"
-    _filename_for_sample_data: value_callback = field(
-        default_factory=lambda: value_callback(None)
-    )
     _timestamp_parameters: value_callback = field(
         default_factory=lambda: value_callback(timestamp_parameters())
     )
@@ -450,6 +448,7 @@ class DataStorage:
 
     def reset_all_attributes(self, trigger_callback=False):
         if trigger_callback:
+            self._file_name.value = None
             self._original_data.value = pd.DataFrame()
             self._filtered_data.value = pd.DataFrame()
             self._arcos_binarization.value = pd.DataFrame()
@@ -462,10 +461,10 @@ class DataStorage:
             self.point_size = 10
             self._selected_object_id.value = None
             self.lut = "inferno"
-            self._filename_for_sample_data.value = None
             self._timestamp_parameters.value = timestamp_parameters()
             self.verbous = False
         else:
+            self._file_name._value = None
             self._original_data._value = pd.DataFrame()
             self._filtered_data._value = pd.DataFrame()
             self._arcos_binarization._value = pd.DataFrame()
@@ -478,7 +477,6 @@ class DataStorage:
             self.point_size = 10
             self._selected_object_id._value = None
             self.lut = "inferno"
-            self._filename_for_sample_data._value = None
             self._timestamp_parameters._value = timestamp_parameters()
             self.verbous = False
 
@@ -498,35 +496,35 @@ class DataStorage:
 
     def make_quiet(self):
         self.verbous = False
+        self._file_name.verbous = False
         self._original_data.verbous = False
         self._filtered_data.verbous = False
         self._arcos_binarization.verbous = False
         self._arcos_output.verbous = False
         self._arcos_stats.verbous = False
         self._selected_object_id.verbous = False
-        self._filename_for_sample_data.verbous = False
         self._timestamp_parameters.verbous = False
         self.arcos_parameters.make_quiet()
 
     def make_verbose(self):
         self.verbous = True
+        self._file_name.verbous = True
         self._original_data.verbous = True
         self._filtered_data.verbous = True
         self._arcos_binarization.verbous = True
         self._arcos_output.verbous = True
         self._arcos_stats.verbous = True
         self._selected_object_id.verbous = True
-        self._filename_for_sample_data.verbous = True
         self._timestamp_parameters.verbous = True
         self.arcos_parameters.make_verbous()
 
     @property
-    def filename_for_sample_data(self):
-        return self._filename_for_sample_data
+    def file_name(self):
+        return self._file_name
 
-    @filename_for_sample_data.setter
-    def filename_for_sample_data(self, value):
-        self._filename_for_sample_data.value = value
+    @file_name.setter
+    def file_name(self, value):
+        self._file_name.value = value
 
     @property
     def original_data(self):
@@ -633,6 +631,7 @@ class DataStorage:
                 )
                 return (
                     self._columns == other._columns
+                    and self._file_name == other._file_name
                     and self._arcos_parameters == other._arcos_parameters
                     and self.min_max_meas == other.min_max_meas
                     and self.colormaps == other.colormaps
@@ -640,8 +639,6 @@ class DataStorage:
                     and self._selected_object_id.value
                     == other._selected_object_id.value
                     and self.lut == other.lut
-                    and self._filename_for_sample_data.value
-                    == other._filename_for_sample_data.value
                     and self._timestamp_parameters.value
                     == other._timestamp_parameters.value
                     and self.verbous == other.verbous
