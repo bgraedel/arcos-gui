@@ -1,3 +1,5 @@
+"""Module contiaing serveral utility functions to prepare layer data tuples."""
+
 from __future__ import annotations
 
 from typing import Union
@@ -51,24 +53,23 @@ def prepare_all_cells_layer(
     # np matrix with all cells
     df_all = df_all.copy()
     df_all.interpolate(method="linear", inplace=True)
-    datAll = df_all[vColsCore].to_numpy()
-    datID = df_all[track_id_col].to_numpy()
+    data_all_np = df_all[vColsCore].to_numpy()
+    data_id_np = df_all[track_id_col].to_numpy()
 
     # a dictionary with activities;
     # shown as a color code of all cells
-    datAllProp = {"act": df_all[measurement_name].astype(float), "id": datID}
+    data_all_prop = {"act": df_all[measurement_name].astype(float), "id": data_id_np}
     # tuple to return layer as layer.data.tuple
     all_cells = (
-        datAll,
+        data_all_np,
         {
-            "properties": datAllProp,
+            "properties": data_all_prop,
             "edge_width": 0,
             "edge_color": "act",
             "face_color": "act",
             "face_colormap": lut,
             "face_contrast_limits": min_max,
             "size": size,
-            "edge_width": 0,
             "opacity": 1,
             "symbol": "disc",
             "name": ARCOS_LAYERS["all_cells"],
@@ -142,7 +143,7 @@ def prepare_events_layer(
         tuple with events layer
     """
     # np matrix with cells in collective events
-    datColl = df_coll[vColsCore].to_numpy()
+    data_collevent_np = df_coll[vColsCore].to_numpy()
 
     # create remaining layer.data.tuples
     np_clids = df_coll["collid"].to_numpy()
@@ -150,9 +151,9 @@ def prepare_events_layer(
     if np_clids.size == 0:
         return None
 
-    color_ids = np.take(np.array(COLOR_CYCLE), [i for i in np_clids], mode="wrap")
+    color_ids = np.take(np.array(COLOR_CYCLE), list(np_clids), mode="wrap")
     coll_cells = (
-        datColl,
+        data_collevent_np,
         {
             "face_color": color_ids,
             "size": round(size / 1.2, 2),
@@ -252,7 +253,34 @@ def prepare_convex_hull_layer(
 def prepare_timestamp_layer(
     viewer, start_time, step_time, position, prefix, suffix, size, x_shift, y_shift
 ):
+    """Prepare timestamp layer.
 
+    Parameters
+    ----------
+    viewer : napari.Viewer
+        napari viewer
+    start_time : int
+        start time
+    step_time : int
+        step time
+    position : tuple
+        position of timestamp
+    prefix : str
+        prefix of timestamp
+    suffix : str
+        suffix of timestamp
+    size : float
+        size of timestamp
+    x_shift : float
+        x shift of timestamp
+    y_shift : float
+        y shift of timestamp
+
+    Returns
+    -------
+    time_stamp_layer : tuple
+        tuple with timestamp layer
+    """
     kw_timestamp = make_timestamp(
         viewer, start_time, step_time, prefix, suffix, position, size, x_shift, y_shift
     )

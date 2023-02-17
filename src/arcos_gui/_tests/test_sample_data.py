@@ -39,7 +39,7 @@ def test_load_sample_data(dock_arcos_widget):
     loop = QEventLoop()
     load_synthetic_dataset()
     widget.input_data_widget.loading_worker.finished.connect(loop.quit)
-    widget.input_data_widget.picker.Ok.click()
+    widget.input_data_widget.picker.ok_button.click()
     loop.exec_()
     assert not widget.data_storage_instance.filtered_data.value.empty
     assert widget.input_data_widget.picker.frame.currentText() == "t"
@@ -55,7 +55,7 @@ def test_load_real_data(dock_arcos_widget):
     loop = QEventLoop()
     load_real_dataset(load_image=False)
     widget.input_data_widget.loading_worker.finished.connect(loop.quit)
-    widget.input_data_widget.picker.Ok.click()
+    widget.input_data_widget.picker.ok_button.click()
     loop.exec_()
     assert not widget.data_storage_instance.filtered_data.value.empty
     assert widget.input_data_widget.picker.frame.currentText() == "t"

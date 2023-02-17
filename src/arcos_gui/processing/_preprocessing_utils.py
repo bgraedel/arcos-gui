@@ -1,12 +1,11 @@
+"""Contains functions for preprocessing csv data."""
+
 from __future__ import annotations
 
 import csv
 import gzip
 import time
-from typing import TYPE_CHECKING, Callable, Union
-
-if TYPE_CHECKING:
-    pass
+from typing import Callable, Union
 
 import pandas as pd
 from arcos_gui.tools import OPERATOR_DICTIONARY
@@ -215,6 +214,26 @@ def check_for_collid_column(data: pd.DataFrame, collid_column="collid", suffix="
 
 
 def preprocess_data(df: pd.DataFrame, op: str, meas_1: str, meas_2: str, op_dict: dict):
+    """Preprocesses data for calculation of measurement columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input data
+    op : str
+        Operation to perform
+    meas_1 : str
+        Name of the first measurement column
+    meas_2 : str
+        Name of the second measurement column
+    op_dict : dict
+        Dictionary containing the operation to perform
+
+    Returns
+    -------
+    pd.DataFrame
+        Preprocessed data
+    """
     try:
         return calculate_measurement(df, op, meas_1, meas_2, op_dict)
     except (KeyError, TypeError, ValueError) as err:
@@ -223,20 +242,48 @@ def preprocess_data(df: pd.DataFrame, op: str, meas_1: str, meas_2: str, op_dict
         ) from err
 
 
-def get_delimiter(file_path: str, bytes=4096):
+def get_delimiter(file_path: str, bytes_to_load=4096):
+    """Returns the delimiter used in a csv file.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the csv file
+    bytes : int, optional
+        Number of bytes to read, by default 4096
+
+    Returns
+    -------
+    delimiter : str
+        Delimiter used in the csv file
+    """
     sniffer = csv.Sniffer()
     if file_path.endswith(".csv"):
-        with open(file_path) as f:
-            data = f.read(bytes)
+        with open(file_path) as _file:
+            data = _file.read(bytes_to_load)
             delimiter = sniffer.sniff(data).delimiter
     if file_path.endswith("csv.gz"):
-        with gzip.open(file_path, mode="rt") as f:
-            data = f.read(bytes)
+        with gzip.open(file_path, mode="rt") as _file:
+            data = _file.read(bytes_to_load)
             delimiter = sniffer.sniff(data).delimiter
     return delimiter
 
 
 def read_data_header(filename: str):
+    """Reads the header of a csv file and returns it as a list.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the csv file
+
+    Returns
+    -------
+    headers : list
+        List containing the header of the csv file
+    delimiter_value : str
+        Delimiter used in the csv file
+    """
     delimiter_value = get_delimiter(filename)
     if filename.endswith(".csv"):
         with open(filename) as f:
@@ -252,6 +299,8 @@ def read_data_header(filename: str):
 
 
 class process_input:
+    """Class to process input data."""
+
     def __init__(
         self,
         df: pd.DataFrame,
@@ -261,6 +310,24 @@ class process_input:
         track_id_column: str,
         measurement_column: str,
     ):
+        """Process input data. Optionally filter by position and track length.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            input dataframe
+        field_of_view_column : str
+            name of column containing field of view
+        frame_column : str
+            name of column containing frame number
+        pos_columns : list
+            list of column names containing position
+
+        track_id_column : str
+            name of column containing track id
+        measurement_column : str
+            name of column containing measurement
+        """
         self.field_of_view_column = field_of_view_column
         self.frame_column = frame_column
         self.pos_columns = pos_columns
@@ -269,6 +336,15 @@ class process_input:
         self.df = df
 
     def filter_position(self, fov_to_select=None, return_dataframe=False):
+        """Filters dataframe by position passed in as argument.
+
+        Parameters
+        ----------
+        fov_to_select : str, int, float, optional
+            position to filter by, by default None
+        return_dataframe : bool, optional
+            if True, returns filtered dataframe, by default False
+        """
         if fov_to_select is not None:
             self.df = self.df.loc[
                 self.df.loc[:, self.field_of_view_column] == fov_to_select
@@ -277,8 +353,19 @@ class process_input:
             return self.df
 
     def filter_second_column(
-        self, column=None, value_to_select=None, return_dataframe=False
+        self, column, value_to_select=None, return_dataframe=False
     ):
+        """Filters dataframe by column and value passed in as argument.
+
+        Parameters
+        ----------
+        column : str
+            column to filter by
+        value_to_select : str, optional
+            value to filter by, by default None
+        return_dataframe : bool, optional
+            if True, returns filtered dataframe, by default False
+        """
         if value_to_select is not None:
             self.df = self.df.loc[self.df.loc[:, column] == value_to_select].copy(
                 deep=True
@@ -289,9 +376,20 @@ class process_input:
         # filter_tracklenght works only if previously filtered by pos
         # or if track_ids dont overlapp between fov
 
-    def filter_tracklength(self, min, max, return_dataframe=False):
+    def filter_tracklength(self, min_val, max_val, return_dataframe=False):
+        """Filters tracklength by min and max value passed in as argument.
+
+        Parameters
+        ----------
+        min_val : int
+            minimum tracklength
+        max_val : int
+            maximum tracklength
+        return_dataframe : bool, optional
+            if True, returns filtered dataframe, by default False
+        """
         track_length = self.df.groupby(self.track_id_column).size()
-        track_length_filtered = track_length.between(min, max)
+        track_length_filtered = track_length.between(min_val, max_val)
         track_length_filtered_names = track_length_filtered[track_length_filtered].index
         self.df = self.df.loc[
             self.df.loc[:, self.track_id_column].isin(track_length_filtered_names)
@@ -310,14 +408,41 @@ class process_input:
             return self.df
 
     def frame_interval(self, factor):
+        """Rescales the frame column by a factor."""
         if factor > 1:
             self.df[self.frame_column] = self.df[self.frame_column] / factor
 
     def return_pd_df(self) -> pd.DataFrame:
+        """Returns the dataframe."""
         return self.df
 
 
 class DataLoader(QObject):
+    """Load data in a separate thread.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the csv file
+    delimiter : str
+        Delimiter used in the csv file
+    wait_for_columnpicker : bool, optional
+        If True, waits for columnpicker to be finished, by default False
+    parent : QObject, optional
+        Parent object, by default None
+
+    Signals
+    -------
+    finished : Signal
+        Emitted when the task is finished
+    loading_finished : Signal
+        Emitted when loading is finished
+    new_data : Signal
+        Emitted when new data is available
+    aborted : Signal
+        Emitted when the task is aborted either by the user or an error.
+    """
+
     finished = Signal()
     loading_finished = Signal()
     new_data = Signal(pd.DataFrame, str)
@@ -376,17 +501,17 @@ class DataLoader(QObject):
             self.aborted.emit(1)
             return
 
-        op = self.op
+        operation = self.op
         in_meas1 = self.meas_1
         in_meas2 = self.meas_2
-        names_list = [op, in_meas1, in_meas2]
+        names_list = [operation, in_meas1, in_meas2]
 
         if names_list.count(None) == len(names_list):
             self.new_data.emit(dataframe, "None")
             return
 
         meas_name, df_new = preprocess_data(
-            dataframe, op, in_meas1, in_meas2, OPERATOR_DICTIONARY
+            dataframe, operation, in_meas1, in_meas2, OPERATOR_DICTIONARY
         )
 
         self.new_data.emit(df_new, meas_name)

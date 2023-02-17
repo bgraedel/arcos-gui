@@ -1,3 +1,5 @@
+"""Module containing the bottom bar widget class."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -11,6 +13,8 @@ if TYPE_CHECKING:
 
 
 class BottomBarWidget(QtWidgets.QWidget):
+    """Bottom bar widget. Displays the number of detected collective events."""
+
     def __init__(self, data_storage_instance: DataStorage, parent=None):
         super().__init__(parent)
         self.data_storage_instance = data_storage_instance
@@ -18,6 +22,7 @@ class BottomBarWidget(QtWidgets.QWidget):
         self._connect_signals()
 
     def setupui(self):
+        """Setup the UI. Add widgets to the layout."""
         self.bottom_bar_layout = QtWidgets.QHBoxLayout()
         self.collev_number_display_label = QtWidgets.QLabel(
             "Number of detected collective events: "
@@ -38,6 +43,7 @@ class BottomBarWidget(QtWidgets.QWidget):
         self.arcos_help_button.clicked.connect(self._update_help_pressed)
 
     def update_event_counter(self):
+        """Update the number of detected collective events."""
         df = self.data_storage_instance.arcos_stats.value
 
         if df.empty:

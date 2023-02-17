@@ -1,3 +1,5 @@
+"""Module for arcos wrapper functions."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Union
@@ -159,7 +161,7 @@ def detect_events(
     """
     _bin_col = arcos.bin_col
     if 1 not in arcos.data[_bin_col].values:
-        return
+        return None
 
     arcos_events = arcos.trackCollev(
         eps=neighbourhood_size,
@@ -192,9 +194,6 @@ def get_eps(arcos: ARCOS, method: str, minClustersize: int):
     if method not in methods:
         raise ValueError(f"Method must be one of {methods}")
 
-    if method == "manual":
-        return
-
     if method == "kneepoint":
         return estimate_eps(
             data=arcos.data[arcos.data[arcos.bin_col] > 0],
@@ -214,6 +213,7 @@ def get_eps(arcos: ARCOS, method: str, minClustersize: int):
             n_neighbors=minClustersize,
             plot=False,
         )
+    return None  # manual
 
 
 def filtering_arcos_events(
@@ -287,6 +287,26 @@ def calculate_arcos_stats(
     object_id_name: str,
     posCols: list,
 ):
+    """Wrapper for calcCollevStats().
+
+    Parameters
+    ----------
+    df_arcos_filtered : pd.DataFrame
+        dataframe with filtered events
+    frame_col : str
+        name of frame column
+    collid_name : str
+        name of collid column
+    object_id_col_name : str
+        name of object id column
+    posCols : list
+        list of position columns
+
+    Returns
+    -------
+    df_arcos_stats : pd.DataFrame
+        dataframe with statistics for each event
+    """
     df_arcos_stats = calcCollevStats().calculate(
         df_arcos_filtered, frame_col, collid_name, object_id_name, posCols
     )
@@ -294,12 +314,30 @@ def calculate_arcos_stats(
 
 
 class arcos_wrapper:
-    """Runs arcos with the current parameters defined in the ArcosWidget."""
+    """Runs arcos with the current parameters defined in the ArcosWidget.
+
+    Updates the data storage with the results. what_to_run is a set of strings
+    indicating what to run. The strings correspond to specific steps in the
+    arcos pipeline. The steps are:
+        - 'binarization': initializes a new ARCOS object and runs the binarization.
+        - 'tracking': runs the event detection.
+        - 'filtering': runs the event filtering.
+    """
 
     def __init__(
         self, data_storage_instance: DataStorage, what_to_run: set, std_out: Callable
     ):
+        """Constructor.
 
+        Parameters
+        ----------
+        data_storage_instance : DataStorage
+            DataStorage instance
+        what_to_run : set
+            set of strings indicating what to run
+        std_out : Callable
+            function to print to the console
+        """
         self.data_storage_instance = data_storage_instance
         self.what_to_run = what_to_run
         self.std_out = std_out
@@ -333,6 +371,47 @@ class arcos_wrapper:
         total_event_size: int,
         nprev: int,
     ):
+        """Run arcos with input parameters.
+
+        Runs only or only from as far as specified in the what_to_run set.
+
+        Parameters
+        ----------
+        interpolate_meas : bool
+            interpolate measurements
+        clip_meas : bool
+            clip measurements
+        clip_low : float
+            lower clip value
+        clip_high : float
+            upper clip value
+        smooth_k : int
+            local smoothing kernel size
+        bias_k : int
+            global smoothing kernel size, only used with "runmed" bias method
+        bias_method : str
+            detrending method
+        polyDeg : int
+            polynomial degree for detrending, only used with "lm" bias method
+        bin_threshold : float
+            threshold for binarization
+        bin_peak_threshold : float
+            peak threshold for binarization
+        epsMethod : str
+            method for calculating epsilon
+        neighbourhood_size : float
+            neighbourhood size, i.e. epsilon, for DBSCAN
+        epsPrev : float | None
+            how far objects can be apart to start linking them
+        min_clustersize : int
+            minimum cluster size
+        min_dur : int
+            minimum duration of events
+        total_event_size : int
+            minimum size of events
+        nprev : int
+            number of previous frames to consider for linking
+        """
         # get the stored variables
         df_filtered = self.data_storage_instance.filtered_data.value
         posCols = self.data_storage_instance.columns.posCol
@@ -440,6 +519,7 @@ class arcos_wrapper:
             self.what_to_run.clear()
 
     def run_bin(self, **kwargs):
+        """Run the binarizatoin only. Same as run_arcos but with only binarization."""
         initial_wtr = self.what_to_run.copy()
         self.what_to_run.clear()
         self.what_to_run.add("binarization")

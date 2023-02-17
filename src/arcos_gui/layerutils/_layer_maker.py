@@ -1,3 +1,5 @@
+"""Module containing utility classes to make layers for napari."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -140,7 +142,7 @@ class Layermaker:
             event.sources[0].data[self.point_index] = self._prev_point_data
             self.viewer.layers["All Cells"].refresh()
 
-        self.point_index = [i for i in event.sources[0].selected_data]
+        self.point_index = list(event.sources[0].selected_data)
         self.id = event.sources[0].properties["id"][self.point_index]
         self._prev_point_data = event.sources[0].data[self.point_index]
         self.data_storage_instance.selected_object_id.value = self.id

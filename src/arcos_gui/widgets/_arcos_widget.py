@@ -1,3 +1,5 @@
+"""Widget to set arcos parameters and run arcos algorithm."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -61,10 +63,13 @@ class _arcosWidget:
     add_convex_hull_checkbox: QtWidgets.QCheckBox
 
     def setup_ui(self):
+        """Setup UI. Loads it from ui file."""
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
 
 
 class ArcosWidget(QtWidgets.QWidget, _arcosWidget):
+    """Widget to set arcos parameters and run arcos algorithm."""
+
     def __init__(self, data_storage_instance: DataStorage, parent=None):
         super().__init__(parent)
         self.setup_ui()

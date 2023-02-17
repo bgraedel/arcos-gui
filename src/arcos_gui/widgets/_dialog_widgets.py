@@ -1,3 +1,5 @@
+"""Popupdialog widgets for the arcos_gui package."""
+
 from __future__ import annotations
 
 from typing import Union
@@ -9,11 +11,56 @@ from qtpy.QtCore import Signal
 
 
 class timestamp_options(QtWidgets.QDialog):
+    """Dialog for setting timestamp options.
+
+    Parameters
+    ----------
+    parent : QtWidgets.QWidget, optional
+        Parent widget, by default None
+
+    Attributes
+    ----------
+    start_time_label : QtWidgets.QLabel
+        Label for start time
+    start_time : QtWidgets.QSpinBox
+        Spinbox for start time
+    step_time_label : QtWidgets.QLabel
+        Label for step time
+    step_time : QtWidgets.QSpinBox
+        Spinbox for step time
+    prefix_label : QtWidgets.QLabel
+        Label for prefix
+    prefix : QtWidgets.QLineEdit
+        Line edit for prefix
+    suffix_label : QtWidgets.QLabel
+        Label for suffix
+    suffix : QtWidgets.QLineEdit
+        Line edit for suffix
+    position_label : QtWidgets.QLabel
+        Label for position
+    position : QtWidgets.QComboBox
+        Combo box for position
+    size_label : QtWidgets.QLabel
+        Label for size
+    ts_size : QtWidgets.QSpinBox
+        Spinbox for size
+    x_shift_label : QtWidgets.QLabel
+        Label for x shift
+    x_shift : QtWidgets.QSpinBox
+        Spinbox for x shift
+    y_shift_label : QtWidgets.QLabel
+        Label for y shift
+    y_shift : QtWidgets.QSpinBox
+        Spinbox for y shift
+    set_options : QtWidgets.QPushButton
+        Button for setting options
+    """
+
     def __init__(self, parent=None):
         super().__init__()
-        self.setupUi()
+        self._setupUi()
 
-    def setupUi(self):
+    def _setupUi(self):
         self.setObjectName("Timestamp Options")
         self.gridLayout = QtWidgets.QGridLayout()
         self.start_time_label = QtWidgets.QLabel("Start Time")
@@ -67,13 +114,53 @@ class timestamp_options(QtWidgets.QDialog):
         self.gridLayout.addWidget(self.y_shift, 7, 1)
         self.gridLayout.addWidget(self.set_options, 8, 0, 1, 2)
         self.setLayout(self.gridLayout)
-        self.set_options.clicked.connect(self.set_options_clicked)
+        self.set_options.clicked.connect(self._set_options_clicked)
 
-    def set_options_clicked(self):
+    def _set_options_clicked(self):
         self.close()
 
 
 class columnpicker(QtWidgets.QDialog):
+    """Dialog to pick the columns of the data file.
+
+    Parameters
+    ----------
+    parent : QtWidgets.QWidget, optional
+        Parent widget, by default None
+    columnames_instance : Union[columnnames, None], optional
+        Instance of the columnnames class, by default None
+
+    Attributes
+    ----------
+    frame : QtWidgets.QComboBox
+        Combobox to select the frame column
+    track_id : QtWidgets.QComboBox
+        Combobox to select the track id column
+    x : QtWidgets.QComboBox
+        Combobox to select the x column
+    y : QtWidgets.QComboBox
+        Combobox to select the y column
+    measurement : QtWidgets.QComboBox
+        Combobox to select the measurement column
+    measurement_math : QtWidgets.QComboBox
+        Combobox to select the measurement math column
+    second_measurement : QtWidgets.QComboBox
+        Combobox to select the second measurement column
+    ok_button : QtWidgets.QPushButton
+        Button to confirm the selection
+    abort_button : QtWidgets.QPushButton
+        Button to abort the selection
+    ok_pressed : bool
+        True if ok button was pressed, False if abort button was pressed
+
+    Signals
+    -------
+    aborted : Signal
+        Signal emitted if abort button was pressed
+    ok : Signal
+        Signal emitted if ok button was pressed
+    """
+
     aborted = Signal()
     ok = Signal()
 
@@ -82,8 +169,8 @@ class columnpicker(QtWidgets.QDialog):
     ):
         super().__init__(parent)
 
-        self.setupUi()
-        self.add_tooltipps()
+        self._setupUi()
+        self._add_tooltipps()
         self.columnames_instance = columnames_instance
         self.set_measurement_math(measurement_math_options)
         self.measurement_math.setCurrentText("None")
@@ -93,22 +180,24 @@ class columnpicker(QtWidgets.QDialog):
         self.second_measurement.setVisible(False)
         self.label_7.setVisible(False)
 
-        self.Ok.clicked.connect(self._on_ok)
+        self.ok_button.clicked.connect(self._on_ok)
         self.abort_button.clicked.connect(self._on_abort)
         self.ok_pressed = False
 
     def _on_ok(self, event):
+        _ = event
         self.ok_pressed = True
         self.accept()
 
     def _on_abort(self, event):
+        _ = event
         self.ok_pressed = False
         self.reject()
 
-    def setupUi(self):
+    def _setupUi(self):
         self.setObjectName("columnpicker")
-        self.gridLayout = QtWidgets.QGridLayout()
-        self.gridLayout.setObjectName("gridLayout")
+        self.grid_layout = QtWidgets.QGridLayout()
+        self.grid_layout.setObjectName("gridLayout")
         self.frame = QtWidgets.QComboBox()
         self.frame.setObjectName("frame")
 
@@ -169,39 +258,40 @@ class columnpicker(QtWidgets.QDialog):
         self.measurement_math = QtWidgets.QComboBox()
         self.measurement_math.setObjectName("measurement_math")
 
-        self.Ok = QtWidgets.QPushButton("Ok")
-        self.Ok.setObjectName("Ok")
+        self.ok_button = QtWidgets.QPushButton("Ok")
+        self.ok_button.setObjectName("Ok")
 
         self.abort_button = QtWidgets.QPushButton("Abort")
         self.abort_button.setObjectName("Abort")
         self.abort_button.setStyleSheet("background-color : #7C0A02; color : white")
 
-        self.gridLayout.addWidget(self.frame, 1, 1, 1, 1)
-        self.gridLayout.addWidget(self.label, 1, 0, 1, 1)
-        self.gridLayout.addWidget(self.label_2, 2, 0, 1, 1)
-        self.gridLayout.addWidget(self.track_id, 2, 1, 1, 1)
-        self.gridLayout.addWidget(self.label_3, 3, 0, 1, 1)
-        self.gridLayout.addWidget(self.x_coordinates, 3, 1, 1, 1)
-        self.gridLayout.addWidget(self.label_4, 4, 0, 1, 1)
-        self.gridLayout.addWidget(self.y_coordinates, 4, 1, 1, 1)
-        self.gridLayout.addWidget(self.label_5, 5, 0, 1, 1)
-        self.gridLayout.addWidget(self.z_coordinates, 5, 1, 1, 1)
-        self.gridLayout.addWidget(self.label_6, 6, 0, 1, 1)
-        self.gridLayout.addWidget(self.measurement, 6, 1, 1, 1)
-        self.gridLayout.addWidget(self.label_7, 7, 0, 1, 1)
-        self.gridLayout.addWidget(self.second_measurement, 7, 1, 1, 1)
-        self.gridLayout.addWidget(self.label_8, 8, 0, 1, 1)
-        self.gridLayout.addWidget(self.field_of_view_id, 8, 1, 1, 1)
-        self.gridLayout.addWidget(self.label_9, 9, 0, 1, 1)
-        self.gridLayout.addWidget(self.additional_filter, 9, 1, 1, 1)
-        self.gridLayout.addWidget(self.label_10, 10, 0, 1, 1)
-        self.gridLayout.addWidget(self.measurement_math, 10, 1, 1, 1)
-        self.gridLayout.addWidget(self.Ok, 12, 1, 1, 1)
-        self.gridLayout.addWidget(self.abort_button, 12, 0, 1, 1)
+        self.grid_layout.addWidget(self.frame, 1, 1, 1, 1)
+        self.grid_layout.addWidget(self.label, 1, 0, 1, 1)
+        self.grid_layout.addWidget(self.label_2, 2, 0, 1, 1)
+        self.grid_layout.addWidget(self.track_id, 2, 1, 1, 1)
+        self.grid_layout.addWidget(self.label_3, 3, 0, 1, 1)
+        self.grid_layout.addWidget(self.x_coordinates, 3, 1, 1, 1)
+        self.grid_layout.addWidget(self.label_4, 4, 0, 1, 1)
+        self.grid_layout.addWidget(self.y_coordinates, 4, 1, 1, 1)
+        self.grid_layout.addWidget(self.label_5, 5, 0, 1, 1)
+        self.grid_layout.addWidget(self.z_coordinates, 5, 1, 1, 1)
+        self.grid_layout.addWidget(self.label_6, 6, 0, 1, 1)
+        self.grid_layout.addWidget(self.measurement, 6, 1, 1, 1)
+        self.grid_layout.addWidget(self.label_7, 7, 0, 1, 1)
+        self.grid_layout.addWidget(self.second_measurement, 7, 1, 1, 1)
+        self.grid_layout.addWidget(self.label_8, 8, 0, 1, 1)
+        self.grid_layout.addWidget(self.field_of_view_id, 8, 1, 1, 1)
+        self.grid_layout.addWidget(self.label_9, 9, 0, 1, 1)
+        self.grid_layout.addWidget(self.additional_filter, 9, 1, 1, 1)
+        self.grid_layout.addWidget(self.label_10, 10, 0, 1, 1)
+        self.grid_layout.addWidget(self.measurement_math, 10, 1, 1, 1)
+        self.grid_layout.addWidget(self.ok_button, 12, 1, 1, 1)
+        self.grid_layout.addWidget(self.abort_button, 12, 0, 1, 1)
         # add it to our layout
-        self.setLayout(self.gridLayout)
+        self.setLayout(self.grid_layout)
 
-    def add_tooltipps(self):
+    def _add_tooltipps(self):
+        """Add tooltipps to the widgets."""
         self.frame.setToolTip("Select frame column in input data")
         self.track_id.setToolTip("Select object id column in input data")
         self.x_coordinates.setToolTip("Column with x coordinates")
@@ -223,7 +313,7 @@ class columnpicker(QtWidgets.QDialog):
         )
 
     def set_column_names(self, column_names):
-
+        """Set column names in comboboxes."""
         while "" in column_names:
             column_names.remove("")
 
@@ -258,10 +348,12 @@ class columnpicker(QtWidgets.QDialog):
         self.second_measurement.setCurrentText("None")
 
     def set_measurement_math(self, measurement_math):
+        """Set the measurement math options in the dialog."""
         self.measurement_math.clear()
         self.measurement_math.addItems(measurement_math)
 
     def toggle_visible_second_measurment(self):
+        """Toggles visibility of second measurement column."""
         curr_value = self.measurement_math.currentText()
         if curr_value in ["None", "1/X"]:
             self.second_measurement.setVisible(False)
@@ -272,6 +364,7 @@ class columnpicker(QtWidgets.QDialog):
 
     @property
     def get_column_names(self):
+        """Returns a tuple of all column names in the columnnames dialog."""
         return [
             self.frame.currentText(),
             self.track_id.currentText(),
@@ -287,6 +380,7 @@ class columnpicker(QtWidgets.QDialog):
 
     @property
     def settable_columns(self):
+        """Returns a tuple of all settable columns in the columnnames dialog."""
         return (
             self.frame,
             self.track_id,
@@ -302,6 +396,7 @@ class columnpicker(QtWidgets.QDialog):
 
     @property
     def as_columnames_object(self):
+        """Retunrs a new columnames object with the current column names."""
         # set column_names
         columnames_instance = columnnames()
         columnames_instance.frame_column = self.frame.currentText()

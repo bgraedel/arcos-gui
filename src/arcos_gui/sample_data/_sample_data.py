@@ -1,3 +1,5 @@
+"""Sample data for arcos_gui. Will be added to the napari sample data menu."""
+
 from __future__ import annotations
 
 import os
@@ -13,15 +15,17 @@ from tqdm import tqdm
 
 
 def resolve(name, basepath=None):
+    """Resolve path to file in the package directory."""
     if not basepath:
         basepath = os.path.dirname(os.path.realpath(__file__))
     return os.path.join(basepath, name)
 
 
 def download(url: str, fname: str):
-    resp = requests.get(url, stream=True)
-    r = requests.head(url)
-    if "text/html" in r.headers["content-type"]:
+    """Download file from url and save it to fname."""
+    resp = requests.get(url, stream=True, timeout=10)
+    curr_request = requests.head(url, timeout=10)
+    if "text/html" in curr_request.headers["content-type"]:
         raise ValueError("URL is not a file")
     total = int(resp.headers.get("content-length", 0))
     with open(fname, "wb") as file, tqdm(
@@ -30,10 +34,10 @@ def download(url: str, fname: str):
         unit="b",
         unit_scale=True,
         unit_divisor=1024,
-    ) as bar:
+    ) as pbar:
         for data in resp.iter_content(chunk_size=1024):
             size = file.write(data)
-            bar.update(size)
+            pbar.update(size)
 
 
 def load_synthetic_dataset():
@@ -82,7 +86,7 @@ def load_real_dataset(load_image: bool = True):
     else:
         img_data_tuple = []
 
-    if not widget:
+    if widget is None:
         widget = __main__.main(current_viewer())
     columns = columnnames(
         frame_column="t",

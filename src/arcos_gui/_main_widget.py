@@ -1,3 +1,9 @@
+"""Main widget of the ARCOS GUI. Contains all other widgets.
+
+Each widget is a tab in the main widget. Creates instances of all other widgets
+as well as the data storage and layermaker.
+The MainWidget is the entry point for the napari plugin.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -42,6 +48,7 @@ class _MainUI:
     help_button: QtWidgets.QPushButton
 
     def setup_ui(self):
+        """Setup UI. Loads it from ui file."""
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
 
 
@@ -51,7 +58,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
     choose arcos parameters, choose LUT mappings aswell as shape sizes.
     """
 
-    def __init__(self, viewer: napari.viewer.Viewer, remote=True):
+    def __init__(self, viewer: napari.viewer.Viewer):
         """Constructs class with provided arguments."""
         super().__init__()
         self.viewer: napari.viewer.Viewer = viewer
@@ -101,6 +108,7 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     @classmethod
     def get_last_instance(cls) -> MainWindow | None:
+        """Returns the last instance of this class. Returns None if no instance exists."""
         try:
             return cls._instance
         except AttributeError:
@@ -108,13 +116,13 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
 
     def _connect_signals(self):
         self.data_storage_instance.arcos_binarization.value_changed_connect(
-            lambda: self.layermaker.make_layers_bin()
+            self.layermaker.make_layers_bin
         )
         self.data_storage_instance.arcos_output.value_changed_connect(
-            lambda: self.layermaker.make_layers_all()
+            self.layermaker.make_layers_all
         )
         self.data_storage_instance.timestamp_parameters.value_changed_connect(
-            lambda: self.layermaker.make_timestamp_layer()
+            self.layermaker.make_timestamp_layer
         )
 
     def _add_widgets(self):
