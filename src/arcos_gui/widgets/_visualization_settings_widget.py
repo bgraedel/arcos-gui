@@ -1,26 +1,25 @@
+"""Visualization settings widget. Contains the layer properties widget and the loader for the UI file."""
 from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from arcos_gui.tools import ARCOS_LAYERS, get_layer_list
+from napari.utils.colormaps import AVAILABLE_COLORMAPS
 from qtpy import QtWidgets, uic
 from qtpy.QtCore import Qt
+from scipy.spatial import KDTree
 from superqt import QDoubleRangeSlider
 
 if TYPE_CHECKING:
     import napari.viewer
     from arcos_gui.processing import DataStorage
 
-# local imports
-from arcos_gui.tools import ARCOS_LAYERS, get_layer_list
-from napari.utils.colormaps import AVAILABLE_COLORMAPS
-from scipy.spatial import KDTree
-
 # icons
 ICONS = Path(__file__).parent / "_icons"
 
 
-class _layer_propertiesUI:
+class _layer_properties_UI:
     UI_FILE = str(Path(__file__).parent.parent / "_ui" / "Layer_properties.ui")
 
     # The UI_FILE above contains these objects:
@@ -40,10 +39,13 @@ class _layer_propertiesUI:
     horizontalLayout_lut: QtWidgets.QHBoxLayout
 
     def setup_ui(self):
+        """Setup UI. Loads it from ui file"""
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
 
 
-class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
+class LayerPropertiesWidget(QtWidgets.QWidget, _layer_properties_UI):
+    """Widget to handle layer properties related to the visualization."""
+
     def __init__(
         self,
         viewer: napari.viewer.Viewer,
@@ -70,27 +72,27 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_propertiesUI):
         self.lut_slider.setRange(0, 10)
         self.lut_slider.setValue((0, 10))
 
-    def _handleSlider_lut_ValueChange(self):
+    def _handle_slider_lut_value_change(self):
         """Method to handle lut value changes."""
         slider_vals = self.lut_slider.value()
         self.min_lut_spinbox.setValue(slider_vals[0])
         self.max_lut_spinbox.setValue(slider_vals[1])
 
-    def _handle_min_lut_box_ValueChange(self, value):
+    def _handle_min_lut_box_value_change(self, value):
         """Method to handle lut min spinbox value change."""
         slider_vals = self.lut_slider.value()
         self.lut_slider.setValue((value, slider_vals[1]))
 
-    def _handle_max_lut_box_ValueChange(self, value):
+    def _handle_max_lut_box_value_change(self, value):
         """Method to handle lut max spinbox value change."""
         slider_vals = self.lut_slider.value()
         self.lut_slider.setValue((slider_vals[0], value))
 
     def _connect_ranged_sliders_to_spinboxes(self):
         """Connect ranged sliders to spinboxes."""
-        self.lut_slider.valueChanged.connect(self._handleSlider_lut_ValueChange)
-        self.min_lut_spinbox.valueChanged.connect(self._handle_min_lut_box_ValueChange)
-        self.max_lut_spinbox.valueChanged.connect(self._handle_max_lut_box_ValueChange)
+        self.lut_slider.valueChanged.connect(self._handle_slider_lut_value_change)
+        self.min_lut_spinbox.valueChanged.connect(self._handle_min_lut_box_value_change)
+        self.max_lut_spinbox.valueChanged.connect(self._handle_max_lut_box_value_change)
 
     def _init_size_contrast_callbacks(self):
         """Connects various callbacks that correspond to size,

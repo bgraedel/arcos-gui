@@ -476,7 +476,7 @@ def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
 
     # connect callback to set wait_for_picker to False
     # Quite important otherwise the test will not end
-    picker_widget.Ok.clicked.connect(set_loading_worker_columns)
+    picker_widget.ok_button.clicked.connect(set_loading_worker_columns)
 
     # move worker to thread
     data_loader.moveToThread(thread)
@@ -498,6 +498,6 @@ def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
     picker_widget.measurement_math.setCurrentText("None")
     picker_widget.measurement.setCurrentText("m")
     picker_widget.second_measurement.setCurrentText("None")
-    qtbot.mouseClick(picker_widget.Ok, Qt.LeftButton)
+    qtbot.mouseClick(picker_widget.ok_button, Qt.LeftButton)
 
     loop.exec_()

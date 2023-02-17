@@ -1,3 +1,5 @@
+"""Arcos GUI Plugin for Napari."""
+
 __version__ = "0.0.7"
 
 

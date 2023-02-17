@@ -1,3 +1,9 @@
+"""Contains the data storage classes for the arcos_gui.
+
+The data storage classes are used to store the data and the settings for the
+different widgets. Moste of the attributes contain callbacks functionallity
+which are used to update the widgets when the data changes."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -9,12 +15,29 @@ from napari.utils.colormaps import AVAILABLE_COLORMAPS
 
 @dataclass
 class data_frame_storage:
+    """Holds the dataframes and notifies the observers when the value changes.
+
+    The dataframes are stored in the value attribute. The value attribute is a
+    pandas dataframe. The value attribute can be set with the value setter.
+    When the value is set the observers are notified and the callback functions
+    are executed. The observers are registered with the value_changed_connect
+    method. The observers are unregistered with the unregister_callback method.
+
+    Attributes:
+        value: The dataframe that is stored.
+
+    Methods:
+        value_changed_connect: Register a callback function.
+        unregister_callback: Unregister a callback function.
+    """
+
     _value: pd.DataFrame = field(default_factory=pd.DataFrame)
     _callbacks: list = field(default_factory=list)
     verbous = False
 
     @property
     def value(self):
+        """Return the value attribute."""
         return self._value
 
     @value.setter
@@ -29,9 +52,25 @@ class data_frame_storage:
             callback()
 
     def value_changed_connect(self, callback):
+        """Register a callback function.
+
+        The callback function is executed when the value attribute is set.
+
+        Parameters
+        ----------
+        callback : function
+            The callback function.
+        """
         self._callbacks.append(callback)
 
     def unregister_callback(self, callback):
+        """Unregister a callback function.
+
+        Parameters
+        ----------
+        callback : function
+            The callback function to be unregistered.
+        """
         self._callbacks.remove(callback)
 
     def __repr__(self):
@@ -40,12 +79,31 @@ class data_frame_storage:
 
 @dataclass
 class value_callback:
+    """Holds a value and notifies the observers when the value changes.
+
+    The value is stored in the value attribute. The value attribute can be set
+    with the value setter. When the value is set the observers are notified and
+    the callback functions are executed. The observers are registered with the
+    value_changed_connect method. The observers are unregistered with the
+    unregister_callback method.
+
+    Attributes
+    ----------
+    value: The value that is stored.
+
+    Methods
+    -------
+    value_changed_connect: Register a callback function.
+    unregister_callback: Unregister a callback function.
+    """
+
     _value: Union[int, str, None, Any]
     _callbacks: list = field(default_factory=list)
     verbous = False
 
     @property
     def value(self):
+        """Get the value that is stored."""
         return self._value
 
     @value.setter
@@ -60,9 +118,25 @@ class value_callback:
             callback()
 
     def value_changed_connect(self, callback):
+        """Register a callback function.
+
+        The callback function is executed when the value attribute is set.
+
+        Parameters
+        ----------
+        callback : function
+            The callback function.
+        """
         self._callbacks.append(callback)
 
     def unregister_callback(self, callback):
+        """Unregister a callback function.
+
+        Parameters
+        ----------
+        callback : function
+            The callback function to be unregistered.
+        """
         self._callbacks.remove(callback)
 
     def __repr__(self):
@@ -148,7 +222,7 @@ class columnnames:
 
 @dataclass(frozen=True)
 class arcos_parameters:
-    """Stores the parameters for the arcos algorithm that can be set in the arcos widget"""
+    """Stores the parameters for the arcos algorithm that can be set in the arcos widget."""
 
     _interpolate_meas: value_callback = field(
         default_factory=lambda: value_callback(False)
@@ -414,9 +488,29 @@ class timestamp_parameters:
 
 @dataclass
 class DataStorage:
-    """Stores data for the GUI."""
+    """Stores data for the GUI.
 
-    _file_name: value_callback = field(default_factory=lambda: value_callback(None))
+    Most of the attributes are stored as either a value_callback or a dataframe_storage object.
+    Both of these objects are wrappers around the actual data that are used to trigger the
+    appropriate actions when the data is changed.
+
+
+    Attributes
+    ----------
+    file_name : file name of the input file
+    original_data : original, unfiltered data
+    filtered_data : filtered data based on the filter parameters set in the filter widget
+    arcos_binarization : stores the binarization of the data for arcos
+    arcos_output : stores the most recent output from arcos
+    arcos_stats : stores the most recent stats from arcos
+    columns : stores the column names of the data relevant for the analysis
+    arcos_parameters : stores the parameters for arcos
+    timestamp_parameters : stores the parameters for the timestamp dialog
+    min_max_meas: stores the min and max values of the measurement
+    colormaps: stores the colormap currently selected for the measurement
+    """
+
+    _file_name: value_callback = field(default_factory=lambda: value_callback("."))
     _original_data: data_frame_storage = field(
         default_factory=lambda: data_frame_storage(pd.DataFrame())
     )
@@ -447,8 +541,15 @@ class DataStorage:
     verbous: bool = False
 
     def reset_all_attributes(self, trigger_callback=False):
+        """resets all attributes to their default values.
+
+        Parameters
+        ----------
+        trigger_callback : bool, optional
+            if True, the callback function of the value_callback attributes will be triggered, by default False.
+        """
         if trigger_callback:
-            self._file_name.value = None
+            self._file_name.value = "."
             self._original_data.value = pd.DataFrame()
             self._filtered_data.value = pd.DataFrame()
             self._arcos_binarization.value = pd.DataFrame()
@@ -464,7 +565,7 @@ class DataStorage:
             self._timestamp_parameters.value = timestamp_parameters()
             self.verbous = False
         else:
-            self._file_name._value = None
+            self._file_name._value = "."
             self._original_data._value = pd.DataFrame()
             self._filtered_data._value = pd.DataFrame()
             self._arcos_binarization._value = pd.DataFrame()
@@ -481,6 +582,13 @@ class DataStorage:
             self.verbous = False
 
     def reset_relevant_attributes(self, trigger_callback=False):
+        """Resets relevant attributes to their default values.
+
+        Parameters
+        ----------
+        trigger_callback : bool, optional
+            If True, the callback function of the attributes will be triggered, by default False.
+        """
         if trigger_callback:
             self._filtered_data.value = pd.DataFrame()
             self._arcos_binarization.value = pd.DataFrame()
@@ -495,6 +603,9 @@ class DataStorage:
             self._selected_object_id._value = None
 
     def make_quiet(self):
+        """Sets the verbous attribute of all attributes to False.
+
+        This is useful for debugging."""
         self.verbous = False
         self._file_name.verbous = False
         self._original_data.verbous = False
@@ -507,6 +618,9 @@ class DataStorage:
         self.arcos_parameters.make_quiet()
 
     def make_verbose(self):
+        """Sets the verbous attribute of all attributes to True.
+
+        This is useful for debugging."""
         self.verbous = True
         self._file_name.verbous = True
         self._original_data.verbous = True
@@ -520,82 +634,101 @@ class DataStorage:
 
     @property
     def file_name(self):
+        """Returns the file name."""
         return self._file_name
 
     @file_name.setter
     def file_name(self, value):
+        """Set the file name."""
         self._file_name.value = value
 
     @property
     def original_data(self):
+        """Returns the original data."""
         return self._original_data
 
     @original_data.setter
     def original_data(self, value):
+        """Set the original data."""
         self._original_data.value = value
 
     @property
     def filtered_data(self):
+        """Returns the filtered data."""
         return self._filtered_data
 
     @filtered_data.setter
     def filtered_data(self, value):
+        """Set the filtered data."""
         self._filtered_data.value = value
 
     @property
     def arcos_output(self):
+        """Returns the arcos output data."""
         return self._arcos_output
 
     @arcos_output.setter
     def arcos_output(self, value):
+        """Set the arcos output data."""
         self._arcos_output.value = value
 
     @property
     def columns(self):
+        """Returns the columns attribute."""
         return self._columns
 
     @columns.setter
     def columns(self, value):
+        """Set the columns attribute."""
         if not isinstance(value, columnnames):
             raise ValueError(f"columns must be of type {columnnames}")
         self._columns = value
 
     @property
     def arcos_stats(self):
+        """Returns the arcos stats data."""
         return self._arcos_stats
 
     @arcos_stats.setter
     def arcos_stats(self, value):
+        """Set the arcos stats data."""
         self._arcos_stats.value = value
 
     @property
     def arcos_binarization(self):
+        """Returns the arcos binarization data."""
         return self._arcos_binarization
 
     @arcos_binarization.setter
     def arcos_binarization(self, value):
+        """Set the arcos binarization data."""
         self._arcos_binarization.value = value
 
     @property
     def selected_object_id(self):
+        """Returns the selected object id."""
         return self._selected_object_id
 
     @selected_object_id.setter
     def selected_object_id(self, value):
+        """Sets the selected object id."""
         self._selected_object_id.value = value
 
     @property
     def arcos_parameters(self):
+        """Returns the arcos parameters."""
         return self._arcos_parameters
 
     @arcos_parameters.setter
     def arcos_parameters(self, value):
+        """Sets the arcos parameters."""
         if not isinstance(value, arcos_parameters):
             raise ValueError(f"Data must be of type {arcos_parameters}")
         self._arcos_parameters = value
 
     @property
     def timestamp_parameters(self):
+        """Returns the timestamp parameters."""
         return self._timestamp_parameters
 
     @timestamp_parameters.setter

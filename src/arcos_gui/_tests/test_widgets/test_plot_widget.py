@@ -119,7 +119,7 @@ def test_on_data_update_data(
     assert widget.timeseriesplot.ax.lines
 
 
-@patch("arcos_gui.tools.TimeSeriesPlots._data_clear")
+@patch("arcos_gui.tools.TimeSeriesPlots.data_clear")
 def test_ts_on_data_clear(
     mock_data_clear, make_ts_widget: tuple[tsPlotWidget, viewer.Viewer, QtBot]
 ):

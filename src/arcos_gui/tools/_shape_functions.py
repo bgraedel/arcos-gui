@@ -1,23 +1,12 @@
+"""Various utility functions for generating shapes and text."""
+
 from copy import deepcopy
 
 import numpy as np
 import pandas as pd
-from arcos_gui.tools import ARCOS_LAYERS, COLOR_CYCLE
 from scipy.spatial import ConvexHull, QhullError
 
-# # Definitions and custom functions
-# Color Cycle used throughout the plugin for collective events.
-# Color values correspond to hex values of the matplotlib tab20
-# colorscale
-
-# text parameters for the timestamp
-text_parameters = {
-    "string": "{label}",
-    "size": 12,
-    "color": "white",
-    "anchor": "center",
-    "translation": [0, 0],
-}
+from ._config import ARCOS_LAYERS, COLOR_CYCLE
 
 
 def make_timestamp(
@@ -35,6 +24,32 @@ def make_timestamp(
     Create a timestamp displayed in the viewer.
     This is done by creating a dummy shape layer
     and annotating it with the current time.
+
+    Parameters
+    ----------
+    viewer : napari.Viewer
+        napari viewer
+    start_time : int
+        start time
+    step_time : int
+        step time
+    prefix : str
+        prefix of timestamp
+    suffix : str
+        suffix of timestamp
+    position : str
+        position of timestamp
+    size : float
+        size of timestamp
+    x_shift : float
+        x shift of timestamp
+    y_shift : float
+        y shift of timestamp
+
+    Returns
+    -------
+    out : dict
+        dictionary with properties for timestamp layer
     """
     anchors = ["upper_right", "upper_left", "lower_right", "lower_left", "center"]
     if position not in anchors:
@@ -86,7 +101,7 @@ def calculate_convex_hull(array):
     to calculate convex hull the vertices of the convex hull are returned.
     If shape is less, the points themselfs are returned.
     """
-    # Todo check if there is a better way to check for coplanar
+    # Maybe there is a better check for coplanar
     # points rathern than using QhullError
     try:
         if array.shape[0] > 2:
@@ -95,6 +110,7 @@ def calculate_convex_hull(array):
             return array_out
         if array.shape[0] == 2:
             return array
+        return np.array([])
     except QhullError:
         return np.array([])
 
@@ -191,7 +207,7 @@ def make_surface_3d(
     Returns (tuple(np.ndarray, np.ndarray, np.ndarray)): Tuple that contains
     vertex coordinates, face indices and color ids
     """
-    dataFaces = []
+    data_faces = []
     vertices_count = 0
     # sort needed for np.split
     df = df.sort_values([colid, frame])
@@ -208,9 +224,9 @@ def make_surface_3d(
     out_vertices = np.concatenate(grouped_array)[:, 1:]
     # merge convex hull face list and shift indexes according to groups
     for i, val in enumerate(convex_hulls):
-        dataFaces.append(np.add(val, vertices_count))
+        data_faces.append(np.add(val, vertices_count))
         vertices_count += len(grouped_array[i])
-    out_faces = np.concatenate(dataFaces)
+    out_faces = np.concatenate(data_faces)
     return (out_vertices, out_faces, color_ids)
 
 
@@ -246,8 +262,7 @@ def fix_3d_convex_hull(df, vertices, faces, colors, col_t):
         faces = np.concatenate((faces, empty_faces), axis=0)
         colors = np.concatenate((colors, empty_colors), axis=0)
         return (vertices, faces, colors)
-    else:
-        return (vertices, faces, colors)
+    return (vertices, faces, colors)
 
 
 def calc_bbox(array: np.ndarray):
@@ -259,30 +274,34 @@ def calc_bbox(array: np.ndarray):
 
     Returns (np.ndarray): 2d array of coordinates for the bounding box.
     """
-    t = array[0, 0]
+    time_point = array[0, 0]
     pos_array = array[:, 1:]
     # 3d case
     if pos_array.shape[1] == 3:
-
         miny, minx, minz = np.min(pos_array, axis=0)
         maxy, maxx, maxz = np.max(pos_array, axis=0)
         return np.array(
             [
-                [t, miny, minx, minz],
-                [t, miny, minx, maxz],
-                [t, miny, maxx, maxz],
-                [t, miny, maxx, minz],
-                [t, maxy, maxx, minz],
-                [t, maxy, minx, minz],
-                [t, maxy, minx, maxz],
-                [t, maxy, maxx, maxz],
+                [time_point, miny, minx, minz],
+                [time_point, miny, minx, maxz],
+                [time_point, miny, maxx, maxz],
+                [time_point, miny, maxx, minz],
+                [time_point, maxy, maxx, minz],
+                [time_point, maxy, minx, minz],
+                [time_point, maxy, minx, maxz],
+                [time_point, maxy, maxx, maxz],
             ]
         )
     # 2d case
     miny, minx = np.min(pos_array, axis=0)
     maxy, maxx = np.max(pos_array, axis=0)
     return np.array(
-        [[t, miny, minx], [t, miny, maxx], [t, maxy, maxx], [t, maxy, minx]]
+        [
+            [time_point, miny, minx],
+            [time_point, miny, maxx],
+            [time_point, maxy, maxx],
+            [time_point, maxy, minx],
+        ]
     )
 
 
@@ -360,7 +379,7 @@ def get_bbox_3d(df: pd.DataFrame, frame: str, xcol: str, ycol: str, zcol: str):
     )
     # calc bbox for every array in the list
     bbox = [calc_bbox(i) for i in grouped_array]
-    dataFaces = []
+    data_faces = []
     vertices_count = 0
     data_colors: np.ndarray = np.array([])
     # precalculated face indidec for a 3d bounding box
@@ -381,9 +400,9 @@ def get_bbox_3d(df: pd.DataFrame, frame: str, xcol: str, ycol: str, zcol: str):
         ]
     )
     for value in bbox:
-        dataFaces.append(np.add(face, vertices_count))
+        data_faces.append(np.add(face, vertices_count))
         vertices_count += len(value)
-    out_faces = np.concatenate(dataFaces)
+    out_faces = np.concatenate(data_faces)
     bbox_array = np.concatenate(bbox)
     data_colors = np.array([1 for i in range(bbox_array.shape[0])])
     return (bbox_array, out_faces, data_colors)

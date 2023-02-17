@@ -97,7 +97,7 @@ def test_load_data(
     mywidget.input_data_widget.picker.additional_filter.setCurrentText("None")
     mywidget.input_data_widget.picker.measurement_math.setCurrentText("None")
     # user clicks ok
-    mywidget.input_data_widget.picker.Ok.click()
+    mywidget.input_data_widget.picker.ok_button.click()
 
     # need this event loop thingy to wait for the creation of the preprocessing worker
     loop = QEventLoop()
@@ -161,7 +161,7 @@ def test_load_data_with_additional_filter(
     loop = QEventLoop()
     mywidget.input_data_widget.loading_worker.finished.connect(loop.quit)
     # user clicks ok
-    mywidget.input_data_widget.picker.Ok.click()
+    mywidget.input_data_widget.picker.ok_button.click()
     loop.exec_()
     columnames_list = (
         mywidget.data_storage_instance.columns.pickablepickable_columns_names
@@ -218,7 +218,7 @@ def test_load_data_with_measurement_math(
     mywidget.input_data_widget.picker.additional_filter.setCurrentText("None")
     mywidget.input_data_widget.picker.measurement_math.setCurrentText("Add")
     # user clicks ok
-    mywidget.input_data_widget.picker.Ok.click()
+    mywidget.input_data_widget.picker.ok_button.click()
 
     # need this event loop thingy to wait for the creation of the preprocessing worker
     loop = QEventLoop()

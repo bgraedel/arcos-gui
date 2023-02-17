@@ -119,7 +119,7 @@ def test_set_choices_names_from_previous(
     widget.picker.field_of_view_id.setCurrentText("Position")
     widget.picker.additional_filter.setCurrentText("None")
     # press ok to close the picker widget
-    qtbot.mouseClick(widget.picker.Ok, Qt.LeftButton)
+    qtbot.mouseClick(widget.picker.ok_button, Qt.LeftButton)
 
     # reopen the picker widget
     qtbot.mouseClick(widget.open_file_button, Qt.LeftButton)
@@ -135,7 +135,7 @@ def test_set_choices_names_from_previous(
         "Position",
         "None",
     ]
-    qtbot.mouseClick(widget.picker.Ok, Qt.LeftButton)
+    qtbot.mouseClick(widget.picker.ok_button, Qt.LeftButton)
 
     assert sorted(widget.picker.get_column_names) == sorted(column_names)
     widget.loading_thread.quit()
@@ -170,7 +170,7 @@ def test_data_loading(make_input_widget: tuple[InputDataWidget, QtBot]):
     # quit event loop when the thread is finished
     widget.loading_thread.finished.connect(loopy.quit)
 
-    qtbot.mouseClick(widget.picker.Ok, Qt.LeftButton)
+    qtbot.mouseClick(widget.picker.ok_button, Qt.LeftButton)
     # press ok to close the picker widget
 
     loopy.exec_()

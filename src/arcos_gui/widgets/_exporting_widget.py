@@ -1,3 +1,4 @@
+"""Exporting widget for arcos-gui."""
 from __future__ import annotations
 
 import os
@@ -7,10 +8,11 @@ from typing import TYPE_CHECKING
 
 from arcos_gui.processing import timestamp_parameters
 from arcos_gui.tools import MovieExporter
-from arcos_gui.widgets import timestamp_options
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 from qtpy.QtGui import QIcon
+
+from ._dialog_widgets import timestamp_options
 
 if TYPE_CHECKING:
     import napari.viewer
@@ -42,6 +44,7 @@ class _exportwidget:
     add_timestamp_button: QtWidgets.QPushButton
 
     def setup_ui(self):
+        """Load the .ui file and set icons."""
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
         self.browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
         self.browse_file_data.setIcon(self.browse_file_icon)
@@ -116,14 +119,18 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
             ).run()
 
     def _browse_file_data(self):
+        base_path = self._data_storage_instance.file_name.value
+        base_path = str(Path(base_path).parent)
         path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Select Directory", os.getcwd()
+            self, "Select Directory", base_path
         )
         self.file_LineEdit_data.setText(path)
 
     def _browse_file_img(self):
+        base_path = self._data_storage_instance.file_name.value
+        base_path = str(Path(base_path).parent)
         path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Select Directory", os.getcwd()
+            self, "Select Directory", base_path
         )
         self.file_LineEdit_img.setText(path)
 

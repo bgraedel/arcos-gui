@@ -1,3 +1,4 @@
+"""Widget to handle filtering of input data."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -39,10 +40,13 @@ class _filter_dataUI:
     horizontalLayout_tracklength: QtWidgets.QHBoxLayout
 
     def setup_ui(self):
+        """Setup UI. Loads it from ui file."""
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
 
 
 class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
+    """Widget to handle filtering of input data."""
+
     def __init__(self, viewer: Viewer, data_storage_instance: DataStorage, parent=None):
         super().__init__(parent)
         self.viewer = viewer
@@ -66,18 +70,18 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
         self.tracklenght_slider.setRange(0, 10)
         self.tracklenght_slider.setValue((0, 10))
 
-    def _handleSlider_tracklength_ValueChange(self):
+    def _handle_slider_tracklength_value_change(self):
         """Method to handle trancklenght value changes."""
         slider_vals = self.tracklenght_slider.value()
         self.min_tracklength_spinbox.setValue(slider_vals[0])
         self.max_tracklength_spinbox.setValue(slider_vals[1])
 
-    def _handle_min_tracklenght_box_ValueChange(self, value):
+    def _handle_min_tracklenght_box_value_change(self, value):
         """Method to handle min tracklenght spinbox."""
         slider_vals = self.tracklenght_slider.value()
         self.tracklenght_slider.setValue((value, slider_vals[1]))
 
-    def _handle_max_tracklength_box_ValueChange(self, value):
+    def _handle_max_tracklength_box_value_change(self, value):
         """Method to handle max tracklength spinbox."""
         slider_vals = self.tracklenght_slider.value()
         self.tracklenght_slider.setValue((slider_vals[0], value))
@@ -85,13 +89,13 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
     def _connect_ranged_sliders_to_spinboxes(self):
         """Method to connect ranged sliders to spinboxes to sync values."""
         self.tracklenght_slider.valueChanged.connect(
-            self._handleSlider_tracklength_ValueChange
+            self._handle_slider_tracklength_value_change
         )
         self.min_tracklength_spinbox.valueChanged.connect(
-            self._handle_min_tracklenght_box_ValueChange
+            self._handle_min_tracklenght_box_value_change
         )
         self.max_tracklength_spinbox.valueChanged.connect(
-            self._handle_max_tracklength_box_ValueChange
+            self._handle_max_tracklength_box_value_change
         )
 
     def _reset_filter_combobox(self):
@@ -141,7 +145,7 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
         coordinate_column = self.data_storage_instance.columns.posCol
 
         # filter data
-        self.data_filtered, max_meas, min_meas = filter_data(
+        data_filtered, max_meas, min_meas = filter_data(
             df_in=input_data,
             field_of_view_id_name=selected_fov_column,
             frame_name=selected_frame_column,
@@ -157,7 +161,7 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
             st_out=show_info,
         )
 
-        self._update_data_storage(self.data_filtered, min_meas, max_meas)
+        self._update_data_storage(data_filtered, min_meas, max_meas)
 
     def _original_data_changed(self):
         self._set_defaults()

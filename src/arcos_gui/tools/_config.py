@@ -1,3 +1,5 @@
+"""Configuration file for the ARCOS GUI."""
+
 import operator
 
 from napari.utils import Colormap

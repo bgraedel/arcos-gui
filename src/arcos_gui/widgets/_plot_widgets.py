@@ -1,10 +1,12 @@
+"""Widgets for plotting time series data and collective events."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import napari
-from arcos_gui.tools import CollevPlotter, NoodlePlot, TimeSeriesPlots
+from arcos_gui.tools._plots import CollevPlotter, NoodlePlot, TimeSeriesPlots
 from qtpy import QtCore, QtWidgets
 from qtpy.QtGui import QIcon
 
@@ -13,6 +15,8 @@ if TYPE_CHECKING:
 
 
 class DataPlot(QtWidgets.QDialog):
+    """Popup Dialog for plotting time series data."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.tsplot_layout = QtWidgets.QVBoxLayout()
@@ -26,6 +30,8 @@ ICONS = Path(__file__).parent.parent / "_icons"
 
 
 class tsPlotWidget(QtWidgets.QWidget):
+    """Widget for plotting time series data."""
+
     def __init__(
         self,
         viewer: napari.viewer.Viewer,
@@ -73,7 +79,7 @@ class tsPlotWidget(QtWidgets.QWidget):
         )
 
     def _on_data_clear(self):
-        self.timeseriesplot._data_clear()
+        self.timeseriesplot.data_clear()
 
     def _add_icon(self):
         expand_plot_icon = QIcon(str(ICONS / "enlarge_window.png"))
@@ -110,6 +116,8 @@ class tsPlotWidget(QtWidgets.QWidget):
 
 
 class collevPlotWidget(QtWidgets.QWidget):
+    """Widget for collective events plot."""
+
     def __init__(
         self,
         viewer: napari.viewer.Viewer,

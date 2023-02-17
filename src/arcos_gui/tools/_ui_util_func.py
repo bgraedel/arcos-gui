@@ -1,3 +1,5 @@
+"""Collection of various functions for the GUI."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -28,6 +30,17 @@ def set_track_lenths(
     min_tracklength_spinbox: QtWidgets.QDoubleSpinBox,
     max_tracklength_spinbox: QtWidgets.QDoubleSpinBox,
 ):
+    """Set track length slider and spinboxes to min and max values of track lengths.
+
+    Parameters
+    ----------
+    track_lenths_minmax : tuple
+        Tuple of min and max track length.
+    tracklenght_slider : QRangeSlider
+    tracklenght_slider : QRangeSlider
+    min_tracklength_spinbox : QtWidgets.QDoubleSpinBox
+    max_tracklength_spinbox : QtWidgets.QDoubleSpinBox
+    """
     if track_lenths_minmax[1] - track_lenths_minmax[0] > 1:
         tracklenght_slider.setMinimum(track_lenths_minmax[0])
         tracklenght_slider.setMaximum(track_lenths_minmax[1])

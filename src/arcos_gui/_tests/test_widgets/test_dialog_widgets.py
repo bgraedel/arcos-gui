@@ -113,7 +113,7 @@ def test_columnpicker_okpress(qtbot):
     dialog = columnpicker()
     qtbot.addWidget(dialog)
     assert dialog.ok_pressed is False
-    qtbot.mouseClick(dialog.Ok, Qt.LeftButton)
+    qtbot.mouseClick(dialog.ok_button, Qt.LeftButton)
     assert dialog.ok_pressed is True
 
 
