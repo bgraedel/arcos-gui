@@ -416,7 +416,7 @@ class timestamp_parameters:
 class DataStorage:
     """Stores data for the GUI."""
 
-    _file_name: value_callback = field(default_factory=lambda: value_callback(None))
+    _file_name: value_callback = field(default_factory=lambda: value_callback("."))
     _original_data: data_frame_storage = field(
         default_factory=lambda: data_frame_storage(pd.DataFrame())
     )
@@ -448,7 +448,7 @@ class DataStorage:
 
     def reset_all_attributes(self, trigger_callback=False):
         if trigger_callback:
-            self._file_name.value = None
+            self._file_name.value = "."
             self._original_data.value = pd.DataFrame()
             self._filtered_data.value = pd.DataFrame()
             self._arcos_binarization.value = pd.DataFrame()
@@ -464,7 +464,7 @@ class DataStorage:
             self._timestamp_parameters.value = timestamp_parameters()
             self.verbous = False
         else:
-            self._file_name._value = None
+            self._file_name._value = "."
             self._original_data._value = pd.DataFrame()
             self._filtered_data._value = pd.DataFrame()
             self._arcos_binarization._value = pd.DataFrame()

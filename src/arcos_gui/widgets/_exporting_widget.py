@@ -116,14 +116,18 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
             ).run()
 
     def _browse_file_data(self):
+        base_path = self._data_storage_instance.file_name.value
+        base_path = str(Path(base_path).parent)
         path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Select Directory", os.getcwd()
+            self, "Select Directory", base_path
         )
         self.file_LineEdit_data.setText(path)
 
     def _browse_file_img(self):
+        base_path = self._data_storage_instance.file_name.value
+        base_path = str(Path(base_path).parent)
         path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Select Directory", os.getcwd()
+            self, "Select Directory", base_path
         )
         self.file_LineEdit_img.setText(path)
 

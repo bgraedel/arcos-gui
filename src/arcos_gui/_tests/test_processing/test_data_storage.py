@@ -503,7 +503,7 @@ def test_data_storage_init():
 
     # test that the _filename_for_sample_data field is initialized correctly
     assert isinstance(data_storage._file_name, value_callback)
-    assert data_storage._file_name.value is None
+    assert data_storage._file_name.value == "."
 
     # test that the _timestamp_parameters field is initialized correctly
     assert isinstance(data_storage._timestamp_parameters, value_callback)
