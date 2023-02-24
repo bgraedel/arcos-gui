@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pandas as pd
 from arcos_gui.processing import filter_data, get_tracklengths
 from arcos_gui.tools import (
     ARCOS_LAYERS,
@@ -187,6 +188,7 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
 
     def _update_data_storage(self, df_filtered, min_meas, max_meas):
         """Method to update the data storage."""
+        self.data_storage_instance.reset_relevant_attributes(True)
         self.data_storage_instance.filtered_data = df_filtered
         self.data_storage_instance.min_max_meas = (min_meas, max_meas)
 
@@ -213,7 +215,7 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
 if __name__ == "__main__":
     import sys
 
-    import pandas as pd
+    # import pandas as pd
     from arcos_gui.processing import DataStorage  # noqa: F811
     from napari import Viewer  # noqa: F811
 

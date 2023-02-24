@@ -145,18 +145,18 @@ def test_arcos_parameters_default_values():
     assert params.interpolate_meas == False  # noqa E712
     assert params.clip_meas == False  # noqa E712
     assert params.clip_low == 0.0
-    assert params.clip_high == 0.0
-    assert params.smooth_k == 0
-    assert params.bias_k == 0
+    assert params.clip_high == 1
+    assert params.smooth_k == 1
+    assert params.bias_k == 5
     assert params.bias_method == "none"
-    assert params.polyDeg == 0
-    assert params.bin_threshold == 0.0
-    assert params.bin_peak_threshold == 0.0
-    assert params.neighbourhood_size == 0.0
-    assert params.min_clustersize == 0.0
-    assert params.nprev_spinbox == 0
-    assert params.min_dur == 0
-    assert params.total_event_size == 0
+    assert params.polyDeg == 1
+    assert params.bin_threshold == 0.5
+    assert params.bin_peak_threshold == 0.5
+    assert params.neighbourhood_size == 20
+    assert params.min_clustersize == 5
+    assert params.nprev == 1
+    assert params.min_dur == 1
+    assert params.total_event_size == 5
 
 
 def test_arcos_parameters_callback(mocker, capsys):
@@ -178,7 +178,7 @@ def test_arcos_parameters_callback(mocker, capsys):
         params.neighbourhood_size,
         params.epsPrev,
         params.min_clustersize,
-        params.nprev_spinbox,
+        params.nprev,
         params.min_dur,
         params.total_event_size,
         params.add_convex_hull,
@@ -200,7 +200,7 @@ def test_arcos_parameters_callback(mocker, capsys):
     params.neighbourhood_size.value = 1.0
     params.epsPrev.value = 1.0
     params.min_clustersize.value = 1.0
-    params.nprev_spinbox.value = 1
+    params.nprev.value = 1
     params.min_dur.value = 1
     params.total_event_size.value = 1
     params.add_convex_hull.value = True
@@ -224,7 +224,7 @@ def test_arcos_parameters_callback(mocker, capsys):
     params.neighbourhood_size.value = 1.0
     params.epsPrev.value = 1.0
     params.min_clustersize.value = 1.0
-    params.nprev_spinbox.value = 1
+    params.nprev.value = 1
     params.min_dur.value = 1
     params.total_event_size.value = 1
     params.add_convex_hull.value = True
@@ -242,20 +242,20 @@ def test_arcos_parameters_as_dataframe():
             ["interpolate_meas", "False"],
             ["clip_meas", "False"],
             ["clip_low", "0.0"],
-            ["clip_high", "0.0"],
-            ["smooth_k", "0"],
-            ["bias_k", "0"],
+            ["clip_high", "1"],
+            ["smooth_k", "1"],
+            ["bias_k", "5"],
             ["bias_method", "none"],
-            ["polyDeg", "0"],
-            ["bin_threshold", "0.0"],
-            ["bin_peak_threshold", "0.0"],
+            ["polyDeg", "1"],
+            ["bin_threshold", "0.5"],
+            ["bin_peak_threshold", "0.5"],
             ["eps_method", "manual"],
-            ["neighbourhood_size", "0.0"],
-            ["epsPrev", "0.0"],
-            ["min_clustersize", "0"],
-            ["nprev_spinbox", "0"],
-            ["min_dur", "0"],
-            ["total_event_size", "0"],
+            ["neighbourhood_size", "20"],
+            ["epsPrev", "20"],
+            ["min_clustersize", "5"],
+            ["nprev", "1"],
+            ["min_dur", "1"],
+            ["total_event_size", "5"],
         ],
     ).astype(str)
 
@@ -276,7 +276,7 @@ def test_arcos_parameters_with_custom_values():
     params.bin_peak_threshold.value = 7.0
     params.neighbourhood_size.value = 8.0
     params.min_clustersize.value = 9.0
-    params.nprev_spinbox.value = 10
+    params.nprev.value = 10
     params.min_dur.value = 11
     params.total_event_size.value = 12
 
@@ -292,7 +292,7 @@ def test_arcos_parameters_with_custom_values():
     assert params.bin_peak_threshold == 7.0
     assert params.neighbourhood_size == 8.0
     assert params.min_clustersize == 9.0
-    assert params.nprev_spinbox == 10
+    assert params.nprev == 10
     assert params.min_dur == 11
     assert params.total_event_size == 12
 
@@ -510,7 +510,7 @@ def test_data_storage_init():
     assert isinstance(data_storage._timestamp_parameters.value, timestamp_parameters)
 
     # test that the verbous field is initialized correctly
-    assert data_storage.verbous is False
+    assert data_storage.verbose is False
 
 
 def test_data_storage_callbacks(mocker):
@@ -679,7 +679,7 @@ def test_data_storage_make_verbose(mocker, capsys):
     data_storage._timestamp_parameters.value_changed_connect(mock_value_callback)
 
     # make the data storage verbose
-    data_storage.make_verbose()
+    data_storage.set_verbose(True)
 
     # set the values of the data_frame_storage and value_callback instances
     data_storage._original_data.value = pd.DataFrame(
@@ -694,10 +694,11 @@ def test_data_storage_make_verbose(mocker, capsys):
     # assert that the values of the data_frame_storage and value_callback instances are printed
     captured = capsys.readouterr()
     assert (
-        f"value_calback: value changed, executing {mock_value_callback}" in captured.out
+        f"value_callback: timestamp_parameters changed. Executing {mock_value_callback}"
+        in captured.out
     )
     assert (
-        f"data_frame_storage: value changed executing {mock_df_callback}"
+        f"data_frame_storage: original_data changed. Executing {mock_df_callback}"
         in captured.out
     )
 
@@ -713,8 +714,8 @@ def test_data_storage_make_quiet(mocker, capsys):
     data_storage._timestamp_parameters.value_changed_connect(mock_value_callback)
 
     # make the data storage verbose and the quiet again to test make_quiet
-    data_storage.make_verbose()
-    data_storage.make_quiet()
+    data_storage.set_verbose(True)
+    data_storage.set_verbose(False)
 
     # set the values of the data_frame_storage and value_callback instances
     data_storage._original_data.value = pd.DataFrame(

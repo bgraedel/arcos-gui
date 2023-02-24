@@ -21,6 +21,7 @@ from arcos_gui.widgets import (
     collevPlotWidget,
     tsPlotWidget,
 )
+from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
 
 if TYPE_CHECKING:
@@ -66,10 +67,13 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.setup_ui()
 
         self.data_storage_instance = DataStorage()
-        # self.data_storage_instance.make_verbose()  # uncomment to make callbacks verbose
+        # self.data_storage_instance.set_verbose(
+        #     True
+        # )  # uncomment to make callbacks verbose
 
         self.input_data_widget = InputDataWidget(
             data_storage_instance=self.data_storage_instance,
+            std_out=show_info,
             parent=self,
         )
         self.filter_data_widget = FilterDataWidget(
@@ -78,7 +82,8 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
             parent=self,
         )
         self.arcos_widget = ArcosWidget(
-            data_storage_instance=self.data_storage_instance, parent=self
+            data_storage_instance=self.data_storage_instance,
+            parent=self,
         )
         self.layer_prop_widget = LayerPropertiesWidget(
             viewer=self.viewer,

@@ -172,7 +172,7 @@ def test_update_arcos_parameters(make_arcos_widget):
     ds_test.arcos_parameters.neighbourhood_size.value = 40
     ds_test.arcos_parameters.epsPrev.value = None
     ds_test.arcos_parameters.min_clustersize.value = 5
-    ds_test.arcos_parameters.nprev_spinbox.value = 1
+    ds_test.arcos_parameters.nprev.value = 1
     ds_test.arcos_parameters.min_dur.value = 3
     ds_test.arcos_parameters.total_event_size.value = 10
     # updates the DataStorage instance linked to the arcos widget

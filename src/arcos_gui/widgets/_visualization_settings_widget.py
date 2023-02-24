@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 from arcos_gui.tools import ARCOS_LAYERS, get_layer_list
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 from qtpy import QtWidgets, uic
@@ -178,6 +179,8 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_properties_UI):
 
         if not data.empty:
             data_po_np = data[data[frame_col] == 0][[x_coord, y_coord]].to_numpy()
+            # drop nan values
+            data_po_np = data_po_np[~np.isnan(data_po_np).any(axis=1)]
             avg_nn_dist = (
                 KDTree(data_po_np).query(data_po_np, k=2)[0][:, 1].mean() * 0.75
             )

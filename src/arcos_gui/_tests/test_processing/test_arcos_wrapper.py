@@ -5,7 +5,7 @@ import pytest
 from arcos4py import ARCOS
 from arcos_gui.processing import DataStorage
 from arcos_gui.processing._arcos_wrapper import (
-    arcos_wrapper,
+    arcos_worker,
     binarization,
     calculate_arcos_stats,
     detect_events,
@@ -147,22 +147,20 @@ def test_get_eps():
     arcos_object = binarization(
         arcos_object, True, False, 0.01, 0.99, 1, 3, 0.5, 0.5, 1, "none"
     )
-    eps = get_eps(arcos_object, "mean", 3)
+    eps = get_eps(arcos_object, "mean", 3, 20)
     assert isinstance(eps, float)
-    eps = get_eps(arcos_object, "kneepoint", 3)
+    eps = get_eps(arcos_object, "kneepoint", 3, 20)
     assert isinstance(eps, float)
-    eps = get_eps(arcos_object, "manual", 3)
-    assert eps is None
+    eps = get_eps(arcos_object, "manual", 3, 20)
+    assert eps == 20
     with pytest.raises(ValueError):
-        eps = get_eps(arcos_object, "wrong", 3)
+        eps = get_eps(arcos_object, "wrong", 3, 20)
 
 
 def test_arcos_wrapper_run_all():
     what_to_run = {"binarization", "filtering", "tracking"}
     ds = DataStorage()
-    ds.filtered_data.value = pd.read_csv(
-        "src/arcos_gui/_tests/test_data/arcos_data.csv"
-    )
+    filtered_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     ds.columns.frame_column = "t"
     ds.columns.object_id = "id"
     ds.columns.x_column = "x"
@@ -174,32 +172,31 @@ def test_arcos_wrapper_run_all():
     ds.columns.measurement_math_operatoin = "None"
     ds.columns.measurement_bin = "m.bin"
     ds.columns.measurement_resc = "m.resc"
-    assert not ds.filtered_data.value.empty
-    assert ds.arcos_binarization.value.empty
-    assert ds.arcos_output.value.empty
-    assert ds.arcos_stats.value.empty
-    arcos_wrapper(ds, what_to_run, print).run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=0.5,
-        bin_peak_threshold=0.5,
-        epsMethod="manual",
-        neighbourhood_size=20,
-        epsPrev=20,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=1,
-        total_event_size=1,
-    )
-    assert not ds.arcos_binarization.value.empty
-    assert not ds.arcos_output.value.empty
-    assert not ds.arcos_stats.value.empty
+
+    worker = arcos_worker(what_to_run, print)
+    worker.filtered_data = filtered_data
+    worker.columns = ds.columns
+    worker.arcos_parameters.interpolate_meas.value = True
+    worker.arcos_parameters.clip_meas.value = True
+    worker.arcos_parameters.clip_low.value = 0.01
+    worker.arcos_parameters.clip_high.value = 0.99
+    worker.arcos_parameters.bias_method.value = "none"
+    worker.arcos_parameters.smooth_k.value = 1
+    worker.arcos_parameters.bias_k.value = 3
+    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.bin_threshold.value = 0.5
+    worker.arcos_parameters.bin_peak_threshold.value = 0.5
+    worker.arcos_parameters.neighbourhood_size.value = 20
+    worker.arcos_parameters.eps_method.value = "manual"
+    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.min_clustersize.value = 4
+    worker.arcos_parameters.nprev.value = 1
+    worker.arcos_parameters.min_dur.value = 1
+    worker.arcos_parameters.total_event_size.value = 1
+    worker.run_arcos()
+    assert not worker.filtered_data.empty
+    assert not worker.arcos_object.data.empty
+    assert not worker.arcos_raw_output.empty
 
 
 def test_arcos_wrapper_run_no_data(capsys):
@@ -216,30 +213,30 @@ def test_arcos_wrapper_run_no_data(capsys):
     ds.columns.measurement_math_operatoin = "None"
     ds.columns.measurement_bin = "m.bin"
     ds.columns.measurement_resc = "m.resc"
-    arcos_wrapper(ds, what_to_run, print).run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=0.5,
-        bin_peak_threshold=0.5,
-        epsMethod="manual",
-        neighbourhood_size=20,
-        epsPrev=20,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=1,
-        total_event_size=1,
-    )
+    worker = arcos_worker(what_to_run, print)
+    worker.columns = ds.columns
+    worker.arcos_parameters.interpolate_meas.value = True
+    worker.arcos_parameters.clip_meas.value = True
+    worker.arcos_parameters.clip_low.value = 0.01
+    worker.arcos_parameters.clip_high.value = 0.99
+    worker.arcos_parameters.bias_method.value = "none"
+    worker.arcos_parameters.smooth_k.value = 1
+    worker.arcos_parameters.bias_k.value = 3
+    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.bin_threshold.value = 10
+    worker.arcos_parameters.bin_peak_threshold.value = 10
+    worker.arcos_parameters.neighbourhood_size.value = 20
+    worker.arcos_parameters.eps_method.value = "manual"
+    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.min_clustersize.value = 4
+    worker.arcos_parameters.nprev.value = 1
+    worker.arcos_parameters.min_dur.value = 1
+    worker.arcos_parameters.total_event_size.value = 1
+    worker.run_arcos()
     captured_data = capsys.readouterr()
-    assert ds.filtered_data.value.empty
-    assert ds.arcos_binarization.value.empty
-    assert ds.arcos_output.value.empty
-    assert ds.arcos_stats.value.empty
+    assert worker.filtered_data.empty
+    assert worker.arcos_object.data.empty
+    assert worker.arcos_raw_output.empty
     assert "No data loaded. Load first using the import data tab." in captured_data.out
 
 
@@ -261,30 +258,31 @@ def test_arcos_wrapper_run_no_bin_data(capsys):
     ds.columns.measurement_math_operatoin = "None"
     ds.columns.measurement_bin = "m.bin"
     ds.columns.measurement_resc = "m.resc"
-    arcos_wrapper(ds, what_to_run, print).run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=10,
-        bin_peak_threshold=10,
-        neighbourhood_size=20,
-        epsMethod="manual",
-        epsPrev=20,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=1,
-        total_event_size=1,
-    )
+    worker = arcos_worker(what_to_run, print)
+    worker.columns = ds.columns
+    worker.filtered_data = ds.filtered_data.value
+    worker.arcos_parameters.interpolate_meas.value = True
+    worker.arcos_parameters.clip_meas.value = True
+    worker.arcos_parameters.clip_low.value = 0.01
+    worker.arcos_parameters.clip_high.value = 0.99
+    worker.arcos_parameters.bias_method.value = "none"
+    worker.arcos_parameters.smooth_k.value = 1
+    worker.arcos_parameters.bias_k.value = 3
+    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.bin_threshold.value = 10
+    worker.arcos_parameters.bin_peak_threshold.value = 10
+    worker.arcos_parameters.neighbourhood_size.value = 20
+    worker.arcos_parameters.eps_method.value = "manual"
+    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.min_clustersize.value = 4
+    worker.arcos_parameters.nprev.value = 1
+    worker.arcos_parameters.min_dur.value = 1
+    worker.arcos_parameters.total_event_size.value = 1
+    worker.run_arcos()
     captured_data = capsys.readouterr()
-    assert not ds.filtered_data.value.empty
-    assert not ds.arcos_binarization.value.empty
-    assert ds.arcos_output.value.empty
-    assert ds.arcos_stats.value.empty
+    assert not worker.filtered_data.empty
+    assert not worker.arcos_object.data.empty
+    assert worker.arcos_raw_output.empty
     assert "No Binarized Data. Adjust Binazation Parameters." in captured_data.out
 
 
@@ -306,30 +304,31 @@ def test_arcos_wrapper_run_no_detected_events_data(capsys):
     ds.columns.measurement_math_operatoin = "None"
     ds.columns.measurement_bin = "m.bin"
     ds.columns.measurement_resc = "m.resc"
-    arcos_wrapper(ds, what_to_run, print).run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=0.5,
-        bin_peak_threshold=0.5,
-        epsMethod="manual",
-        neighbourhood_size=0.01,
-        epsPrev=0.01,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=50,
-        total_event_size=1,
-    )
+    worker = arcos_worker(what_to_run, print)
+    worker.columns = ds.columns
+    worker.filtered_data = ds.filtered_data.value
+    worker.arcos_parameters.interpolate_meas.value = True
+    worker.arcos_parameters.clip_meas.value = False
+    worker.arcos_parameters.clip_low.value = 0.01
+    worker.arcos_parameters.clip_high.value = 0.99
+    worker.arcos_parameters.bias_method.value = "none"
+    worker.arcos_parameters.smooth_k.value = 1
+    worker.arcos_parameters.bias_k.value = 3
+    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.bin_threshold.value = 0.5
+    worker.arcos_parameters.bin_peak_threshold.value = 0.5
+    worker.arcos_parameters.neighbourhood_size.value = 0.01
+    worker.arcos_parameters.eps_method.value = "manual"
+    worker.arcos_parameters.epsPrev.value = 0.01
+    worker.arcos_parameters.min_clustersize.value = 4
+    worker.arcos_parameters.nprev.value = 1
+    worker.arcos_parameters.min_dur.value = 50
+    worker.arcos_parameters.total_event_size.value = 1
+    worker.run_arcos()
     captured_data = capsys.readouterr()
-    assert not ds.filtered_data.value.empty
-    assert not ds.arcos_binarization.value.empty
-    assert ds.arcos_output.value.empty
-    assert ds.arcos_stats.value.empty
+    assert not worker.filtered_data.empty
+    assert not worker.arcos_object.data.empty
+    assert worker.arcos_raw_output.empty
     assert (
         "No Collective Events detected. Adjust Event Detection Parameters."
         in captured_data.out
@@ -354,30 +353,31 @@ def test_arcos_wrapper_run_no_filtered_data(capsys):
     ds.columns.measurement_math_operatoin = "None"
     ds.columns.measurement_bin = "m.bin"
     ds.columns.measurement_resc = "m.resc"
-    arcos_wrapper(ds, what_to_run, print).run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=0.5,
-        bin_peak_threshold=0.5,
-        epsMethod="manual",
-        neighbourhood_size=20,
-        epsPrev=20,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=50,
-        total_event_size=1,
-    )
+    worker = arcos_worker(what_to_run, print)
+    worker.columns = ds.columns
+    worker.filtered_data = ds.filtered_data.value
+    worker.arcos_parameters.interpolate_meas.value = True
+    worker.arcos_parameters.clip_meas.value = False
+    worker.arcos_parameters.clip_low.value = 0.01
+    worker.arcos_parameters.clip_high.value = 0.99
+    worker.arcos_parameters.bias_method.value = "none"
+    worker.arcos_parameters.smooth_k.value = 1
+    worker.arcos_parameters.bias_k.value = 3
+    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.bin_threshold.value = 0.5
+    worker.arcos_parameters.bin_peak_threshold.value = 0.5
+    worker.arcos_parameters.neighbourhood_size.value = 20
+    worker.arcos_parameters.eps_method.value = "manual"
+    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.min_clustersize.value = 4
+    worker.arcos_parameters.nprev.value = 1
+    worker.arcos_parameters.min_dur.value = 50
+    worker.arcos_parameters.total_event_size.value = 1
+    worker.run_arcos()
     captured_data = capsys.readouterr()
-    assert not ds.filtered_data.value.empty
-    assert not ds.arcos_binarization.value.empty
-    assert ds.arcos_output.value.empty
-    assert ds.arcos_stats.value.empty
+    assert not worker.filtered_data.empty
+    assert not worker.arcos_object.data.empty
+    assert not worker.arcos_raw_output.empty
     assert (
         "No Collective Events detected.Adjust Filtering parameters."
         in captured_data.out
@@ -385,6 +385,15 @@ def test_arcos_wrapper_run_no_filtered_data(capsys):
 
 
 def test_arcos_wrapper_run_specific_parts():
+    class get_data_from_filtering:
+        filtered_data = pd.DataFrame()
+        stats = pd.DataFrame()
+
+        @classmethod
+        def get_data_from_callback(cls, data):
+            cls.filtered_data = data[0]
+            cls.stats = data[1]
+
     what_to_run = {"binarization"}
     ds = DataStorage()
     ds.filtered_data.value = pd.read_csv(
@@ -402,87 +411,62 @@ def test_arcos_wrapper_run_specific_parts():
     ds.columns.measurement_math_operatoin = "None"
     ds.columns.measurement_bin = "m.bin"
     ds.columns.measurement_resc = "m.resc"
-    wrapper_class = arcos_wrapper(ds, what_to_run, print)
-    wrapper_class.run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=0.5,
-        bin_peak_threshold=0.5,
-        neighbourhood_size=20,
-        epsMethod="manual",
-        epsPrev=20,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=1,
-        total_event_size=1,
-    )
-    assert not ds.filtered_data.value.empty
-    assert not ds.arcos_binarization.value.empty
-    assert wrapper_class.arcos_raw_output.empty
-    assert ds.arcos_output.value.empty
-    assert ds.arcos_stats.value.empty
+    worker = arcos_worker(what_to_run, print)
+
+    worker.new_arcos_output.connect(get_data_from_filtering.get_data_from_callback)
+
+    worker.columns = ds.columns
+    worker.filtered_data = ds.filtered_data.value
+    worker.arcos_parameters.interpolate_meas.value = True
+    worker.arcos_parameters.clip_meas.value = False
+    worker.arcos_parameters.clip_low.value = 0.01
+    worker.arcos_parameters.clip_high.value = 0.99
+    worker.arcos_parameters.bias_method.value = "none"
+    worker.arcos_parameters.smooth_k.value = 1
+    worker.arcos_parameters.bias_k.value = 3
+    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.bin_threshold.value = 0.5
+    worker.arcos_parameters.bin_peak_threshold.value = 0.5
+    worker.arcos_parameters.neighbourhood_size.value = 20
+    worker.arcos_parameters.eps_method.value = "manual"
+    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.min_clustersize.value = 4
+    worker.arcos_parameters.nprev.value = 1
+    worker.arcos_parameters.min_dur.value = 1
+    worker.arcos_parameters.total_event_size.value = 1
+    worker.run_arcos()
+    assert not worker.filtered_data.empty
+    assert not worker.arcos_object.data.empty
+    assert worker.arcos_raw_output.empty
 
     what_to_run.clear()
     what_to_run.add("tracking")
-    wrapper_class.run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=0.5,
-        bin_peak_threshold=0.5,
-        epsMethod="manual",
-        neighbourhood_size=20,
-        epsPrev=20,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=1,
-        total_event_size=1,
-    )
+    worker.run_arcos()
 
-    assert not wrapper_class.arcos_raw_output.empty
-    assert ds.arcos_output.value.empty
-    assert ds.arcos_stats.value.empty
+    assert not worker.filtered_data.empty
+    assert not worker.arcos_object.data.empty
+    assert not worker.arcos_raw_output.empty
+    assert get_data_from_filtering.filtered_data.empty
+    assert get_data_from_filtering.stats.empty
 
     what_to_run.clear()
     what_to_run.add("filtering")
-    wrapper_class.run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=0.5,
-        bin_peak_threshold=0.5,
-        epsMethod="manual",
-        neighbourhood_size=20,
-        epsPrev=20,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=1,
-        total_event_size=1,
-    )
-
-    assert not ds.filtered_data.value.empty
-    assert not ds.arcos_binarization.value.empty
-    assert not ds.arcos_output.value.empty
-    assert not ds.arcos_stats.value.empty
+    worker.run_arcos()
+    assert not worker.filtered_data.empty
+    assert not worker.arcos_object.data.empty
+    assert not worker.arcos_raw_output.empty
+    assert not get_data_from_filtering.filtered_data.empty
+    assert not get_data_from_filtering.stats.empty
 
 
 def test_arcos_wrapper_epsMethod():
+    class get_data_from_eps:
+        eps: float
+
+        @classmethod
+        def get_data_from_callback(cls, data):
+            cls.eps = data
+
     what_to_run = {"binarization", "tracking", "filtering"}
     ds = DataStorage()
     ds.filtered_data.value = pd.read_csv(
@@ -499,31 +483,32 @@ def test_arcos_wrapper_epsMethod():
     ds.columns.measurement_math_operatoin = "None"
     ds.columns.measurement_bin = "m.bin"
     ds.columns.measurement_resc = "m.resc"
-    assert not ds.filtered_data.value.empty
-    assert ds.arcos_binarization.value.empty
-    assert ds.arcos_output.value.empty
-    assert ds.arcos_stats.value.empty
-    arcos_wrapper(ds, what_to_run, print).run_arcos(
-        interpolate_meas=True,
-        clip_meas=False,
-        clip_low=0.01,
-        clip_high=0.99,
-        bias_method="none",
-        smooth_k=1,
-        bias_k=3,
-        polyDeg=1,
-        bin_threshold=0.5,
-        bin_peak_threshold=0.5,
-        epsMethod="mean",
-        neighbourhood_size=0,
-        epsPrev=20,
-        min_clustersize=4,
-        nprev=1,
-        min_dur=1,
-        total_event_size=1,
-    )
-    assert not ds.arcos_binarization.value.empty
-    assert not ds.arcos_output.value.empty
-    assert not ds.arcos_stats.value.empty
 
-    assert ds.arcos_parameters.neighbourhood_size != 0
+    worker = arcos_worker(what_to_run, print)
+    worker.new_eps.connect(get_data_from_eps.get_data_from_callback)
+
+    worker.columns = ds.columns
+    worker.filtered_data = ds.filtered_data.value
+    worker.arcos_parameters.interpolate_meas.value = True
+    worker.arcos_parameters.clip_meas.value = False
+    worker.arcos_parameters.clip_low.value = 0.01
+    worker.arcos_parameters.clip_high.value = 0.99
+    worker.arcos_parameters.bias_method.value = "none"
+    worker.arcos_parameters.smooth_k.value = 1
+    worker.arcos_parameters.bias_k.value = 3
+    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.bin_threshold.value = 0.5
+    worker.arcos_parameters.bin_peak_threshold.value = 0.5
+    worker.arcos_parameters.neighbourhood_size.value = 0
+    worker.arcos_parameters.eps_method.value = "mean"
+    worker.arcos_parameters.epsPrev.value = 0
+    worker.arcos_parameters.min_clustersize.value = 4
+    worker.arcos_parameters.nprev.value = 1
+    worker.arcos_parameters.min_dur.value = 1
+    worker.arcos_parameters.total_event_size.value = 1
+    worker.run_arcos()
+    assert not worker.filtered_data.empty
+    assert not worker.arcos_object.data.empty
+    assert not worker.arcos_raw_output.empty
+
+    assert get_data_from_eps.eps != 0

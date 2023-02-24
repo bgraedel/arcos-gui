@@ -5,10 +5,9 @@ This widget allows the user to import a csv file and choose the columns to use."
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from arcos_gui.processing import DataLoader, read_data_header
-from napari.utils.notifications import show_info
 from qtpy import QtCore, QtWidgets, uic
 from qtpy.QtCore import QThread
 from qtpy.QtGui import QIcon, QMovie
@@ -37,7 +36,7 @@ class _input_dataUI:
         self.file_LineEdit.setText(".")
         # set icons
         browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
-        self.loading_icon = QMovie(str(ICONS / "Spinner-1s-200px.gif"))
+        self.loading_icon = QMovie(str(ICONS / "Dual Ring-1s-200px.gif"))
         self.loading_icon.setScaledSize(QtCore.QSize(40, 40))
         # self.loading.setMovie(self.loading_icon)
         self.browse_file.setIcon(browse_file_icon)
@@ -64,10 +63,13 @@ class _input_dataUI:
 class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
     """Widget to import a csv file and choose the columns to use."""
 
-    def __init__(self, data_storage_instance: DataStorage, parent=None):
+    def __init__(
+        self, data_storage_instance: DataStorage, std_out: Callable, parent=None
+    ):
         self.data_storage_instance = data_storage_instance
         super().__init__(parent)
         self.setup_ui()
+        self.std_out = std_out
         self.picker = columnpicker(self)
         self.last_path = None
 
@@ -113,10 +115,10 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         extension = [".csv", ".csv.gz"]
         csv_file = self.file_LineEdit.text()
         if not csv_file.endswith(tuple(extension)):
-            show_info("File type not supported")
+            self.std_out("File type not supported")
             return
         if not Path(csv_file).exists():
-            show_info("File does not exist")
+            self.std_out("File does not exist")
             return
         csv_file = self.file_LineEdit.text()
         columns, delimiter_value = read_data_header(csv_file)
@@ -153,21 +155,27 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         # this signal ensures that if a user closes the columnpicker window with X
         # the loaded data is not updated in the data storage object and layers are not deleted
         # aswell as the columnnames are not updated
-
         self.loading_worker.new_data.connect(self._succesfully_loaded)
         self.loading_worker.aborted.connect(self._loading_aborted)
 
         self.loading_thread.started.connect(self.loading_worker.run)
 
+        self.loading_worker.finished.connect(self.stop_loading_icon)
+        self.loading_worker.finished.connect(self.loading_thread.quit)
         self.loading_worker.finished.connect(self.loading_worker.deleteLater)
         self.loading_thread.finished.connect(self.loading_thread.deleteLater)
-        self.loading_worker.finished.connect(self.loading_thread.quit)
-
-        self.loading_worker.loading_finished.connect(self.stop_loading_icon)
         self.loading_thread.start()
         # self.loading_worker.loading_finished.connect(lambda: print("loading finished"))
         # self.loading_thread.finished.connect(lambda: print("thread finished"))
         self.open_file_button.setEnabled(False)
+        self.open_file_button.setText("")
+
+    def closeEvent(self, event):
+        if self.picker.isVisible():
+            self.picker.close()
+            self.loading_thread.quit()
+            self.loading_thread.wait(1000)
+        event.accept()
 
     def _set_loading_worker_columns(self):
         self.loading_worker.op = self.picker.measurement_math.currentText()
@@ -189,15 +197,16 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
     def _loading_aborted(self, err_code):
         """If the loading of the data is aborted, the data storage is not updated."""
         self.open_file_button.setEnabled(True)
+        self.open_file_button.setText("Load Data")
         if err_code == 0:
             return
         if err_code == 1:
-            show_info("Loading aborted")
+            self.std_out("Loading aborted")
             return
         if err_code == 2:
-            show_info("Loading aborted by error")
+            self.std_out("Loading aborted by error")
             return
-        show_info(f"Loading aborted by error: {err_code}")
+        self.std_out(f"Loading aborted by error: {err_code}")
         print(err_code)
         return
 
@@ -211,6 +220,6 @@ if __name__ == "__main__":
     from arcos_gui.processing import DataStorage  # noqa: F811
 
     app = QtWidgets.QApplication(sys.argv)
-    widget = InputDataWidget(DataStorage())
+    widget = InputDataWidget(DataStorage(), print)
     widget.show()
     sys.exit(app.exec_())

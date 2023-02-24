@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 @pytest.fixture()
 def make_input_widget(qtbot, make_napari_viewer):
     ds = DataStorage()
-    widget = InputDataWidget(ds)
+    widget = InputDataWidget(ds, print)
     qtbot.addWidget(widget)
     yield widget, qtbot
     widget.close()
@@ -77,7 +77,7 @@ def test_open_columnpicker_with_invalid_file(
     qtbot.mouseClick(widget.open_file_button, Qt.LeftButton)
 
     catptured = capsys.readouterr()
-    assert catptured.out == "INFO: File does not exist\n"
+    assert "File does not exist" in catptured.out
 
 
 def test_open_columnpicker_with_invalid_file_type(
@@ -95,7 +95,7 @@ def test_open_columnpicker_with_invalid_file_type(
 
     # assert that the columnpicker window was opened
     catptured = capsys.readouterr()
-    assert catptured.out == "INFO: File type not supported\n"
+    assert "File type not supported" in catptured.out
 
 
 def test_set_choices_names_from_previous(
@@ -204,4 +204,4 @@ def test_data_loading_abort(make_input_widget: tuple[InputDataWidget, QtBot], ca
     loop.exec_()
     catptured = capsys.readouterr()
     assert widget.data_storage_instance.original_data.value.empty
-    assert catptured.out == "INFO: Loading aborted\n"
+    assert "Loading aborted" in catptured.out

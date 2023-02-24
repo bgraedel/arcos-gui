@@ -25,6 +25,7 @@ def dock_arcos_widget(make_napari_viewer, qtbot):
     del mywidget
     del viewer
     gc.collect()
+    # sys.exit()
 
 
 @pytest.fixture()
@@ -252,21 +253,31 @@ def test_load_data_with_measurement_math(
 def test_add_binarization_layers_with_data(
     dock_arcos_widget_w_colnames_set: tuple[napari.viewer.Viewer, MainWindow]
 ):
+    def do_assertions():
+        assert len(viewer.layers) == 2
+        assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
+        assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
+
     viewer, mywidget = dock_arcos_widget_w_colnames_set
     test_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     mywidget.data_storage_instance.original_data.value = test_df
     mywidget.data_storage_instance.filtered_data.value = test_df[
         test_df["Position"] == 1
     ]
+    mywidget.arcos_widget.worker.finished.connect(do_assertions)
     mywidget.arcos_widget.run_binarization_only.click()
-    assert len(viewer.layers) == 2
-    assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
-    assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
 
 
 def test_add_all_layers_with_data(
     dock_arcos_widget_w_colnames_set: tuple[napari.viewer.Viewer, MainWindow]
 ):
+    def do_assertions():
+        assert len(viewer.layers) == 4
+        assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
+        assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
+        assert viewer.layers[2].name == ARCOS_LAYERS["collective_events_cells"]
+        assert viewer.layers[3].name == ARCOS_LAYERS["event_hulls"]
+
     viewer, mywidget = dock_arcos_widget_w_colnames_set
     test_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     arcos_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
@@ -278,17 +289,14 @@ def test_add_all_layers_with_data(
         test_df["Position"] == 1
     ]
     mywidget.data_storage_instance.arcos_output.value = arcos_df
+    mywidget.arcos_widget.worker.finished.connect(do_assertions)
     mywidget.arcos_widget.update_arcos.click()
-    assert len(viewer.layers) == 4
-    assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
-    assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
-    assert viewer.layers[2].name == ARCOS_LAYERS["collective_events_cells"]
-    assert viewer.layers[3].name == ARCOS_LAYERS["event_hulls"]
 
 
 def test_first_all_then_bin(
     dock_arcos_widget_w_colnames_set: tuple[napari.viewer.Viewer, MainWindow]
 ):
+    loop = QEventLoop()
     viewer, mywidget = dock_arcos_widget_w_colnames_set
     test_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     arcos_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
@@ -300,14 +308,30 @@ def test_first_all_then_bin(
         test_df["Position"] == 1
     ]
     mywidget.data_storage_instance.arcos_output.value = arcos_df
+    mywidget.arcos_widget.worker.finished.connect(loop.quit)
+    print("first click")
     mywidget.arcos_widget.update_arcos.click()
+    # wait until assertions are done before continuing
+    loop.exec_()
+    mywidget.arcos_widget.worker.finished.disconnect(loop.quit)
+    mywidget.arcos_widget.worker.aborted.connect(loop.quit)
+
     assert len(viewer.layers) == 4
     assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
     assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
     assert viewer.layers[2].name == ARCOS_LAYERS["collective_events_cells"]
     assert viewer.layers[3].name == ARCOS_LAYERS["event_hulls"]
+
     mywidget.arcos_widget.bin_threshold.setValue(0.5)
+    loop = QEventLoop()
+    mywidget.arcos_widget.worker.finished.connect(loop.quit)
+    mywidget.arcos_widget.worker.aborted.connect(loop.quit)
+    print("second click")
+    print(mywidget.arcos_widget.run_binarization_only.isEnabled())
     mywidget.arcos_widget.run_binarization_only.click()
+
+    # wait until assertions are done before continuing
+    loop.exec_()
     assert len(viewer.layers) == 2
     assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
     assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
@@ -316,13 +340,18 @@ def test_first_all_then_bin(
 def test_increase_points_size(
     dock_arcos_widget_w_colnames_set: tuple[napari.viewer.Viewer, MainWindow]
 ):
+    loop = QEventLoop()
     viewer, mywidget = dock_arcos_widget_w_colnames_set
     test_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     mywidget.data_storage_instance.original_data.value = test_df
     mywidget.data_storage_instance.filtered_data.value = test_df[
         test_df["Position"] == 1
     ]
+    mywidget.arcos_widget.worker.finished.connect(loop.quit)
     mywidget.arcos_widget.run_binarization_only.click()
+    # wait until thread returns back to idle before continuing
+    loop.exec_()
+
     assert len(viewer.layers) == 2
     assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
     assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
