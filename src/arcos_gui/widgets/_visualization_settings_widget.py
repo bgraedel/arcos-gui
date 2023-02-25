@@ -107,6 +107,10 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_properties_UI):
         self.data_storage_instance.original_data.value_changed_connect(
             self._set_default_point_size
         )
+
+        self.data_storage_instance.filtered_data.value_changed_connect(
+            self._reset_contrast
+        )
         self.data_storage_instance.original_data.value_changed_connect(
             self._reset_contrast
         )

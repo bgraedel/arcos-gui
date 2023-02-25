@@ -77,12 +77,18 @@ class _arcosWidget:
         self.update_arcos.setIcon(QIcon(self.loading_icon.currentPixmap()))
         self.cancel_button.setStyleSheet("background-color : #7C0A02; color : white")
         self.cancel_button.hide()
+        self._setup_timer()
 
     def _set_loading_icon(self, frame=None):
         self.update_arcos.setIcon(QIcon(self.loading_icon.currentPixmap()))
 
     def _hide_loading_icon(self):
         self.update_arcos.setIcon(QIcon())
+        # self.loading_icon.frameChanged.disconnect(self._set_loading_icon)
+
+    def _setup_timer(self):
+        self.timer_loading_icon_show = QTimer()
+        self.timer_loading_icon_show.setSingleShot(True)
 
     def start_loading(self):
         """Start loading icon animation."""
@@ -90,20 +96,24 @@ class _arcosWidget:
         self.run_binarization_only.setEnabled(False)
         self.cancel_button.show()
         self.cancel_button.setEnabled(True)
-
-        self.loading_icon.start()
         self.update_arcos.setText("")
         self.run_binarization_only.setText("")
+        self.timer_loading_icon_show.timeout.connect(self._show_loading_icon)
+        self.timer_loading_icon_show.start(100)
+
+    def _show_loading_icon(self):
+        self.loading_icon.start()
         self.loading_icon.frameChanged.connect(self._set_loading_icon)
 
     def stop_loading(self):
         """Stop loading icon animation."""
+        self.timer_loading_icon_show.stop()
         self._hide_loading_icon()
         self.loading_icon.stop()
-        self.cancel_button.setEnabled(False)
         self.cancel_button.hide()
         self.update_arcos.setText("Update ARCOS")
         self.run_binarization_only.setText("Binarize Data")
+        self.cancel_button.setEnabled(False)
         self.update_arcos.setEnabled(True)
         self.run_binarization_only.setEnabled(True)
 

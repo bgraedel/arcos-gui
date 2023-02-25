@@ -67,9 +67,9 @@ class MainWindow(QtWidgets.QWidget, _MainUI):
         self.setup_ui()
 
         self.data_storage_instance = DataStorage()
-        # self.data_storage_instance.set_verbose(
-        #     True
-        # )  # uncomment to make callbacks verbose
+        self.data_storage_instance.set_verbose(
+            True
+        )  # uncomment to make callbacks verbose
 
         self.input_data_widget = InputDataWidget(
             data_storage_instance=self.data_storage_instance,
