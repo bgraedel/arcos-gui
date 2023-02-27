@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from napari.viewer import Viewer
 
 
-class _filter_dataUI:
+class _filter_dataUI(QtWidgets.QWidget):
     UI_FILE = str(Path(__file__).parent.parent / "_ui" / "filter_data.ui")
 
     # The UI_FILE above contains these objects:
@@ -40,27 +40,9 @@ class _filter_dataUI:
     filter_input_data: QtWidgets.QPushButton
     horizontalLayout_tracklength: QtWidgets.QHBoxLayout
 
-    def setup_ui(self):
-        """Setup UI. Loads it from ui file."""
-        uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
-
-
-class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
-    """Widget to handle filtering of input data."""
-
-    def __init__(self, viewer: Viewer, data_storage_instance: DataStorage, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.viewer = viewer
         self.setup_ui()
-        self._init_ranged_sliderts()
-        self._connect_ranged_sliders_to_spinboxes()
-
-        self.data_storage_instance = data_storage_instance
-        self.data_storage_instance.original_data.value_changed_connect(
-            self._original_data_changed
-        )
-        self._set_defaults()
-        self.filter_input_data.clicked.connect(self._filter_data)
 
     def _init_ranged_sliderts(self):
         """Initialize ranged sliders from superqt."""
@@ -103,34 +85,61 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
         self.additional_filter_combobox.clear()
         self.position.clear()
 
-    def _set_defaults(self):
+    def set_defaults(self):
         """Method that sets the default visible widgets in the main window."""
         self.position.setVisible(False)
         self.position_label.setVisible(False)
         self.additional_filter_combobox.setVisible(False)
         self.additional_filter_combobox_label.setVisible(False)
         self._reset_filter_combobox()
-        self._set_tracklengths()
 
-    def _set_position_visible(self):
+    def set_position_visible(self):
         """Method that sets the visible widgets in the main window."""
         self.position.setVisible(True)
         self.position_label.setVisible(True)
 
-    def _set_additional_filter_visible(self):
+    def set_additional_filter_visible(self):
         self.additional_filter_combobox.setVisible(True)
         self.additional_filter_combobox_label.setVisible(True)
+
+    def setup_ui(self):
+        """Setup UI. Loads it from ui file."""
+        uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
+        self.set_defaults()
+        self._init_ranged_sliderts()
+        self._connect_ranged_sliders_to_spinboxes()
+
+
+class FilterController:
+    """Widget to handle filtering of input data."""
+
+    def __init__(self, viewer: Viewer, data_storage_instance: DataStorage, parent=None):
+        self.viewer = viewer
+        self.widget = _filter_dataUI()
+
+        self.data_storage_instance = data_storage_instance
+        self.data_storage_instance.original_data.value_changed_connect(
+            self._original_data_changed
+        )
+        self.widget.filter_input_data.clicked.connect(self._filter_data)
+        self._set_default_values()
+
+    def _set_default_values(self):
+        self.widget.set_defaults()
+        self._set_tracklengths()
 
     def _filter_data(self):
         """Method to filter the data."""
         self._remove_old_layers()
-        selected_position_value = self.position.currentData()
-        selected_additional_filter_value = self.additional_filter_combobox.currentData()
-        selected_frame_interval_value = self.frame_interval.value()
+        selected_position_value = self.widget.position.currentData()
+        selected_additional_filter_value = (
+            self.widget.additional_filter_combobox.currentData()
+        )
+        selected_frame_interval_value = self.widget.frame_interval.value()
 
         # get tracklengths
-        min_tracklength = self.min_tracklength_spinbox.value()
-        max_tracklength = self.max_tracklength_spinbox.value()
+        min_tracklength = self.widget.min_tracklength_spinbox.value()
+        max_tracklength = self.widget.max_tracklength_spinbox.value()
 
         # get input data
         input_data = self.data_storage_instance.original_data.value
@@ -165,7 +174,7 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
         self._update_data_storage(data_filtered, min_meas, max_meas)
 
     def _original_data_changed(self):
-        self._set_defaults()
+        self._set_default_values()
 
         df_orig = self.data_storage_instance.original_data.value
         pos_col = self.data_storage_instance.columns.position_id
@@ -173,17 +182,19 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
 
         if pos_col != "None":
             if len(df_orig[pos_col].unique()) > 1:
-                self._set_position_visible()
+                self.widget.set_position_visible()
                 for pos in df_orig[pos_col].unique():
-                    self.position.addItem(str(pos), pos)
+                    self.widget.position.addItem(str(pos), pos)
 
         if add_filter_col != "None":
-            self._set_additional_filter_visible()
+            self.widget.set_additional_filter_visible()
             for add_filter in df_orig[add_filter_col].unique():
-                self.additional_filter_combobox.addItem(str(add_filter), add_filter)
+                self.widget.additional_filter_combobox.addItem(
+                    str(add_filter), add_filter
+                )
 
-        self.position.setCurrentIndex(0)
-        self.additional_filter_combobox.setCurrentIndex(0)
+        self.widget.position.setCurrentIndex(0)
+        self.widget.additional_filter_combobox.setCurrentIndex(0)
         self._filter_data()
 
     def _update_data_storage(self, df_filtered, min_meas, max_meas):
@@ -203,9 +214,9 @@ class FilterDataWidget(QtWidgets.QWidget, _filter_dataUI):
         )
         set_track_lenths(
             (min_t, max_t),
-            self.tracklenght_slider,
-            self.min_tracklength_spinbox,
-            self.max_tracklength_spinbox,
+            self.widget.tracklenght_slider,
+            self.widget.min_tracklength_spinbox,
+            self.widget.max_tracklength_spinbox,
         )
 
     def _remove_old_layers(self):
@@ -222,8 +233,8 @@ if __name__ == "__main__":
     data_storage_instance = DataStorage()
     viewer = Viewer()
     app = QtWidgets.QApplication(sys.argv)
-    widget = FilterDataWidget(viewer, data_storage_instance=data_storage_instance)
-    widget.show()
+    controller = FilterController(viewer, data_storage_instance=data_storage_instance)
+    controller.widget.show()
     ai = pd.read_csv("C:/Users/benig/test.csv")
     data_storage_instance.columns.frame_column = "time"
     data_storage_instance.columns.object_id = "trackID"

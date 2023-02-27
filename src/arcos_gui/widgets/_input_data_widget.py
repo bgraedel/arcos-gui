@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Callable
 
 from arcos_gui.processing import DataLoader, read_data_header
 from qtpy import QtCore, QtWidgets, uic
-from qtpy.QtCore import QThread
+from qtpy.QtCore import QThread, Signal
 from qtpy.QtGui import QIcon, QMovie
 
 from ._dialog_widgets import columnpicker
@@ -22,7 +22,11 @@ if TYPE_CHECKING:
 ICONS = Path(__file__).parent.parent / "_icons"
 
 
-class _input_dataUI:
+class _input_dataUI(QtWidgets.QWidget):
+    filename_changed = Signal(str)
+    closing = Signal()
+    last_path = None
+
     UI_FILE = str(Path(__file__).parent.parent / "_ui" / "Input_data.ui")
 
     file_LineEdit: QtWidgets.QLineEdit
@@ -30,9 +34,15 @@ class _input_dataUI:
     browse_file: QtWidgets.QPushButton
     loading: QtWidgets.QLabel
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+
     def setup_ui(self):
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
         # set text of Line edit
+        self.browse_file.clicked.connect(self._browse_files)
+        # set up file browser
         self.file_LineEdit.setText(".")
         # set icons
         browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
@@ -42,6 +52,22 @@ class _input_dataUI:
         self.browse_file.setIcon(browse_file_icon)
         self.open_file_button.setIcon(QIcon(self.loading_icon.currentPixmap()))
         self.loading_icon.stop()
+
+    def _browse_files(self):
+        """Opens a filedialog and saves path as a string in self.filename"""
+        if self.last_path is None:
+            self.last_path = str(Path.home())
+        filename = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Load CSV file",
+            str(self.last_path),
+            "csv(*.csv);; csv.gz(*.csv.gz);;",
+        )
+        self.last_path = str(Path(filename[0]).parent)
+        if filename[0] == "":
+            return
+        self.file_LineEdit.setText(filename[0])
+        self.filename_changed.emit(filename[0])
 
     def _set_loading_icon(self, frame=None):
         self.open_file_button.setIcon(QIcon(self.loading_icon.currentPixmap()))
@@ -59,41 +85,34 @@ class _input_dataUI:
         self.loading_icon.stop()
         self._hide_loading_icon()
 
+    def closeEvent(self, event):
+        self.closing.emit()
+        event.accept()
 
-class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
+
+class InputdataController:
     """Widget to import a csv file and choose the columns to use."""
 
     def __init__(
         self, data_storage_instance: DataStorage, std_out: Callable, parent=None
     ):
+        self.widget = _input_dataUI(parent)
+        self.picker = columnpicker(self.widget)
+
         self.data_storage_instance = data_storage_instance
-        super().__init__(parent)
-        self.setup_ui()
         self.std_out = std_out
-        self.picker = columnpicker(self)
-        self.last_path = None
 
-        # set up file browser
-        self.browse_file.clicked.connect(self._browse_files)
+        self._connect_signals()
 
-        # set up column picker
-        self.open_file_button.clicked.connect(self._open_columnpicker)
+    def _connect_signals(self):
+        """Connects signals and slots."""
+        self.widget.filename_changed.connect(self._update_filename)
+        self.widget.open_file_button.clicked.connect(self._open_columnpicker)
+        self.widget.closing.connect(self.closeEvent)
 
-    def _browse_files(self):
-        """Opens a filedialog and saves path as a string in self.filename"""
-        if self.last_path is None:
-            self.last_path = str(Path.home())
-        filename = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Load CSV file",
-            str(self.last_path),
-            "csv(*.csv);; csv.gz(*.csv.gz);;",
-        )
-        self.last_path = str(Path(filename[0]).parent)
-        if filename[0] == "":
-            return
-        self.file_LineEdit.setText(filename[0])
-        self.data_storage_instance.file_name = filename[0]
+    def _update_filename(self, filename):
+        """Updates the filename in the data storage instance."""
+        self.data_storage_instance.file_name = filename
 
     def load_sample_data(self, path, columns):
         """Loads sample data from a given path and sets the column names.
@@ -105,28 +124,28 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
         columns : columnames instance
             Instance of the columnames class.
         """
-        self.file_LineEdit.setText(path)
+        self.widget.file_LineEdit.setText(path)
         self.data_storage_instance.columns = columns
-        self.open_file_button.click()
+        self.widget.open_file_button.click()
         self.data_storage_instance.file_name = path
 
     def _open_columnpicker(self):
         """Opens a columnpicker window."""
         extension = [".csv", ".csv.gz"]
-        csv_file = self.file_LineEdit.text()
+        csv_file = self.widget.file_LineEdit.text()
         if not csv_file.endswith(tuple(extension)):
             self.std_out("File type not supported")
             return
         if not Path(csv_file).exists():
             self.std_out("File does not exist")
             return
-        csv_file = self.file_LineEdit.text()
+        csv_file = self.widget.file_LineEdit.text()
         columns, delimiter_value = read_data_header(csv_file)
         old_picked_columns = (
             self.data_storage_instance.columns.pickablepickable_columns_names
         )
         self.picker = columnpicker(
-            parent=self, columnames_instance=self.data_storage_instance.columns
+            parent=self.widget, columnames_instance=self.data_storage_instance.columns
         )
 
         self.picker.set_column_names(columns)
@@ -142,14 +161,14 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
                 ui_element.setCurrentText(column_name)
 
     def _run_data_loading(self, filename, delimiter=None):
-        self.loading_thread = QThread(self)
+        self.loading_thread = QThread(self.widget)
         self.loading_worker = DataLoader(
             filename, delimiter, wait_for_columnpicker=True
         )
         self.picker.rejected.connect(self._abort_loading_worker)
         self.picker.accepted.connect(self._set_loading_worker_columns)
 
-        self.start_loading_icon()
+        self.widget.start_loading_icon()
         self.loading_worker.moveToThread(self.loading_thread)
         # Connect signals and slots
         # this signal ensures that if a user closes the columnpicker window with X
@@ -160,22 +179,21 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
 
         self.loading_thread.started.connect(self.loading_worker.run)
 
-        self.loading_worker.finished.connect(self.stop_loading_icon)
+        self.loading_worker.finished.connect(self.widget.stop_loading_icon)
         self.loading_worker.finished.connect(self.loading_thread.quit)
         self.loading_worker.finished.connect(self.loading_worker.deleteLater)
         self.loading_thread.finished.connect(self.loading_thread.deleteLater)
         self.loading_thread.start()
         # self.loading_worker.loading_finished.connect(lambda: print("loading finished"))
         # self.loading_thread.finished.connect(lambda: print("thread finished"))
-        self.open_file_button.setEnabled(False)
-        self.open_file_button.setText("")
+        self.widget.open_file_button.setEnabled(False)
+        self.widget.open_file_button.setText("")
 
-    def closeEvent(self, event):
+    def closeEvent(self):
         if self.picker.isVisible():
             self.picker.close()
             self.loading_thread.quit()
             self.loading_thread.wait(1000)
-        event.accept()
 
     def _set_loading_worker_columns(self):
         self.loading_worker.op = self.picker.measurement_math.currentText()
@@ -196,8 +214,8 @@ class InputDataWidget(QtWidgets.QWidget, _input_dataUI):
 
     def _loading_aborted(self, err_code):
         """If the loading of the data is aborted, the data storage is not updated."""
-        self.open_file_button.setEnabled(True)
-        self.open_file_button.setText("Load Data")
+        self.widget.open_file_button.setEnabled(True)
+        self.widget.open_file_button.setText("Load Data")
         if err_code == 0:
             return
         if err_code == 1:
@@ -220,6 +238,6 @@ if __name__ == "__main__":
     from arcos_gui.processing import DataStorage  # noqa: F811
 
     app = QtWidgets.QApplication(sys.argv)
-    widget = InputDataWidget(DataStorage(), print)
-    widget.show()
+    widget = InputdataController(DataStorage(), print)
+    widget.widget.show()
     sys.exit(app.exec_())

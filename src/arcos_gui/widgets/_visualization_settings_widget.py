@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 ICONS = Path(__file__).parent / "_icons"
 
 
-class _layer_properties_UI:
+class _layer_properties_UI(QtWidgets.QWidget):
     UI_FILE = str(Path(__file__).parent.parent / "_ui" / "Layer_properties.ui")
 
     # The UI_FILE above contains these objects:
@@ -39,30 +39,9 @@ class _layer_properties_UI:
     layer_properties: QtWidgets.QGroupBox
     horizontalLayout_lut: QtWidgets.QHBoxLayout
 
-    def setup_ui(self):
-        """Setup UI. Loads it from ui file"""
-        uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
-
-
-class LayerPropertiesWidget(QtWidgets.QWidget, _layer_properties_UI):
-    """Widget to handle layer properties related to the visualization."""
-
-    def __init__(
-        self,
-        viewer: napari.viewer.Viewer,
-        data_storage_instance: DataStorage,
-        parent=None,
-    ):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self.setup_ui()
-        self.viewer = viewer
-        self.data_storage_instance = data_storage_instance
-
-        self.LUT.addItems(AVAILABLE_COLORMAPS)
-        self.LUT.setCurrentText("inferno")
-        self._init_ranged_sliderts()
-        self._connect_ranged_sliders_to_spinboxes()
-        self._init_size_contrast_callbacks()
 
     def _init_ranged_sliderts(self):
         """Initialize ranged sliders from superqt."""
@@ -95,15 +74,48 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_properties_UI):
         self.min_lut_spinbox.valueChanged.connect(self._handle_min_lut_box_value_change)
         self.max_lut_spinbox.valueChanged.connect(self._handle_max_lut_box_value_change)
 
+    def set_contrast_slider(self, min_max):
+        self.max_lut_spinbox.setMaximum(min_max[1])
+        self.max_lut_spinbox.setMinimum(min_max[0])
+        self.min_lut_spinbox.setMaximum(min_max[1])
+        self.min_lut_spinbox.setMinimum(min_max[0])
+        self.lut_slider.setRange(*min_max)
+        self.max_lut_spinbox.setValue(min_max[1])
+        self.min_lut_spinbox.setValue(min_max[0])
+
+    def setup_ui(self):
+        """Setup UI. Loads it from ui file"""
+        uic.loadUi(self.UI_FILE, self)
+        self.LUT.addItems(AVAILABLE_COLORMAPS)
+        self.LUT.setCurrentText("inferno")
+        self._init_ranged_sliderts()
+        self._connect_ranged_sliders_to_spinboxes()
+
+
+class LayerpropertiesController:
+    """Widget to handle layer properties related to the visualization."""
+
+    def __init__(
+        self,
+        viewer: napari.viewer.Viewer,
+        data_storage_instance: DataStorage,
+        parent=None,
+    ):
+        self.widget = _layer_properties_UI(parent)
+        self.viewer = viewer
+        self.data_storage_instance = data_storage_instance
+
+        self._init_size_contrast_callbacks()
+
     def _init_size_contrast_callbacks(self):
         """Connects various callbacks that correspond to size,
         contrast and lut changes."""
         # execute LUT and point functions
-        self.reset_lut.clicked.connect(self._reset_contrast)
+        self.widget.reset_lut.clicked.connect(self._reset_contrast)
         # update size and LUT
-        self.lut_slider.valueChanged.connect(self._change_lut_colors)
-        self.LUT.currentIndexChanged.connect(self._change_lut_colors)
-        self.point_size.valueChanged.connect(self._change_size)
+        self.widget.lut_slider.valueChanged.connect(self._change_lut_colors)
+        self.widget.LUT.currentIndexChanged.connect(self._change_lut_colors)
+        self.widget.point_size.valueChanged.connect(self._change_size)
         self.data_storage_instance.original_data.value_changed_connect(
             self._set_default_point_size
         )
@@ -127,23 +139,17 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_properties_UI):
         """updates values in lut mapping slider."""
         min_max = self.data_storage_instance.min_max_meas
         # change slider values
-        self.max_lut_spinbox.setMaximum(min_max[1])
-        self.max_lut_spinbox.setMinimum(min_max[0])
-        self.min_lut_spinbox.setMaximum(min_max[1])
-        self.min_lut_spinbox.setMinimum(min_max[0])
-        self.lut_slider.setRange(*min_max)
-        self.max_lut_spinbox.setValue(min_max[1])
-        self.min_lut_spinbox.setValue(min_max[0])
+        self.widget.set_contrast_slider(min_max)
 
     def _change_lut_colors(self):
         """Method to update lut and corresponding lut mappings."""
         layer_list = get_layer_list(self.viewer)
-        min_value = self.min_lut_spinbox.value()
-        max_value = self.max_lut_spinbox.value()
+        min_value = self.widget.min_lut_spinbox.value()
+        max_value = self.widget.max_lut_spinbox.value()
         if ARCOS_LAYERS["all_cells"] in layer_list:
             self.viewer.layers[
                 ARCOS_LAYERS["all_cells"]
-            ].face_colormap = self.LUT.currentText()
+            ].face_colormap = self.widget.LUT.currentText()
             self.viewer.layers[ARCOS_LAYERS["all_cells"]].face_contrast_limits = (
                 min_value,
                 max_value,
@@ -156,7 +162,7 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_properties_UI):
         and if created ARCOS_LAYERS["event_boundingbox"].
         """
         layer_list = get_layer_list(self.viewer)
-        size = self.point_size.value()
+        size = self.widget.point_size.value()
         if ARCOS_LAYERS["all_cells"] in layer_list:
             self.viewer.layers[ARCOS_LAYERS["all_cells"]].size = size
 
@@ -189,8 +195,7 @@ class LayerPropertiesWidget(QtWidgets.QWidget, _layer_properties_UI):
                 KDTree(data_po_np).query(data_po_np, k=2)[0][:, 1].mean() * 0.75
             )
 
-            self.point_size.setValue(avg_nn_dist)
-
+            self.widget.point_size.setValue(avg_nn_dist)
             self.data_storage_instance.point_size = avg_nn_dist
 
 
@@ -202,6 +207,6 @@ if __name__ == "__main__":
 
     viewer = Viewer()
     app = QtWidgets.QApplication(sys.argv)
-    widget = LayerPropertiesWidget(viewer, DataStorage(), parent=None)
-    widget.show()
+    controller = LayerpropertiesController(viewer, DataStorage(), parent=None)
+    controller.widget.show()
     sys.exit(app.exec_())

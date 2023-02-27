@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import pytest
 from arcos_gui.processing import DataStorage
-from arcos_gui.widgets import LayerPropertiesWidget
+from arcos_gui.widgets import LayerpropertiesController
 
 if TYPE_CHECKING:
     from napari import viewer
@@ -15,12 +15,12 @@ if TYPE_CHECKING:
 @pytest.fixture()
 def make_input_widget(
     qtbot, make_napari_viewer
-) -> tuple[LayerPropertiesWidget, viewer.Viewer, QtBot]:
+) -> tuple[LayerpropertiesController, viewer.Viewer, QtBot]:
     ds = DataStorage()
     viewer = make_napari_viewer()
-    widget = LayerPropertiesWidget(viewer, ds)
-    qtbot.addWidget(widget)
-    return widget, viewer, qtbot
+    layer_prop_controller = LayerpropertiesController(viewer, ds)
+    qtbot.addWidget(layer_prop_controller.widget)
+    return layer_prop_controller, viewer, qtbot
 
 
 @pytest.fixture()
@@ -57,85 +57,85 @@ def make_points_layer_data_tuple():
 
 
 def test_open_widget(
-    make_input_widget: tuple[LayerPropertiesWidget, viewer.Viewer, QtBot]
+    make_input_widget: tuple[LayerpropertiesController, viewer.Viewer, QtBot]
 ):
-    input_data_widget, _, _ = make_input_widget
-    assert input_data_widget
+    input_data_controller, _, _ = make_input_widget
+    assert input_data_controller
 
 
 def test_ranged_slider_widget(
-    make_input_widget: tuple[LayerPropertiesWidget, viewer.Viewer, QtBot]
+    make_input_widget: tuple[LayerpropertiesController, viewer.Viewer, QtBot]
 ):
-    widget, _, _ = make_input_widget
-    assert widget.lut_slider
+    controller, _, _ = make_input_widget
+    assert controller.widget.lut_slider
 
 
 def test_ranged_slider_connection_to_spinboxes(
-    make_input_widget: tuple[LayerPropertiesWidget, viewer.Viewer, QtBot]
+    make_input_widget: tuple[LayerpropertiesController, viewer.Viewer, QtBot]
 ):
-    widget, _, _ = make_input_widget
-    widget._reset_contrast()
+    controller, _, _ = make_input_widget
+    controller._reset_contrast()
 
-    widget.lut_slider.setValue((0, 0.5))
-    assert widget.min_lut_spinbox.value() == 0
-    assert widget.max_lut_spinbox.value() == 0.5
+    controller.widget.lut_slider.setValue((0, 0.5))
+    assert controller.widget.min_lut_spinbox.value() == 0
+    assert controller.widget.max_lut_spinbox.value() == 0.5
 
-    widget.lut_slider.setValue((0.1, 0.4))
-    assert widget.min_lut_spinbox.value() == 0.1
-    assert widget.max_lut_spinbox.value() == 0.4
+    controller.widget.lut_slider.setValue((0.1, 0.4))
+    assert controller.widget.min_lut_spinbox.value() == 0.1
+    assert controller.widget.max_lut_spinbox.value() == 0.4
 
-    widget.min_lut_spinbox.setValue(0.2)
-    assert widget.lut_slider.value() == (0.2, 0.4)
+    controller.widget.min_lut_spinbox.setValue(0.2)
+    assert controller.widget.lut_slider.value() == (0.2, 0.4)
 
-    widget.max_lut_spinbox.setValue(0.3)
-    assert widget.lut_slider.value() == (0.2, 0.3)
+    controller.widget.max_lut_spinbox.setValue(0.3)
+    assert controller.widget.lut_slider.value() == (0.2, 0.3)
 
 
 def test_reset_contrast(
-    make_input_widget: tuple[LayerPropertiesWidget, viewer.Viewer, QtBot]
+    make_input_widget: tuple[LayerpropertiesController, viewer.Viewer, QtBot]
 ):
-    widget, _, _ = make_input_widget
-    assert widget.lut_slider.value() == (0, 10)
-    widget._reset_contrast()
-    assert widget.lut_slider.value() == (0, 0.5)
-    widget.data_storage_instance.min_max_meas = (10, 50)
-    widget._reset_contrast()
-    assert widget.lut_slider.value() == (10, 50)
-    widget.lut_slider.setValue((15.5, 20.5))
-    widget._reset_contrast()
-    assert widget.lut_slider.value() == (10, 50)
+    controller, _, _ = make_input_widget
+    assert controller.widget.lut_slider.value() == (0, 10)
+    controller._reset_contrast()
+    assert controller.widget.lut_slider.value() == (0, 0.5)
+    controller.data_storage_instance.min_max_meas = (10, 50)
+    controller._reset_contrast()
+    assert controller.widget.lut_slider.value() == (10, 50)
+    controller.widget.lut_slider.setValue((15.5, 20.5))
+    controller._reset_contrast()
+    assert controller.widget.lut_slider.value() == (10, 50)
 
 
 def test_ui_callbacks_settings(
-    make_input_widget: tuple[LayerPropertiesWidget, viewer.Viewer, QtBot],
+    make_input_widget: tuple[LayerpropertiesController, viewer.Viewer, QtBot],
     make_points_layer_data_tuple,
 ):
-    widget, viewer, _ = make_input_widget
+    controller, viewer, _ = make_input_widget
     data, properties, layer_type = make_points_layer_data_tuple
     points_layer = viewer.add_points(data, **properties)
     assert points_layer.face_colormap.name == "inferno"
     assert points_layer.face_contrast_limits == (0, 0)  # that is weird....
     # assert points_layer.size == 2
-    widget.LUT.setCurrentText("viridis")
-    widget.point_size.setValue(5)
-    widget.data_storage_instance.min_max_meas = (5, 50)
-    widget._reset_contrast()  # to set the slider to the new min_max_meas
+    controller.widget.LUT.setCurrentText("viridis")
+    controller.widget.point_size.setValue(5)
+    controller.data_storage_instance.min_max_meas = (5, 50)
+    controller._reset_contrast()  # to set the slider to the new min_max_meas
     assert points_layer.face_colormap.name == "viridis"
     assert points_layer.face_contrast_limits == (5, 50)
     assert points_layer.size.flatten()[0] == 5.0
 
 
 def test_set_settings(
-    make_input_widget: tuple[LayerPropertiesWidget, viewer.Viewer, QtBot],
+    make_input_widget: tuple[LayerpropertiesController, viewer.Viewer, QtBot],
     make_points_layer_data_tuple,
 ):
-    widget, viewer, _ = make_input_widget
+    controller, viewer, _ = make_input_widget
     data, properties, layer_type = make_points_layer_data_tuple
 
-    widget.LUT.setCurrentText("viridis")
-    widget.point_size.setValue(5)
-    widget.data_storage_instance.min_max_meas = (5, 50)
-    widget._reset_contrast()  # to set the slider to the new min_max_meas
+    controller.widget.LUT.setCurrentText("viridis")
+    controller.widget.point_size.setValue(5)
+    controller.data_storage_instance.min_max_meas = (5, 50)
+    controller._reset_contrast()  # to set the slider to the new min_max_meas
     points_layer = viewer.add_points(data, **properties)
 
     assert points_layer.face_colormap.name == "viridis"
