@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 ICONS = Path(__file__).parent.parent / "_icons"
 
 
-class _exportwidget:
+class _exportwidget(QtWidgets.QWidget):
     UI_FILE = str(Path(__file__).parent.parent / "_ui" / "export_widget.ui")
 
     # The UI_FILE above contains these objects:
@@ -43,80 +43,10 @@ class _exportwidget:
     spinBox_width_img: QtWidgets.QSpinBox
     add_timestamp_button: QtWidgets.QPushButton
 
-    def setup_ui(self):
-        """Load the .ui file and set icons."""
-        uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
-        self.browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
-        self.browse_file_data.setIcon(self.browse_file_icon)
-        self.browse_file_img.setIcon(self.browse_file_icon)
-
-
-class ExportWidget(QtWidgets.QWidget, _exportwidget):
-    def __init__(
-        self,
-        viewer: napari.viewer.Viewer,
-        data_storage_instance: DataStorage,
-        parent=None,
-    ):
+    def __init__(self, data_storage: DataStorage, parent=None):
         super().__init__(parent)
+        self._data_storage_instance = data_storage
         self.setup_ui()
-        self.viewer = viewer
-        self._data_storage_instance = data_storage_instance
-        self.current_date = self._get_current_date()
-        self._connect_callbacks()
-
-    def _get_current_date(self):
-        now = datetime.now()
-        return now.strftime("%Y%m%d")
-
-    def _export_arcos_data(self):
-        if self._data_storage_instance.arcos_output.value.empty:
-            show_info("No data to export, run arcos first")
-        else:
-            path = Path(self.file_LineEdit_data.text())
-            output_name = f"{self.current_date}_{self.base_name_LineEdit_data.text()}_arcos_output.csv"
-            outpath = os.path.join(path, output_name)
-            self._data_storage_instance.arcos_output.value.to_csv(outpath, index=False)
-            show_info(f"wrote csv file to {outpath}")
-
-    def _export_arcos_stats(self):
-        if self._data_storage_instance.arcos_stats.value.empty:
-            show_info("No data to export, run arcos first")
-        else:
-            path = Path(self.file_LineEdit_data.text())
-            output_name = f"{self.current_date}_{self.base_name_LineEdit_data.text()}_arcos_stats.csv"
-            outpath = os.path.join(path, output_name)
-            self._data_storage_instance.arcos_stats.value.to_csv(outpath, index=False)
-            show_info(f"wrote csv file to {outpath}")
-
-    def _export_arcos_params(self):
-        if self._data_storage_instance.arcos_output.value.empty:
-            show_info("No data to export, run arcos first")
-        else:
-            path = Path(self.file_LineEdit_data.text())
-            output_name = f"{self.current_date}_{self.base_name_LineEdit_data.text()}_arcos_params.csv"
-            outpath = os.path.join(path, output_name)
-            self._data_storage_instance.arcos_parameters.as_dataframe.to_csv(
-                outpath, index=False
-            )
-            show_info(f"wrote csv file to {outpath}")
-
-    def _export_image_series(self):
-        if self.viewer.layers == []:
-            show_info("No layers to export")
-        else:
-            path = Path(self.file_LineEdit_img.text())
-            output_name = (
-                f"{self.current_date}_{self.base_name_LineEdit_img.text()}_arcos_output"
-            )
-            outpath = os.path.join(path, output_name)
-            MovieExporter(
-                self.viewer,
-                self.automatic_size_img.isChecked(),
-                outpath,
-                self.spinBox_width_img.value(),
-                self.spinBox_height_img.value(),
-            ).run()
 
     def _browse_file_data(self):
         base_path = self._data_storage_instance.file_name.value
@@ -134,8 +64,94 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
         )
         self.file_LineEdit_img.setText(path)
 
+    def _update_base_name_data(self):
+        base_name = self._data_storage_instance.file_name.value
+        self.base_name_LineEdit_data.setText(Path(base_name).stem)
+        self.base_name_LineEdit_img.setText(Path(base_name).stem)
+
+    def _connect_signals(self):
+        self.browse_file_data.clicked.connect(self._browse_file_data)
+        self.browse_file_img.clicked.connect(self._browse_file_img)
+        self._data_storage_instance.file_name.value_changed_connect(
+            self._update_base_name_data
+        )
+
+    def setup_ui(self):
+        """Load the .ui file and set icons."""
+        uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
+        self._connect_signals()
+        self.browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
+        self.browse_file_data.setIcon(self.browse_file_icon)
+        self.browse_file_img.setIcon(self.browse_file_icon)
+
+
+class ExportController:
+    def __init__(
+        self,
+        viewer: napari.viewer.Viewer,
+        data_storage_instance: DataStorage,
+        parent=None,
+    ):
+        self.viewer = viewer
+        self._data_storage_instance = data_storage_instance
+        self.widget = _exportwidget(self._data_storage_instance, parent)
+
+        self.current_date = self._get_current_date()
+        self._connect_callbacks()
+
+    def _get_current_date(self):
+        now = datetime.now()
+        return now.strftime("%Y%m%d")
+
+    def _export_arcos_data(self):
+        if self._data_storage_instance.arcos_output.value.empty:
+            show_info("No data to export, run arcos first")
+        else:
+            path = Path(self.widget.file_LineEdit_data.text())
+            output_name = f"{self.current_date}_{self.widget.base_name_LineEdit_data.text()}_arcos_output.csv"
+            outpath = os.path.join(path, output_name)
+            self._data_storage_instance.arcos_output.value.to_csv(outpath, index=False)
+            show_info(f"wrote csv file to {outpath}")
+
+    def _export_arcos_stats(self):
+        if self._data_storage_instance.arcos_stats.value.empty:
+            show_info("No data to export, run arcos first")
+        else:
+            path = Path(self.widget.file_LineEdit_data.text())
+            output_name = f"{self.current_date}_{self.widget.base_name_LineEdit_data.text()}_arcos_stats.csv"
+            outpath = os.path.join(path, output_name)
+            self._data_storage_instance.arcos_stats.value.to_csv(outpath, index=False)
+            show_info(f"wrote csv file to {outpath}")
+
+    def _export_arcos_params(self):
+        if self._data_storage_instance.arcos_output.value.empty:
+            show_info("No data to export, run arcos first")
+        else:
+            path = Path(self.widget.file_LineEdit_data.text())
+            output_name = f"{self.current_date}_{self.widget.base_name_LineEdit_data.text()}_arcos_params.csv"
+            outpath = os.path.join(path, output_name)
+            self._data_storage_instance.arcos_parameters.as_dataframe.to_csv(
+                outpath, index=False
+            )
+            show_info(f"wrote csv file to {outpath}")
+
+    def _export_image_series(self):
+        if self.viewer.layers == []:
+            show_info("No layers to export")
+        else:
+            path = Path(self.widget.file_LineEdit_img.text())
+            output_name = f"{self.current_date}_{self.widget.base_name_LineEdit_img.text()}_arcos_output"
+            outpath = os.path.join(path, output_name)
+            MovieExporter(
+                self.viewer,
+                self.widget.automatic_size_img.isChecked(),
+                outpath,
+                self.widget.spinBox_width_img.value(),
+                self.widget.spinBox_height_img.value(),
+            ).run()
+
     def _add_timestamp(self):
-        self.ts_dialog = timestamp_options(self.parent())
+        self.ts_dialog = timestamp_options(self.widget.parent())
         self.ts_dialog.set_options.clicked.connect(self._set_timestamp_options)
         self.ts_dialog.show()
 
@@ -160,21 +176,11 @@ class ExportWidget(QtWidgets.QWidget, _exportwidget):
         )
 
     def _connect_callbacks(self):
-        self.browse_file_data.clicked.connect(self._browse_file_data)
-        self.data_export_button.clicked.connect(self._export_arcos_data)
-        self.stats_export_button.clicked.connect(self._export_arcos_stats)
-        self.param_export_button.clicked.connect(self._export_arcos_params)
-        self.browse_file_img.clicked.connect(self._browse_file_img)
-        self.img_seq_export_button.clicked.connect(self._export_image_series)
-        self.add_timestamp_button.clicked.connect(self._add_timestamp)
-        self._data_storage_instance.file_name.value_changed_connect(
-            self._update_base_name_data
-        )
-
-    def _update_base_name_data(self):
-        base_name = self._data_storage_instance.file_name.value
-        self.base_name_LineEdit_data.setText(Path(base_name).stem)
-        self.base_name_LineEdit_img.setText(Path(base_name).stem)
+        self.widget.data_export_button.clicked.connect(self._export_arcos_data)
+        self.widget.stats_export_button.clicked.connect(self._export_arcos_stats)
+        self.widget.param_export_button.clicked.connect(self._export_arcos_params)
+        self.widget.img_seq_export_button.clicked.connect(self._export_image_series)
+        self.widget.add_timestamp_button.clicked.connect(self._add_timestamp)
 
 
 if __name__ == "__main__":
@@ -187,9 +193,9 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
     ds = DataStorage()
-    window = ExportWidget(viewer, ds)
+    controller = ExportController(viewer, ds)
     ds.timestamp_parameters.value_changed_connect(
         lambda: print(ds.timestamp_parameters)
     )
-    window.show()
+    controller.widget.show()
     sys.exit(app.exec_())

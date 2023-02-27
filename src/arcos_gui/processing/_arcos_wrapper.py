@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Union
+from time import sleep
+from typing import Callable
 
 import numpy as np
 import pandas as pd
 from arcos4py import ARCOS
 from arcos4py.tools import calcCollevStats, estimate_eps, filterCollev
+from qtpy.QtCore import QObject, Signal
 
+from ._data_storage import arcos_parameters, columnnames
 from ._preprocessing_utils import check_for_collid_column
-
-if TYPE_CHECKING:
-    from ._data_storage import DataStorage
 
 
 def init_arcos_object(
@@ -172,7 +172,7 @@ def detect_events(
     return arcos_events
 
 
-def get_eps(arcos: ARCOS, method: str, minClustersize: int):
+def get_eps(arcos: ARCOS, method: str, minClustersize: int, current_eps: float):
     """
     Estimate eps value for arcos trackCollev method.
 
@@ -184,6 +184,8 @@ def get_eps(arcos: ARCOS, method: str, minClustersize: int):
         method to estimate eps value
     minClustersize : int
         minimum cluster size to consider for event detection
+    current_eps : float | None
+        current eps value, will be returned if method is manual
 
     Returns
     -------
@@ -195,7 +197,7 @@ def get_eps(arcos: ARCOS, method: str, minClustersize: int):
         raise ValueError(f"Method must be one of {methods}")
 
     if method == "kneepoint":
-        return estimate_eps(
+        eps = estimate_eps(
             data=arcos.data[arcos.data[arcos.bin_col] > 0],
             method="kneepoint",
             pos_cols=arcos.posCols,
@@ -203,9 +205,10 @@ def get_eps(arcos: ARCOS, method: str, minClustersize: int):
             n_neighbors=minClustersize,
             plot=False,
         )
+        return round(eps, 2)
 
     if method == "mean":
-        return estimate_eps(
+        eps = estimate_eps(
             arcos.data,
             method="mean",
             pos_cols=arcos.posCols,
@@ -213,7 +216,8 @@ def get_eps(arcos: ARCOS, method: str, minClustersize: int):
             n_neighbors=minClustersize,
             plot=False,
         )
-    return None  # manual
+        return round(eps, 2)
+    return round(current_eps, 2)
 
 
 def filtering_arcos_events(
@@ -313,7 +317,7 @@ def calculate_arcos_stats(
     return df_arcos_stats
 
 
-class arcos_wrapper:
+class arcos_worker(QObject):
     """Runs arcos with the current parameters defined in the ArcosWidget.
 
     Updates the data storage with the results. what_to_run is a set of strings
@@ -324,211 +328,301 @@ class arcos_wrapper:
         - 'filtering': runs the event filtering.
     """
 
+    binarization_finished = Signal(tuple)
+    tracking_finished = Signal()
+    new_arcos_output = Signal(tuple)
+    new_eps = Signal(float)
+    started = Signal()
+    finished = Signal()
+    aborted = Signal(object)
+    arcos_parameters = arcos_parameters()
+    columns = columnnames()
+    filtered_data: pd.DataFrame = pd.DataFrame()
+    parameters_updated_flag = False
+    aborted_flag = False
+    idle_flag = True
+
     def __init__(
-        self, data_storage_instance: DataStorage, what_to_run: set, std_out: Callable
+        self,
+        what_to_run: set,
+        std_out: Callable,
+        wait_for_parameter_update: bool = False,
+        parent=None,
     ):
         """Constructor.
 
         Parameters
         ----------
-        data_storage_instance : DataStorage
-            DataStorage instance
         what_to_run : set
             set of strings indicating what to run
         std_out : Callable
             function to print to the console
+        wait_for_parameter_update : bool, optional
+            if True, the worker will wait for the parameters to be updated before running
+        parent : QObject, optional
         """
-        self.data_storage_instance = data_storage_instance
+        super().__init__(parent)
         self.what_to_run = what_to_run
         self.std_out = std_out
-        self.arcos_object: Union[ARCOS, None] = None
+        self.arcos_object: ARCOS = ARCOS(
+            pd.DataFrame(columns=["x", "t", "m", "id"]),
+            posCols=["x"],
+            frame_column="t",
+            id_column="id",
+            measurement_column="m",
+        )
         self.arcos_raw_output: pd.DataFrame = pd.DataFrame()
-        self.data_storage_instance.filtered_data.value_changed_connect(self._new_data)
+        self.wait_for_parameter_update = wait_for_parameter_update
+        if wait_for_parameter_update:
+            self._connect_parameters_updated()
 
-    def _new_data(self):
-        # set stats to default without triggering the value_changed signal
-        self.data_storage_instance.arcos_stats.value = pd.DataFrame()
-        self.data_storage_instance.arcos_output.value = pd.DataFrame()
-        self.data_storage_instance.arcos_binarization.value = pd.DataFrame()
+    def _connect_parameters_updated(self):
+        self.arcos_parameters.interpolate_meas.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.clip_meas.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.clip_low.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.clip_high.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.bias_method.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.smooth_k.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.bias_k.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.polyDeg.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.bin_threshold.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.bin_peak_threshold.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.neighbourhood_size.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.eps_method.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.epsPrev.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.min_clustersize.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.nprev.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.min_dur.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.total_event_size.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
+        self.arcos_parameters.min_clustersize.value_changed_connect(
+            self.set_parameters_updated_flag
+        )
 
-    def run_arcos(
-        self,
-        interpolate_meas: bool,
-        clip_meas: bool,
-        clip_low: float,
-        clip_high: float,
-        smooth_k: int,
-        bias_k: int,
-        bias_method: str,
-        polyDeg: int,
-        bin_threshold: float,
-        bin_peak_threshold: float,
-        epsMethod: str,
-        neighbourhood_size: float,
-        epsPrev: float | None,
-        min_clustersize: int,
-        min_dur: int,
-        total_event_size: int,
-        nprev: int,
-    ):
-        """Run arcos with input parameters.
-
-        Runs only or only from as far as specified in the what_to_run set.
+    def set_parameters_updated_flag(self, val: bool = True):
+        """Set the idle flag.
 
         Parameters
         ----------
-        interpolate_meas : bool
-            interpolate measurements
-        clip_meas : bool
-            clip measurements
-        clip_low : float
-            lower clip value
-        clip_high : float
-            upper clip value
-        smooth_k : int
-            local smoothing kernel size
-        bias_k : int
-            global smoothing kernel size, only used with "runmed" bias method
-        bias_method : str
-            detrending method
-        polyDeg : int
-            polynomial degree for detrending, only used with "lm" bias method
-        bin_threshold : float
-            threshold for binarization
-        bin_peak_threshold : float
-            peak threshold for binarization
-        epsMethod : str
-            method for calculating epsilon
-        neighbourhood_size : float
-            neighbourhood size, i.e. epsilon, for DBSCAN
-        epsPrev : float | None
-            how far objects can be apart to start linking them
-        min_clustersize : int
-            minimum cluster size
-        min_dur : int
-            minimum duration of events
-        total_event_size : int
-            minimum size of events
-        nprev : int
-            number of previous frames to consider for linking
+        val : bool
+            value to set the idle flag to
         """
-        # get the stored variables
-        df_filtered = self.data_storage_instance.filtered_data.value
-        posCols = self.data_storage_instance.columns.posCol
-        meas = self.data_storage_instance.columns.measurement_column
-        frame = self.data_storage_instance.columns.frame_column
-        track_id_col_name = self.data_storage_instance.columns.object_id
+        if not isinstance(val, bool):
+            raise TypeError("val must be a bool")
 
-        if "binarization" in self.what_to_run:
-            if df_filtered.empty:
+        self.parameters_updated_flag = val
+
+    def run_binarization(self):
+        try:
+            if self.filtered_data.empty:
                 self.std_out("No data loaded. Load first using the import data tab.")
+                self.aborted_flag = True
                 return
+            self.started.emit()
 
+            if self.aborted_flag:
+                return
             self.arcos_object = init_arcos_object(
-                df_in=df_filtered,
-                posCols=posCols,
-                measurement_name=meas,
-                frame_col_name=frame,
-                track_id_col_name=track_id_col_name,
+                df_in=self.filtered_data,
+                posCols=self.columns.posCol,
+                measurement_name=self.columns.measurement_column,
+                frame_col_name=self.columns.frame_column,
+                track_id_col_name=self.columns.object_id,
             )
+            if self.aborted_flag:
+                return
 
             self.arcos_object = binarization(
                 arcos=self.arcos_object,
-                interpolate_meas=interpolate_meas,
-                clip_meas=clip_meas,
-                clip_low=clip_low,
-                clip_high=clip_high,
-                smooth_k=smooth_k,
-                bias_k=bias_k,
-                polyDeg=polyDeg,
-                bin_threshold=bin_threshold,
-                bin_peak_threshold=bin_peak_threshold,
-                bias_method=bias_method,
+                interpolate_meas=self.arcos_parameters.interpolate_meas.value,
+                clip_meas=self.arcos_parameters.clip_meas.value,
+                clip_low=self.arcos_parameters.clip_low.value,
+                clip_high=self.arcos_parameters.clip_high.value,
+                smooth_k=self.arcos_parameters.smooth_k.value,
+                bias_k=self.arcos_parameters.bias_k.value,
+                polyDeg=self.arcos_parameters.polyDeg.value,
+                bin_threshold=self.arcos_parameters.bin_threshold.value,
+                bin_peak_threshold=self.arcos_parameters.bin_peak_threshold.value,
+                bias_method=self.arcos_parameters.bias_method.value,
             )
-            self.data_storage_instance.columns.measurement_bin = (
-                self.arcos_object.bin_col
+            if self.aborted_flag:
+                return
+            self.binarization_finished.emit(
+                (
+                    self.arcos_object.bin_col,
+                    self.arcos_object.resc_col,
+                    self.arcos_object.data,
+                )
             )
-            self.data_storage_instance.columns.measurement_resc = (
-                self.arcos_object.resc_col
-            )
-            self.data_storage_instance.arcos_stats.value = pd.DataFrame()
+            self.what_to_run.remove("binarization")
 
-            self.data_storage_instance.arcos_binarization = self.arcos_object.data
+        except Exception as e:
+            # print(f"Error in binarization: {e}")
+            self.aborted_flag = True
+            self.aborted.emit(e)
 
-        if "tracking" in self.what_to_run:
-            try:
-                bin_col = self.data_storage_instance.columns.measurement_bin
-                n_bin = self.data_storage_instance.arcos_binarization.value[
-                    bin_col
-                ].nunique()
-            except KeyError:
-                n_bin = 0
-            if self.data_storage_instance.arcos_binarization is None or n_bin < 2:
-                self.std_out("No Binarized Data. Adjust Binazation Parameters.")
+    def run_tracking(self):
+        try:
+            bin_col = self.columns.measurement_bin
+            n_bin = self.arcos_object.data[bin_col].nunique()
+        except KeyError:
+            n_bin = 0
+        if n_bin < 2:
+            self.std_out("No Binarized Data. Adjust Binazation Parameters.")
+            self.aborted_flag = True
+            return
+        self.started.emit()
+        try:
+            if self.aborted_flag:
                 return
 
+            # print("Calculating eps...")
             eps = get_eps(
                 arcos=self.arcos_object,
-                method=epsMethod,
-                minClustersize=min_clustersize,
+                method=self.arcos_parameters.eps_method.value,
+                minClustersize=self.arcos_parameters.min_clustersize.value,
+                current_eps=self.arcos_parameters.neighbourhood_size.value,
             )
+            # print(f"eps = {eps}")
 
-            if not eps:
-                eps = neighbourhood_size
-            eps = round(eps, 2)
-            self.data_storage_instance.arcos_parameters.neighbourhood_size.value = eps
+            if self.aborted_flag:
+                return
+
+            self.new_eps.emit(eps)
 
             self.arcos_raw_output = detect_events(
                 arcos=self.arcos_object,
                 neighbourhood_size=eps,
-                epsPrev=epsPrev,
-                min_clustersize=min_clustersize,
-                nPrev_value=nprev,
+                epsPrev=self.arcos_parameters.epsPrev.value,
+                min_clustersize=self.arcos_parameters.min_clustersize.value,
+                nPrev_value=self.arcos_parameters.nprev.value,
             )
+            if self.aborted_flag:
+                return
+            self.tracking_finished.emit()
+            self.what_to_run.remove("tracking")
 
-        if "filtering" in self.what_to_run:
+        except Exception as e:
+            # print(f"Error in tracking: {e}")
+            self.aborted_flag = True
+            self.aborted.emit(e)
+
+    def run_filtering(self):
+        try:
             if self.arcos_raw_output.empty:
                 self.std_out(
                     "No Collective Events detected. Adjust Event Detection Parameters."
                 )
+                self.aborted_flag = True
                 return
+
             collid_name = "collid"
+            if self.aborted_flag:
+                return
             arcos_df_filtered = filtering_arcos_events(
                 detected_events_df=self.arcos_raw_output,
-                frame_col_name=frame,
+                frame_col_name=self.columns.frame_column,
                 collid_name=collid_name,
-                track_id_col_name=track_id_col_name,
-                min_dur=min_dur,
-                total_event_size=total_event_size,
+                track_id_col_name=self.columns.object_id,
+                min_dur=self.arcos_parameters.min_dur.value,
+                total_event_size=self.arcos_parameters.total_event_size.value,
             )
             if arcos_df_filtered.empty:
                 self.std_out(
                     "No Collective Events detected.Adjust Filtering parameters."
                 )
+                self.aborted_flag = True
+                return
+            if self.aborted_flag:
                 return
             arcos_stats = calculate_arcos_stats(
                 df_arcos_filtered=arcos_df_filtered,
-                frame_col=frame,
+                frame_col=self.columns.frame_column,
                 collid_name=collid_name,
-                object_id_name=track_id_col_name,
-                posCols=posCols,
+                object_id_name=self.columns.object_id,
+                posCols=self.columns.posCol,
             )
             arcos_stats = arcos_stats.dropna()
-            self.data_storage_instance.arcos_stats = arcos_stats
-            self.data_storage_instance.arcos_output = arcos_df_filtered
+            if self.aborted_flag:
+                return
+            self.new_arcos_output.emit((arcos_df_filtered, arcos_stats))
             self.what_to_run.clear()
+        except Exception as e:
+            # print(f"Error in filtering: {e}")
+            self.aborted_flag = True
+            self.aborted.emit(e)
 
-    def run_bin(self, **kwargs):
+    def run_arcos(
+        self,
+    ):
+        """Run arcos with input parameters.
+
+        Runs only or only from as far as specified in the what_to_run set.
+        """
+        self.idle_flag = False
+        self.aborted_flag = False
+        # needed to avoid conditions where the parameters are updated after
+        # the worker has started. Flag is set from the arcos widget in the main thread.
+        while not self.parameters_updated_flag and self.wait_for_parameter_update:
+            sleep(0.1)
+
+        if "binarization" in self.what_to_run and not self.aborted_flag:
+            self.run_binarization()
+
+        if "tracking" in self.what_to_run and not self.aborted_flag:
+            self.run_tracking()
+
+        if "filtering" in self.what_to_run and not self.aborted_flag:
+            self.run_filtering()
+
+        self.parameters_updated_flag = False
+        self.finished.emit()
+        self.idle_flag = True
+
+    def run_bin(self):
         """Run the binarizatoin only. Same as run_arcos but with only binarization."""
         initial_wtr = self.what_to_run.copy()
         self.what_to_run.clear()
         self.what_to_run.add("binarization")
-        self.run_arcos(**kwargs)
-        if not self.data_storage_instance.arcos_binarization.value.empty:
+        self.run_arcos()
+
+        if not self.arcos_object.data.empty:
             self.what_to_run.add("tracking")
             self.what_to_run.add("filtering")
             return
-
         self.what_to_run.clear()
         for i in initial_wtr:
             self.what_to_run.add(i)

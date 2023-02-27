@@ -63,8 +63,8 @@ def load_synthetic_dataset():
         measurement_column="m",
     )
 
-    widget.input_data_widget.load_sample_data(sample_data_path, columns)
-    widget.layer_prop_widget.LUT.setCurrentText("viridis")
+    widget.input_controller.load_sample_data(sample_data_path, columns)
+    widget.layer_prop_controller.widget.LUT.setCurrentText("viridis")
     return []
 
 
@@ -105,6 +105,6 @@ def load_real_dataset(load_image: bool = True):
         measurement_column="m",
     )
     sample_data_path = str(resolve(Path("arcos_data_2.csv")))
-    widget.input_data_widget.load_sample_data(sample_data_path, columns)
+    widget.input_controller.load_sample_data(sample_data_path, columns)
     # data = np.random.rand(64, 64)
     return img_data_tuple

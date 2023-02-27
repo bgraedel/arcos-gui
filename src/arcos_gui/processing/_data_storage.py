@@ -25,15 +25,22 @@ class data_frame_storage:
 
     Attributes:
         value: The dataframe that is stored.
+        callbacks_blocked: If True the callbacks are not executed when the
+            value attribute is set.
+        verbose: If True the callbacks are printed when they are executed.
 
     Methods:
         value_changed_connect: Register a callback function.
         unregister_callback: Unregister a callback function.
+        toggle_callback_block: Toggle the callbacks_blocked attribute.
+        toggle_verbose: Toggle the verbose attribute.
     """
 
     _value: pd.DataFrame = field(default_factory=pd.DataFrame)
     _callbacks: list = field(default_factory=list)
-    verbous = False
+    value_name: str = "None"
+    callbacks_blocked: bool = False
+    verbose = False
 
     @property
     def value(self):
@@ -46,9 +53,14 @@ class data_frame_storage:
         self._notify_observers()
 
     def _notify_observers(self):
+        """Notify the observers that the value attribute has changed."""
+        if self.callbacks_blocked:
+            return
         for callback in self._callbacks:
-            if self.verbous:
-                print(f"data_frame_storage: value changed executing {callback}")
+            if self.verbose:
+                print(
+                    f"data_frame_storage: {self.value_name} changed. Executing {callback}"
+                )
             callback()
 
     def value_changed_connect(self, callback):
@@ -72,6 +84,17 @@ class data_frame_storage:
             The callback function to be unregistered.
         """
         self._callbacks.remove(callback)
+
+    def toggle_callback_block(self, set_explicit: bool | None = None):
+        """Toggle the callbacks_blocked attribute."""
+        if set_explicit is not None:
+            self.callbacks_blocked = set_explicit
+            return
+        self.callbacks_blocked = not self.callbacks_blocked
+
+    def toggle_verbose(self):
+        """Toggle the verbose attribute."""
+        self.verbose = not self.verbose
 
     def __repr__(self):
         return repr(self._value)
@@ -90,16 +113,23 @@ class value_callback:
     Attributes
     ----------
     value: The value that is stored.
+    callbacks_blocked: If True the callbacks are not executed when the value
+        attribute is set.
+    verbose: If True the callbacks are printed when they are executed.
 
     Methods
     -------
     value_changed_connect: Register a callback function.
     unregister_callback: Unregister a callback function.
+    toggle_callback_block: Toggle the callbacks_blocked attribute.
+    toggle_verbose: Toggle the verbose attribute.
     """
 
     _value: Union[int, str, None, Any]
     _callbacks: list = field(default_factory=list)
-    verbous = False
+    callbacks_blocked: bool = False
+    value_name: str = "value_callback"
+    verbose = False
 
     @property
     def value(self):
@@ -112,9 +142,14 @@ class value_callback:
         self._notify_observers()
 
     def _notify_observers(self):
+        """Notify the observers that the value attribute has changed."""
+        if self.callbacks_blocked:
+            return
         for callback in self._callbacks:
-            if self.verbous:
-                print(f"value_calback: value changed, executing {callback}")
+            if self.verbose:
+                print(
+                    f"value_callback: {self.value_name} changed. Executing {callback}"
+                )
             callback()
 
     def value_changed_connect(self, callback):
@@ -139,6 +174,17 @@ class value_callback:
         """
         self._callbacks.remove(callback)
 
+    def toggle_callback_block(self, set_explicit: bool | None = None):
+        """Toggle the callbacks_blocked attribute."""
+        if set_explicit is not None:
+            self.callbacks_blocked = set_explicit
+            return
+        self.callbacks_blocked = not self.callbacks_blocked
+
+    def toggle_verbose(self):
+        """Toggle the verbose attribute."""
+        self.verbose = not self.verbose
+
     def __repr__(self):
         return repr(self._value)
 
@@ -148,7 +194,48 @@ class value_callback:
 
 @dataclass
 class columnnames:
-    """Stores column names for the dataframes."""
+    """Stores column names for the dataframes.
+
+    Attributes
+    ----------
+    frame_column: str
+        The name of the column that contains the frame number.
+    position_id: str
+        The name of the column that contains the position id.
+    object_id: str
+        The name of the column that contains the object id.
+    x_column: str
+        The name of the column that contains the x coordinate.
+    y_column: str
+        The name of the column that contains the y coordinate.
+    z_column: str
+        The name of the column that contains the z coordinate.
+    measurement_column_1: str
+        The name of the column that contains the first measurement.
+    measurement_column_2: str
+        The name of the column that contains the second measurement.
+    additional_filter_column: str
+        The name of the column that contains the additional filter.
+    measurement_math_operatoin: str
+        The name of the column that contains the measurement math operation.
+    measurement_bin: str | None
+        The name of the column that contains the measurement bin.
+    measurement_resc: str | None
+        The name of the column that contains the measurement resc.
+    collid_name: str
+        The name of the column that contains the collid.
+    measurement_column: str
+        The name of the column that contains the measurement.
+    pickablepickable_columns_names: list
+        A list of all column names that can be set in the columnpicker_widget.
+    posCol: list
+        A list of all column names that are used for the position calculation.
+        returns values for x, y and optionally z, if z is not 'None'.
+    vcolscore: list
+        A list of all column names that are used for the adding layers.
+    as_dataframe: pandas.DataFrame
+        A pandas.DataFrame containing all column names.
+    """
 
     frame_column: str = "frame"
     position_id: str = "position_id"
@@ -222,35 +309,115 @@ class columnnames:
 
 @dataclass(frozen=True)
 class arcos_parameters:
-    """Stores the parameters for the arcos algorithm that can be set in the arcos widget."""
+    """Stores the parameters for the arcos algorithm that can be set in the arcos widget.
+
+    Attributes
+    ----------
+    interpolate_meas: bool
+        wether to interpolate the measurements or not.
+    clip_meas: bool
+        wether to clip the measurements or not.
+    clip_low: float
+        the lower bound for the clipping.
+    clip_high: float,
+        the upper bound for the clipping.
+    smooth_k: int,
+        the smoothing kernel size.
+    bias_k: int,
+        the bias kernel size, for long term detrending.
+    bias_method: str,
+        the bias method.
+    polyDeg: int,
+        the polynomial degree, used for lm detrending.
+    bin_threshold: float,
+        the bin threshold, used for binarization.
+    bin_peak_threshold: float,
+        the bin peak threshold, used for binarization.
+    eps_method: str,
+        the eps method, used for estimating the eps parameter.
+    neighbourhood_size: float,
+        the eps parameter, used for the clustering within arcos.
+    epsPrev: float,
+        epsilon used for linking.
+    min_cluster_size: int,
+        the minimum cluster size, used for the clustering within arcos.
+    nprev: int,
+        the number of previous frames to consider for linking.
+    min_dur: int,
+        the minimum duration of a collective event.
+    total_event_size: int,
+        the minimum number of unique objects in a collective event.
+    add_convex_hull: bool,
+        wether to add the convex hull layer.
+    as_dataframe: pandas.DataFrame
+         a pandas.DataFrame containing all parameters.
+
+    Methods
+    -------
+    set_all_parameters(parameters: arcos_parameters)
+        set all parameters from another arcos_parameters object.
+    reset_all_parameters()
+        reset all parameters to their default values.
+    set_verbose(verbose: bool)
+        set the verbose parameter. If true, when a a callback is triggered,
+        the callback function will be printed to the console.
+    toggle_callback_block(block: bool)
+        block or unblock all callbacks.
+    """
 
     _interpolate_meas: value_callback = field(
-        default_factory=lambda: value_callback(False)
+        default_factory=lambda: value_callback(False, value_name="interpolate_meas")
     )
-    _clip_meas: value_callback = field(default_factory=lambda: value_callback(False))
-    _clip_low: value_callback = field(default_factory=lambda: value_callback(0.0))
-    _clip_high: value_callback = field(default_factory=lambda: value_callback(0.0))
-    _smooth_k: value_callback = field(default_factory=lambda: value_callback(0))
-    _bias_k: value_callback = field(default_factory=lambda: value_callback(0))
-    _bias_method: value_callback = field(default_factory=lambda: value_callback("none"))
-    _polyDeg: value_callback = field(default_factory=lambda: value_callback(0))
-    _bin_threshold: value_callback = field(default_factory=lambda: value_callback(0.0))
+    _clip_meas: value_callback = field(
+        default_factory=lambda: value_callback(False, value_name="clip_meas")
+    )
+    _clip_low: value_callback = field(
+        default_factory=lambda: value_callback(0.0, value_name="clip_low")
+    )
+    _clip_high: value_callback = field(
+        default_factory=lambda: value_callback(1, value_name="clip_high")
+    )
+    _smooth_k: value_callback = field(
+        default_factory=lambda: value_callback(1, value_name="smooth_k")
+    )
+    _bias_k: value_callback = field(
+        default_factory=lambda: value_callback(5, value_name="bias_k")
+    )
+    _bias_method: value_callback = field(
+        default_factory=lambda: value_callback("none", value_name="bias_method")
+    )
+    _polyDeg: value_callback = field(
+        default_factory=lambda: value_callback(1, value_name="polyDeg")
+    )
+    _bin_threshold: value_callback = field(
+        default_factory=lambda: value_callback(0.5, value_name="bin_threshold")
+    )
     _bin_peak_threshold: value_callback = field(
-        default_factory=lambda: value_callback(0.0)
+        default_factory=lambda: value_callback(0.5, value_name="bin_peak_threshold")
     )
     _eps_method: value_callback = field(
-        default_factory=lambda: value_callback("manual")
+        default_factory=lambda: value_callback("manual", value_name="eps_method")
     )
     _neighbourhood_size: value_callback = field(
-        default_factory=lambda: value_callback(0.0)
+        default_factory=lambda: value_callback(20, value_name="neighbourhood_size")
     )
-    _epsPrev: value_callback = field(default_factory=lambda: value_callback(0.0))
-    _min_clustersize: value_callback = field(default_factory=lambda: value_callback(0))
-    _nprev_spinbox: value_callback = field(default_factory=lambda: value_callback(0))
-    _min_dur: value_callback = field(default_factory=lambda: value_callback(0))
-    _total_event_size: value_callback = field(default_factory=lambda: value_callback(0))
+    _epsPrev: value_callback = field(
+        default_factory=lambda: value_callback(20, value_name="epsPrev")
+    )
+    _min_clustersize: value_callback = field(
+        default_factory=lambda: value_callback(5, value_name="min_clustersize")
+    )
+    _nprev: value_callback = field(
+        default_factory=lambda: value_callback(1, value_name="nprev")
+    )
+    _min_dur: value_callback = field(
+        default_factory=lambda: value_callback(1, value_name="min_dur")
+    )
+    _total_event_size: value_callback = field(
+        default_factory=lambda: value_callback(5, value_name="total_event_size")
+    )
     _add_convex_hull: value_callback = field(
-        default_factory=lambda: value_callback(True)
+        default_factory=lambda: value_callback(True, value_name="add_convex_hull")
     )
 
     @property
@@ -273,7 +440,7 @@ class arcos_parameters:
                 ["neighbourhood_size", self.neighbourhood_size.value],
                 ["epsPrev", self.epsPrev.value],
                 ["min_clustersize", self.min_clustersize.value],
-                ["nprev_spinbox", self.nprev_spinbox.value],
+                ["nprev", self.nprev.value],
                 ["min_dur", self.min_dur.value],
                 ["total_event_size", self.total_event_size.value],
             ],
@@ -281,88 +448,122 @@ class arcos_parameters:
         df["value"] = df["value"].astype(str)
         return df
 
-    def reset_values(self, trigger_callback=True):
-        """resets all values to default"""
-        if trigger_callback:
-            self._interpolate_meas.value = False
-            self._clip_meas.value = False
-            self._clip_low.value = 0.0
-            self._clip_high.value = 0.0
-            self._smooth_k.value = 0
-            self._bias_k.value = 0
-            self._bias_method.value = "none"
-            self._polyDeg.value = 0
-            self._bin_threshold.value = 0.0
-            self._bin_peak_threshold.value = 0.0
-            self._eps_method.value = "manual"
-            self._neighbourhood_size.value = 0.0
-            self._epsPrev.value = 0.0
-            self._min_clustersize.value = 0
-            self._nprev_spinbox.value = 0
-            self._min_dur.value = 0
-            self._total_event_size.value = 0
-            self._add_convex_hull.value = True
-        else:
-            self._interpolate_meas.value = False
-            self._clip_meas.value = False
-            self._clip_low.value = 0.0
-            self._clip_high.value = 0.0
-            self._smooth_k.value = 0
-            self._bias_k.value = 0
-            self._bias_method.value = "none"
-            self._polyDeg.value = 0
-            self._bin_threshold.value = 0.0
-            self._bin_peak_threshold.value = 0.0
-            self._eps_method.value = "manual"
-            self._neighbourhood_size.value = 0.0
-            self._epsPrev.value = 0.0
-            self._min_clustersize.value = 0
-            self._nprev_spinbox.value = 0
-            self._min_dur.value = 0
-            self._total_event_size.value = 0
-            self._add_convex_hull.value = True
+    def set_all_parameters(
+        self, arcos_parameters_object: arcos_parameters, trigger_callback: bool = True
+    ):
+        """sets all parameters to the values of the given arcos_parameters object.
 
-    def make_verbous(self):
-        """makes the parameters verbous"""
-        self.interpolate_meas.verbous = True
-        self.clip_meas.verbous = True
-        self.clip_low.verbous = True
-        self.clip_high.verbous = True
-        self.smooth_k.verbous = True
-        self.bias_k.verbous = True
-        self.bias_method.verbous = True
-        self.polyDeg.verbous = True
-        self.bin_threshold.verbous = True
-        self.bin_peak_threshold.verbous = True
-        self.eps_method.verbous = True
-        self.neighbourhood_size.verbous = True
-        self.epsPrev.verbous = True
-        self.min_clustersize.verbous = True
-        self.nprev_spinbox.verbous = True
-        self.min_dur.verbous = True
-        self.total_event_size.verbous = True
-        self.add_convex_hull.verbous = True
+        Parameters
+        ----------
+        arcos_parameters_object : arcos_parameters
+            the arcos_parameters object from which the values are taken
+        trigger_callback : bool, optional
+            if True, the callback functions associated with the parameters are triggered, by default True
+        """
+        self.toggle_callback_block(not trigger_callback)
+        self.interpolate_meas.value = arcos_parameters_object.interpolate_meas.value
+        self.clip_meas.value = arcos_parameters_object.clip_meas.value
+        self.clip_low.value = arcos_parameters_object.clip_low.value
+        self.clip_high.value = arcos_parameters_object.clip_high.value
+        self.smooth_k.value = arcos_parameters_object.smooth_k.value
+        self.bias_k.value = arcos_parameters_object.bias_k.value
+        self.bias_method.value = arcos_parameters_object.bias_method.value
+        self.polyDeg.value = arcos_parameters_object.polyDeg.value
+        self.bin_threshold.value = arcos_parameters_object.bin_threshold.value
+        self.bin_peak_threshold.value = arcos_parameters_object.bin_peak_threshold.value
+        self.eps_method.value = arcos_parameters_object.eps_method.value
+        self.neighbourhood_size.value = arcos_parameters_object.neighbourhood_size.value
+        self.epsPrev.value = arcos_parameters_object.epsPrev.value
+        self.min_clustersize.value = arcos_parameters_object.min_clustersize.value
+        self.nprev.value = arcos_parameters_object.nprev.value
+        self.min_dur.value = arcos_parameters_object.min_dur.value
+        self.total_event_size.value = arcos_parameters_object.total_event_size.value
+        self.toggle_callback_block(False)
 
-    def make_quiet(self):
-        """makes the parameters quiet"""
-        self.interpolate_meas.verbous = False
-        self.clip_meas.verbous = False
-        self.clip_low.verbous = False
-        self.clip_high.verbous = False
-        self.smooth_k.verbous = False
-        self.bias_k.verbous = False
-        self.bias_method.verbous = False
-        self.polyDeg.verbous = False
-        self.bin_threshold.verbous = False
-        self.bin_peak_threshold.verbous = False
-        self.eps_method.verbous = False
-        self.neighbourhood_size.verbous = False
-        self.epsPrev.verbous = False
-        self.min_clustersize.verbous = False
-        self.nprev_spinbox.verbous = False
-        self.min_dur.verbous = False
-        self.total_event_size.verbous = False
-        self.add_convex_hull.verbous = False
+    def reset_all_parameters(self, trigger_callback=True):
+        """resets all values to default.
+
+        Parameters
+        ----------
+        trigger_callback : bool, optional
+            if True, the callback functions associated with the parameters are triggered, by default True.
+        """
+        self.toggle_callback_block(not trigger_callback)
+        self.interpolate_meas.value = False
+        self.clip_meas.value = False
+        self.clip_low.value = 0.0
+        self.clip_high.value = 1
+        self.smooth_k.value = 1
+        self.bias_k.value = 5
+        self.bias_method.value = "none"
+        self.polyDeg.value = 1
+        self.bin_threshold.value = 0.5
+        self.bin_peak_threshold.value = 0.5
+        self.eps_method.value = "manual"
+        self.neighbourhood_size.value = 20
+        self.epsPrev.value = 20
+        self.min_clustersize.value = 5
+        self.nprev.value = 1
+        self.min_dur.value = 1
+        self.total_event_size.value = 5
+        self.add_convex_hull.value = True
+        self.toggle_callback_block(False)
+
+    def set_verbose(self, verbose: bool = False):
+        """sets all parameters to verbose.
+
+        Parameters
+        ----------
+        verbose : bool, optional
+            if True, the parameters are set to verbose, by default False
+        """
+        self.interpolate_meas.verbose = verbose
+        self.clip_meas.verbose = verbose
+        self.clip_low.verbose = verbose
+        self.clip_high.verbose = verbose
+        self.smooth_k.verbose = verbose
+        self.bias_k.verbose = verbose
+        self.bias_method.verbose = verbose
+        self.polyDeg.verbose = verbose
+        self.bin_threshold.verbose = verbose
+        self.bin_peak_threshold.verbose = verbose
+        self.eps_method.verbose = verbose
+        self.neighbourhood_size.verbose = verbose
+        self.epsPrev.verbose = verbose
+        self.min_clustersize.verbose = verbose
+        self.nprev.verbose = verbose
+        self.min_dur.verbose = verbose
+        self.total_event_size.verbose = verbose
+        self.add_convex_hull.verbose = verbose
+
+    def toggle_callback_block(self, block: bool | None = None):
+        """blocks all callbacks.
+
+        Parameters
+        ----------
+        block : bool | None, optional
+            if True, all callbacks are blocked, if False, all callbacks are unblocked,
+            if None, the current state is toggled.
+            by default None.
+        """
+        self.interpolate_meas.toggle_callback_block(block)
+        self.clip_meas.toggle_callback_block(block)
+        self.clip_low.toggle_callback_block(block)
+        self.clip_high.toggle_callback_block(block)
+        self.smooth_k.toggle_callback_block(block)
+        self.bias_k.toggle_callback_block(block)
+        self.bias_method.toggle_callback_block(block)
+        self.polyDeg.toggle_callback_block(block)
+        self.bin_threshold.toggle_callback_block(block)
+        self.bin_peak_threshold.toggle_callback_block(block)
+        self.eps_method.toggle_callback_block(block)
+        self.neighbourhood_size.toggle_callback_block(block)
+        self.epsPrev.toggle_callback_block(block)
+        self.min_clustersize.toggle_callback_block(block)
+        self.nprev.toggle_callback_block(block)
+        self.min_dur.toggle_callback_block(block)
+        self.total_event_size.toggle_callback_block(block)
+        self.add_convex_hull.toggle_callback_block(block)
 
     @property
     def interpolate_meas(self):
@@ -435,9 +636,9 @@ class arcos_parameters:
         return self._min_clustersize
 
     @property
-    def nprev_spinbox(self):
+    def nprev(self):
         """nprev spinbox"""
-        return self._nprev_spinbox
+        return self._nprev
 
     @property
     def min_dur(self):
@@ -457,7 +658,30 @@ class arcos_parameters:
 
 @dataclass(frozen=True)
 class timestamp_parameters:
-    """Stores the parameters for the timestamp options that can be set in the timestamp widget"""
+    """Stores the parameters for the timestamp options that can be set in the timestamp widget.
+
+
+    Attributes
+    ----------
+    start_time : int
+        the start time of the timestamp
+    step_time : int
+        the step time of the timestamp
+    prefix : str
+        the prefix of the timestamp
+    suffix : str
+        the suffix of the timestamp
+    position : str
+        the position of the timestamp
+    size : int
+        the size of the timestamp
+    x_shift : int
+        the x shift of the timestamp
+    y_shift : int
+        the y shift of the timestamp
+    as_dataframe : pd.DataFrame
+        a dataframe with the parameters
+    """
 
     start_time: int = 0
     step_time: int = 1
@@ -508,23 +732,46 @@ class DataStorage:
     timestamp_parameters : stores the parameters for the timestamp dialog
     min_max_meas: stores the min and max values of the measurement
     colormaps: stores the colormap currently selected for the measurement
+
+    Methods
+    -------
+    reset_all_attributes(trigger_callbacks=False)
+        Resets all attributes to their default values. If trigger_callbacks is True, the
+        callbacks of all attributes are triggered.
+    reset_relevant_attributes(trigger_callbacks=False)
+        Resets all attributes that are relevant for the analysis to their default values.
+        If trigger_callbacks is True, the callbacks of all attributes are triggered.
+
+
     """
 
-    _file_name: value_callback = field(default_factory=lambda: value_callback("."))
+    _file_name: value_callback = field(
+        default_factory=lambda: value_callback(".", value_name="file_name")
+    )
     _original_data: data_frame_storage = field(
-        default_factory=lambda: data_frame_storage(pd.DataFrame())
+        default_factory=lambda: data_frame_storage(
+            pd.DataFrame(), value_name="original_data"
+        )
     )
     _filtered_data: data_frame_storage = field(
-        default_factory=lambda: data_frame_storage(pd.DataFrame())
+        default_factory=lambda: data_frame_storage(
+            pd.DataFrame(), value_name="filtered_data"
+        )
     )
     _arcos_binarization: data_frame_storage = field(
-        default_factory=lambda: data_frame_storage(pd.DataFrame())
+        default_factory=lambda: data_frame_storage(
+            pd.DataFrame(), value_name="arcos_binarization"
+        )
     )
     _arcos_output: data_frame_storage = field(
-        default_factory=lambda: data_frame_storage(pd.DataFrame())
+        default_factory=lambda: data_frame_storage(
+            pd.DataFrame(), value_name="arcos_output"
+        )
     )
     _arcos_stats: data_frame_storage = field(
-        default_factory=lambda: data_frame_storage(pd.DataFrame())
+        default_factory=lambda: data_frame_storage(
+            pd.DataFrame(), value_name="arcos_stats"
+        )
     )
     _columns: columnnames = field(default_factory=columnnames)
     _arcos_parameters: arcos_parameters = field(default_factory=arcos_parameters)
@@ -532,13 +779,15 @@ class DataStorage:
     colormaps: list = field(default_factory=lambda: list(AVAILABLE_COLORMAPS))
     point_size = 10
     _selected_object_id: value_callback = field(
-        default_factory=lambda: value_callback(None)
+        default_factory=lambda: value_callback(None, value_name="selected_object_id")
     )
     lut: str = "inferno"
     _timestamp_parameters: value_callback = field(
-        default_factory=lambda: value_callback(timestamp_parameters())
+        default_factory=lambda: value_callback(
+            timestamp_parameters(), value_name="timestamp_parameters"
+        )
     )
-    verbous: bool = False
+    verbose: bool = False
 
     def reset_all_attributes(self, trigger_callback=False):
         """resets all attributes to their default values.
@@ -548,38 +797,23 @@ class DataStorage:
         trigger_callback : bool, optional
             if True, the callback function of the value_callback attributes will be triggered, by default False.
         """
-        if trigger_callback:
-            self._file_name.value = "."
-            self._original_data.value = pd.DataFrame()
-            self._filtered_data.value = pd.DataFrame()
-            self._arcos_binarization.value = pd.DataFrame()
-            self._arcos_output.value = pd.DataFrame()
-            self._arcos_stats.value = pd.DataFrame()
-            self._columns = columnnames()
-            self._arcos_parameters.reset_values()
-            self.min_max_meas = (0, 0.5)
-            self.colormaps = list(AVAILABLE_COLORMAPS)
-            self.point_size = 10
-            self._selected_object_id.value = None
-            self.lut = "inferno"
-            self._timestamp_parameters.value = timestamp_parameters()
-            self.verbous = False
-        else:
-            self._file_name._value = "."
-            self._original_data._value = pd.DataFrame()
-            self._filtered_data._value = pd.DataFrame()
-            self._arcos_binarization._value = pd.DataFrame()
-            self._arcos_output._value = pd.DataFrame()
-            self._arcos_stats._value = pd.DataFrame()
-            self._columns = columnnames()
-            self._arcos_parameters.reset_values(trigger_callback=False)
-            self.min_max_meas = (0, 0.5)
-            self.colormaps = list(AVAILABLE_COLORMAPS)
-            self.point_size = 10
-            self._selected_object_id._value = None
-            self.lut = "inferno"
-            self._timestamp_parameters._value = timestamp_parameters()
-            self.verbous = False
+        self.toggle_callback_block(not trigger_callback)
+        self._file_name.value = "."
+        self._original_data.value = pd.DataFrame()
+        self._filtered_data.value = pd.DataFrame()
+        self._arcos_binarization.value = pd.DataFrame()
+        self._arcos_output.value = pd.DataFrame()
+        self._arcos_stats.value = pd.DataFrame()
+        self._columns = columnnames()
+        self._arcos_parameters.reset_all_parameters()
+        self.min_max_meas = (0, 0.5)
+        self.colormaps = list(AVAILABLE_COLORMAPS)
+        self.point_size = 10
+        self._selected_object_id.value = None
+        self.lut = "inferno"
+        self._timestamp_parameters.value = timestamp_parameters()
+        self.verbose = False
+        self.toggle_callback_block(False)
 
     def reset_relevant_attributes(self, trigger_callback=False):
         """Resets relevant attributes to their default values.
@@ -589,48 +823,57 @@ class DataStorage:
         trigger_callback : bool, optional
             If True, the callback function of the attributes will be triggered, by default False.
         """
-        if trigger_callback:
-            self._filtered_data.value = pd.DataFrame()
-            self._arcos_binarization.value = pd.DataFrame()
-            self._arcos_output.value = pd.DataFrame()
-            self._arcos_stats.value = pd.DataFrame()
-            self._selected_object_id.value = None
-        else:
-            self._filtered_data._value = pd.DataFrame()
-            self._arcos_binarization._value = pd.DataFrame()
-            self._arcos_output._value = pd.DataFrame()
-            self._arcos_stats._value = pd.DataFrame()
-            self._selected_object_id._value = None
+        self.toggle_callback_block(not trigger_callback)
+        self.filtered_data.value = pd.DataFrame()
+        self.arcos_binarization.value = pd.DataFrame()
+        self.arcos_output.value = pd.DataFrame()
+        self.arcos_stats.value = pd.DataFrame()
+        self.selected_object_id.value = None
+        self.toggle_callback_block(False)
 
-    def make_quiet(self):
-        """Sets the verbous attribute of all attributes to False.
+    def reset_arcos_data(self):
+        """Resets all arcos related attributes to their default values."""
+        self.arcos_binarization.value = pd.DataFrame()
+        self.arcos_output.value = pd.DataFrame()
+        self.arcos_stats.value = pd.DataFrame()
 
-        This is useful for debugging."""
-        self.verbous = False
-        self._file_name.verbous = False
-        self._original_data.verbous = False
-        self._filtered_data.verbous = False
-        self._arcos_binarization.verbous = False
-        self._arcos_output.verbous = False
-        self._arcos_stats.verbous = False
-        self._selected_object_id.verbous = False
-        self._timestamp_parameters.verbous = False
-        self.arcos_parameters.make_quiet()
+    def toggle_callback_block(self, block: bool | None):
+        """Blocks or unblocks the callback functions of all attributes.
 
-    def make_verbose(self):
-        """Sets the verbous attribute of all attributes to True.
+        Parameters
+        ----------
+        block : bool | None
+            If True, the callback functions are blocked. If False, the callback functions are unblocked.
+            If None, the callback functions are toggled.
+        """
+        self.file_name.toggle_callback_block(block)
+        self.original_data.toggle_callback_block(block)
+        self.filtered_data.toggle_callback_block(block)
+        self.arcos_binarization.toggle_callback_block(block)
+        self.arcos_output.toggle_callback_block(block)
+        self.arcos_stats.toggle_callback_block(block)
+        self.arcos_parameters.toggle_callback_block(block)
+        self.selected_object_id.toggle_callback_block(block)
+        self.timestamp_parameters.toggle_callback_block(block)
 
-        This is useful for debugging."""
-        self.verbous = True
-        self._file_name.verbous = True
-        self._original_data.verbous = True
-        self._filtered_data.verbous = True
-        self._arcos_binarization.verbous = True
-        self._arcos_output.verbous = True
-        self._arcos_stats.verbous = True
-        self._selected_object_id.verbous = True
-        self._timestamp_parameters.verbous = True
-        self.arcos_parameters.make_verbous()
+    def set_verbose(self, verbose: bool):
+        """Sets the verbose attribute of all attributes to the given value.
+
+        Parameters
+        ----------
+        verbose : bool
+            The value to which the verbose attribute will be set.
+        """
+        self.verbose = verbose
+        self.file_name.verbose = verbose
+        self.original_data.verbose = verbose
+        self.filtered_data.verbose = verbose
+        self.arcos_binarization.verbose = verbose
+        self.arcos_output.verbose = verbose
+        self.arcos_stats.verbose = verbose
+        self.selected_object_id.verbose = verbose
+        self.timestamp_parameters.verbose = verbose
+        self.arcos_parameters.set_verbose(verbose)
 
     @property
     def file_name(self):
@@ -774,7 +1017,7 @@ class DataStorage:
                     and self.lut == other.lut
                     and self._timestamp_parameters.value
                     == other._timestamp_parameters.value
-                    and self.verbous == other.verbous
+                    and self.verbose == other.verbose
                 )
             except AssertionError:
                 return False

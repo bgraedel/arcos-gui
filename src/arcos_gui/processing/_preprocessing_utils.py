@@ -474,20 +474,12 @@ class DataLoader(QObject):
         except Exception as e:
             # print(e)
             self.aborted.emit(e)
-        self.finished.emit()
+        finally:
+            self.finished.emit()
 
     def _load_data(self, filepath, delimiter=None):
         """Loads data from a csv file and stores it in the data storage."""
-        df = []
-        df_iterator = pd.read_csv(filepath, delimiter=delimiter, chunksize=100000)
-        for chunk in df_iterator:
-            df.append(chunk)
-            if self.abort_loading:
-                break
-        if len(df) < 2:
-            df = df[0]
-        else:
-            df = pd.concat(df, ignore_index=True).reset_index(drop=True)
+        df = pd.read_csv(filepath, delimiter=delimiter, engine="pyarrow")
         self.loading_finished.emit()
 
         return df
