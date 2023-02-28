@@ -329,6 +329,7 @@ class ArcosController:
         self.widget.update_arcos.clicked.connect(self.update_worker_with_data)
         self.widget.run_binarization_only.clicked.connect(self.update_worker_with_data)
         self.widget.cancel_button.clicked.connect(self.abort_worker)
+        self._connect_arcos_parameter_callbacks()
 
     def _update_datastorage_with_bin_data(self, bin_data):
         self._data_storage_instance.columns.measurement_bin = bin_data[0]

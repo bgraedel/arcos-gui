@@ -596,8 +596,14 @@ class arcos_worker(QObject):
         self.aborted_flag = False
         # needed to avoid conditions where the parameters are updated after
         # the worker has started. Flag is set from the arcos widget in the main thread.
+        timeout_counter = 0
         while not self.parameters_updated_flag and self.wait_for_parameter_update:
             sleep(0.1)
+            timeout_counter += 0.1
+            if timeout_counter >= 10:
+                self.aborted_flag = True
+                self.aborted.emit("Parameters not updated in time.")
+                return
 
         if "binarization" in self.what_to_run and not self.aborted_flag:
             self.run_binarization()
