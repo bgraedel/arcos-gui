@@ -44,7 +44,7 @@ def load_synthetic_dataset():
     """Load sample data into stored_variables"""
     widget = _main_widget.MainWindow.get_last_instance()
     if not widget:
-        widget = __main__.main(current_viewer())
+        widget = __main__.open_plugin(current_viewer())
     sample_data_path = str(resolve(Path("arcos_data.csv")))
     columns = columnnames(
         frame_column="t",
@@ -56,7 +56,7 @@ def load_synthetic_dataset():
         measurement_column_1="m",
         measurement_column_2="None",
         additional_filter_column="None",
-        measurement_math_operatoin="None",
+        measurement_math_operation="None",
         measurement_bin=None,
         measurement_resc=None,
         collid_name="collid",
@@ -87,7 +87,7 @@ def load_real_dataset(load_image: bool = True):
         img_data_tuple = []
 
     if widget is None:
-        widget = __main__.main(current_viewer())
+        widget = __main__.open_plugin(current_viewer())
     columns = columnnames(
         frame_column="t",
         position_id="None",
@@ -98,7 +98,7 @@ def load_real_dataset(load_image: bool = True):
         measurement_column_1="m",
         measurement_column_2="None",
         additional_filter_column="None",
-        measurement_math_operatoin="None",
+        measurement_math_operation="None",
         measurement_bin=None,
         measurement_resc=None,
         collid_name="collid",

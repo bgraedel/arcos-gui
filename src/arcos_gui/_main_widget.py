@@ -6,6 +6,7 @@ The MainWidget is the entry point for the napari plugin.
 """
 from __future__ import annotations
 
+import weakref
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -32,7 +33,7 @@ class _MainUI(QtWidgets.QWidget):
     UI_FILE = str(Path(__file__).parent / "_ui" / "main_widget.ui")
 
     # The UI_FILE above contains these objects:
-    tabWidget: QtWidgets.QTabWidget
+    maintabwidget: QtWidgets.QTabWidget
 
     filter_groupBox: QtWidgets.QGroupBox
     inputdata_groupBox: QtWidgets.QGroupBox
@@ -63,12 +64,14 @@ class MainWindow(QtWidgets.QWidget):
     choose arcos parameters, choose LUT mappings aswell as shape sizes.
     """
 
-    def __init__(self, viewer: napari.viewer.Viewer):
+    _instance = None
+
+    def __init__(self, viewer: napari.viewer.Viewer, parent=None):
         """Constructs class with provided arguments."""
-        super().__init__()
+        super().__init__(parent=parent)
         self.viewer: napari.viewer.Viewer = viewer
         self.widget = _MainUI(self)
-        MainWindow._instance = self
+        MainWindow._instance = weakref.ref(self)
         self.setLayout(self.widget.layout())
 
         self.data_storage_instance = DataStorage()
@@ -79,30 +82,33 @@ class MainWindow(QtWidgets.QWidget):
         self.input_controller = InputdataController(
             data_storage_instance=self.data_storage_instance,
             std_out=show_info,
-            parent=self.widget,
+            viewer=self.viewer,
+            parent=self,
         )
         self.filter_controller = FilterController(
             viewer=self.viewer,
             data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+            parent=self,
         )
         self.arcos_widget = ArcosController(
             data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+            parent=self,
         )
         self.layer_prop_controller = LayerpropertiesController(
             viewer=self.viewer,
             data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+            parent=self,
         )
-        self.ts_plots_widget = tsPlotWidget(self.viewer, self.data_storage_instance)
+        self.ts_plots_widget = tsPlotWidget(
+            self.viewer, self.data_storage_instance, self
+        )
         self.collev_plots_widget = collevPlotWidget(
-            self.viewer, self.data_storage_instance
+            self.viewer, self.data_storage_instance, self
         )
         self.export = ExportController(
             viewer=self.viewer,
             data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+            parent=self,
         )
 
         self.bottom_bar = BottombarController(
@@ -118,20 +124,14 @@ class MainWindow(QtWidgets.QWidget):
     @classmethod
     def get_last_instance(cls) -> MainWindow | None:
         """Returns the last instance of this class. Returns None if no instance exists."""
-        try:
-            return cls._instance
-        except AttributeError:
-            return None
+        return cls._instance() if cls._instance else None
 
     def _connect_signals(self):
-        self.data_storage_instance.arcos_binarization.value_changed_connect(
+        self.data_storage_instance.arcos_binarization.value_changed.connect(
             self.layermaker.make_layers_bin
         )
-        self.data_storage_instance.arcos_output.value_changed_connect(
+        self.data_storage_instance.arcos_output.value_changed.connect(
             self.layermaker.make_layers_all
-        )
-        self.data_storage_instance.timestamp_parameters.value_changed_connect(
-            self.layermaker.make_timestamp_layer
         )
 
     def _add_widgets(self):

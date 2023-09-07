@@ -11,10 +11,6 @@ OPERATOR_DICTIONARY = {
     "Subtract": (operator.sub, "Measurement_Difference"),
 }
 
-measurement_math_options = list(OPERATOR_DICTIONARY.keys())
-measurement_math_options.append("None")
-
-
 COLOR_CYCLE = [
     "#1f77b4",
     "#aec7e8",

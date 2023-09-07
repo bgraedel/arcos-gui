@@ -1,5 +1,3 @@
-from unittest.mock import Mock
-
 import pandas as pd
 import pytest
 from arcos_gui.processing import DataStorage
@@ -10,7 +8,7 @@ from qtpy import QtCore, QtGui
 
 @pytest.fixture
 def data_storage_instance():
-    return Mock(spec=DataStorage)
+    return DataStorage()
 
 
 @pytest.fixture

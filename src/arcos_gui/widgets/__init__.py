@@ -6,7 +6,7 @@ __version__ = "0.0.7"
 
 from ._arcos_widget import ArcosController
 from ._bottom_bar_widget import BottombarController
-from ._dialog_widgets import columnpicker, timestamp_options
+from ._dialog_widgets import columnpicker
 from ._exporting_widget import ExportController
 from ._filter_widget import FilterController
 from ._input_data_widget import InputdataController
@@ -22,6 +22,5 @@ __all__ = [
     "tsPlotWidget",
     "collevPlotWidget",
     "columnpicker",
-    "timestamp_options",
     "BottombarController",
 ]

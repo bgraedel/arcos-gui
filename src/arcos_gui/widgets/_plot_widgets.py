@@ -45,13 +45,13 @@ class tsPlotWidget(QtWidgets.QWidget):
         self.plot_dialog_data = DataPlot(parent=self)
         self._add_plot_widgets()
         self._add_icon()
-        self._data_storage_instance.original_data.value_changed_connect(
+        self._data_storage_instance.original_data.value_changed.connect(
             self._on_data_update
         )
-        self._data_storage_instance.arcos_binarization.value_changed_connect(
+        self._data_storage_instance.arcos_binarization.value_changed.connect(
             self._on_data_update
         )
-        self._data_storage_instance.selected_object_id.value_changed_connect(
+        self._data_storage_instance.selected_object_id.value_changed.connect(
             self._on_data_update
         )
 
@@ -59,12 +59,14 @@ class tsPlotWidget(QtWidgets.QWidget):
         self._on_data_clear()
         df_orig = self._data_storage_instance.original_data.value
         df_bin = self._data_storage_instance.arcos_binarization.value
-        frame_col = self._data_storage_instance.columns.frame_column
-        object_id_col = self._data_storage_instance.columns.object_id
-        measurement_col = self._data_storage_instance.columns.measurement_column
-        x_coord_col = self._data_storage_instance.columns.x_column
-        y_coord_col = self._data_storage_instance.columns.y_column
-        measurement_resc_col = self._data_storage_instance.columns.measurement_resc
+        frame_col = self._data_storage_instance.columns.value.frame_column
+        object_id_col = self._data_storage_instance.columns.value.object_id
+        measurement_col = self._data_storage_instance.columns.value.measurement_column
+        x_coord_col = self._data_storage_instance.columns.value.x_column
+        y_coord_col = self._data_storage_instance.columns.value.y_column
+        measurement_resc_col = (
+            self._data_storage_instance.columns.value.measurement_resc
+        )
         object_id_number = self._data_storage_instance.selected_object_id.value
         self.timeseriesplot.update_plot(
             df_orig,
@@ -136,30 +138,49 @@ class collevPlotWidget(QtWidgets.QWidget):
         self._add_plot_widgets()
         self._add_icon()
 
-        self._data_storage_instance.arcos_binarization.value_changed_connect(
+        self._data_storage_instance.arcos_binarization.value_changed.connect(
             self._data_clear
         )
-        self._data_storage_instance.arcos_output.value_changed_connect(
+        self._data_storage_instance.arcos_output.value_changed.connect(
             self._on_data_update
         )
-        self._data_storage_instance.original_data.value_changed_connect(
+        self._data_storage_instance.original_data.value_changed.connect(
             self._data_clear
         )
         self.tab_widget.setCurrentIndex(1)
 
     def _on_data_update(self):
-        frame_col = self._data_storage_instance.columns.frame_column
-        oid_col = self._data_storage_instance.columns.object_id
-        x_coord = self._data_storage_instance.columns.x_column
-        y_coord = self._data_storage_instance.columns.y_column
-        z_coord = self._data_storage_instance.columns.z_column
-        point_size = self._data_storage_instance.point_size
-        arcos_data = self._data_storage_instance.arcos_output.value.copy()
+        frame_col = self._data_storage_instance.columns.value.frame_column
+        oid_col = self._data_storage_instance.columns.value.object_id
+        x_coord = self._data_storage_instance.columns.value.x_column
+        y_coord = self._data_storage_instance.columns.value.y_column
+        z_coord = self._data_storage_instance.columns.value.z_column
+        point_size = self._data_storage_instance.point_size.value
+        arcos_data = self._data_storage_instance.arcos_output.value
+        output_order = self._data_storage_instance.output_order.value
+        arcos_stats = self._data_storage_instance.arcos_stats.value
+
         self.collevplot.update_plot(
-            frame_col, oid_col, x_coord, y_coord, z_coord, arcos_data, point_size
+            frame_col,
+            oid_col,
+            x_coord,
+            y_coord,
+            z_coord,
+            arcos_data,
+            arcos_stats,
+            point_size,
+            output_order,
         )
+
         self.noodle_plot.update_plot(
-            frame_col, oid_col, x_coord, y_coord, z_coord, arcos_data, point_size
+            frame_col,
+            oid_col,
+            x_coord,
+            y_coord,
+            z_coord,
+            arcos_data,
+            point_size,
+            output_order,
         )
 
     def _data_clear(self):

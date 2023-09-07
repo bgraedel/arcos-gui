@@ -52,7 +52,7 @@ class BottombarController:
         self._connect_signals()
 
     def _connect_signals(self):
-        self.data_storage_instance.arcos_stats.value_changed_connect(
+        self.data_storage_instance.arcos_stats.value_changed.connect(
             self.update_event_counter
         )
 

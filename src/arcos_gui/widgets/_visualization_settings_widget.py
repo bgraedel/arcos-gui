@@ -116,14 +116,14 @@ class LayerpropertiesController:
         self.widget.lut_slider.valueChanged.connect(self._change_lut_colors)
         self.widget.LUT.currentIndexChanged.connect(self._change_lut_colors)
         self.widget.point_size.valueChanged.connect(self._change_size)
-        self.data_storage_instance.original_data.value_changed_connect(
+        self.data_storage_instance.original_data.value_changed.connect(
             self._set_default_point_size
         )
 
-        self.data_storage_instance.filtered_data.value_changed_connect(
+        self.data_storage_instance.filtered_data.value_changed.connect(
             self._reset_contrast
         )
-        self.data_storage_instance.original_data.value_changed_connect(
+        self.data_storage_instance.original_data.value_changed.connect(
             self._reset_contrast
         )
         self.viewer.layers.events.emitters["inserted"].connect(
@@ -137,7 +137,7 @@ class LayerpropertiesController:
 
     def _reset_contrast(self):
         """updates values in lut mapping slider."""
-        min_max = self.data_storage_instance.min_max_meas
+        min_max = self.data_storage_instance.min_max_meas.value
         # change slider values
         self.widget.set_contrast_slider(min_max)
 
@@ -183,9 +183,9 @@ class LayerpropertiesController:
         """
         data = self.data_storage_instance.original_data.value
         data = self.data_storage_instance.filtered_data.value
-        x_coord = self.data_storage_instance.columns.x_column
-        y_coord = self.data_storage_instance.columns.y_column
-        frame_col = self.data_storage_instance.columns.frame_column
+        x_coord = self.data_storage_instance.columns.value.x_column
+        y_coord = self.data_storage_instance.columns.value.y_column
+        frame_col = self.data_storage_instance.columns.value.frame_column
 
         if not data.empty:
             data_po_np = data[data[frame_col] == 0][[x_coord, y_coord]].to_numpy()
@@ -196,7 +196,7 @@ class LayerpropertiesController:
             )
 
             self.widget.point_size.setValue(avg_nn_dist)
-            self.data_storage_instance.point_size = avg_nn_dist
+            self.data_storage_instance.point_size.value = avg_nn_dist
 
 
 if __name__ == "__main__":

@@ -20,18 +20,18 @@ from napari import viewer
 def data_storage():
     data_storage = DataStorage()
     data_storage.load_data("src/arcos_gui/_tests/test_data/arcos_data.csv")
-    data_storage.filtered_data = data_storage.original_data.value.copy()
-    data_storage.columns.frame_column = "t"
-    data_storage.columns.position_id = "None"
-    data_storage.columns.measurement_column_2 = "None"
-    data_storage.columns.additional_filter_column = "None"
-    data_storage.columns.measurement_resc = "m"
-    data_storage.columns.x_column = "x"
-    data_storage.columns.y_column = "y"
-    data_storage.columns.z_column = "None"
-    data_storage.columns.measurement_bin = "m.bin"
-    data_storage.columns.measurement_column = "m"
-    data_storage.columns.object_id = "id"
+    data_storage.filtered_data.value = data_storage.original_data.value.copy()
+    data_storage.columns.value.frame_column = "t"
+    data_storage.columns.value.position_id = None
+    data_storage.columns.value.measurement_column_2 = None
+    data_storage.columns.value.additional_filter_column = None
+    data_storage.columns.value.measurement_resc = "m"
+    data_storage.columns.value.x_column = "x"
+    data_storage.columns.value.y_column = "y"
+    data_storage.columns.value.z_column = None
+    data_storage.columns.value.measurement_bin = "m.bin"
+    data_storage.columns.value.measurement_column = "m"
+    data_storage.columns.value.object_id = "id"
     return data_storage
 
 
@@ -88,7 +88,7 @@ def test_make_layers_all_no_arcos_data(layermaker: Layermaker):
 
 
 def test_make_layers_events_only(layermaker: Layermaker):
-    layermaker.data_storage_instance.arcos_output = pd.read_csv(
+    layermaker.data_storage_instance.arcos_output.value = pd.read_csv(
         "src/arcos_gui/_tests/test_data/arcos_output.csv"
     )
     layermaker.make_layers_all()
@@ -101,7 +101,7 @@ def test_make_layers_all(layermaker: Layermaker):
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     df["m.bin"] = df["m"].apply(lambda x: 1 if x > 0 else 0)
     layermaker.data_storage_instance.arcos_binarization.value = df
-    layermaker.data_storage_instance.arcos_output = pd.read_csv(
+    layermaker.data_storage_instance.arcos_output.value = pd.read_csv(
         "src/arcos_gui/_tests/test_data/arcos_output.csv"
     )
     layermaker.make_layers_all()
@@ -113,7 +113,7 @@ def test_make_layers_all(layermaker: Layermaker):
 
 
 def test_all_cells_no_convex_hull(layermaker: Layermaker):
-    layermaker.data_storage_instance.arcos_output = pd.read_csv(
+    layermaker.data_storage_instance.arcos_output.value = pd.read_csv(
         "src/arcos_gui/_tests/test_data/arcos_output.csv"
     )
     layermaker.make_layers_all(convex_hull=False)
@@ -133,13 +133,3 @@ def test_all_cells_pick_event(mock_pick, layermaker: Layermaker):
     assert not mock_pick.called  # no pick event triggered yet
     layermaker.viewer.layers[0].events.current_properties()  # trigger pick event
     assert mock_pick.called  # pick event triggered
-
-
-def test_make_timestamp_layer(layermaker: Layermaker):
-    layermaker.viewer.add_image(np.random.random((10, 10, 10)), name="not_arcos_layer")
-    layermaker.make_timestamp_layer()
-    assert len(layermaker.viewer.layers) == 2
-    assert ARCOS_LAYERS["timestamp"] in [i.name for i in layermaker.viewer.layers]
-    layermaker.make_timestamp_layer()
-    assert len(layermaker.viewer.layers) == 2
-    assert ARCOS_LAYERS["timestamp"] in [i.name for i in layermaker.viewer.layers]

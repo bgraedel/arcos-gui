@@ -63,7 +63,7 @@ def test_export_arcos_data(
 
         assert os.path.exists(out_path)
         df_loaded = pd.read_csv(out_path)
-        assert pd.testing.assert_frame_equal(df_loaded, df) is None
+        pd.testing.assert_frame_equal(df_loaded, df)
 
 
 def test_export_arcos_data_button(
@@ -88,7 +88,7 @@ def test_export_arcos_data_button(
 
         assert os.path.exists(out_path)
         df_loaded = pd.read_csv(out_path)
-        assert pd.testing.assert_frame_equal(df_loaded, df) is None
+        pd.testing.assert_frame_equal(df_loaded, df)
 
 
 def test_export_arcos_data_button_no_data(
@@ -129,7 +129,7 @@ def test_export_arcos_stats(
 
         assert os.path.exists(out_path)
         df_loaded = pd.read_csv(out_path)
-        assert pd.testing.assert_frame_equal(df_loaded, df) is None
+        pd.testing.assert_frame_equal(df_loaded, df)
 
 
 def test_export_arcos_stats_button(
@@ -154,7 +154,7 @@ def test_export_arcos_stats_button(
 
         assert os.path.exists(out_path)
         df_loaded = pd.read_csv(out_path)
-        assert pd.testing.assert_frame_equal(df_loaded, df) is None
+        pd.testing.assert_frame_equal(df_loaded, df)
 
 
 def test_export_arcos_stats_button_no_data(
@@ -190,7 +190,7 @@ def test_export_arcos_params(
         # has to be set otherwise parameters are not exported
         controller._data_storage_instance.arcos_output._value = df
 
-        df_param = controller._data_storage_instance.arcos_parameters.as_dataframe
+        df_param = controller._data_storage_instance.arcos_parameters.value.as_dataframe
         controller.widget.file_LineEdit_data.setText(file_path)
         controller.widget.base_name_LineEdit_data.setText(base_name)
 
@@ -217,7 +217,7 @@ def test_export_arcos_params_button(
         # has to be set otherwise parameters are not exported
         controller._data_storage_instance.arcos_output._value = df
 
-        df_param = controller._data_storage_instance.arcos_parameters.as_dataframe
+        df_param = controller._data_storage_instance.arcos_parameters.value.as_dataframe
         controller.widget.file_LineEdit_data.setText(file_path)
         controller.widget.base_name_LineEdit_data.setText(base_name)
 
@@ -328,49 +328,3 @@ def test_browse_files_img(
         mock_get_open_file_name.return_value = file_path
         qtbot.mouseClick(controller.widget.browse_file_img, Qt.LeftButton)
         assert controller.widget.file_LineEdit_img.text() == file_path
-
-
-def test_add_timestamp(
-    make_input_widget: tuple[ExportController, viewer.Viewer, QtBot]
-):
-    controller, viewer, qtbot = make_input_widget
-    df_default = pd.DataFrame(
-        columns=["parameter", "value"],
-        data=[
-            ["start_time", 0],
-            ["step_time", 1],
-            ["prefix", "T ="],
-            ["suffix", "frame"],
-            ["size", 12],
-            ["x_shift", 12],
-            ["y_shift", 0],
-        ],
-    )
-
-    controller._add_timestamp()
-    qtbot.mouseClick(controller.ts_dialog.set_options, Qt.LeftButton)
-    df_ts = controller._data_storage_instance.timestamp_parameters.value.as_dataframe
-    pd.testing.assert_frame_equal(df_default, df_ts)
-
-
-def test_add_timestamp_button(
-    make_input_widget: tuple[ExportController, viewer.Viewer, QtBot]
-):
-    controller, viewer, qtbot = make_input_widget
-    df_default = pd.DataFrame(
-        columns=["parameter", "value"],
-        data=[
-            ["start_time", 0],
-            ["step_time", 1],
-            ["prefix", "T ="],
-            ["suffix", "frame"],
-            ["size", 12],
-            ["x_shift", 12],
-            ["y_shift", 0],
-        ],
-    )
-
-    qtbot.mouseClick(controller.widget.add_timestamp_button, Qt.LeftButton)
-    qtbot.mouseClick(controller.ts_dialog.set_options, Qt.LeftButton)
-    df_ts = controller._data_storage_instance.timestamp_parameters.value.as_dataframe
-    pd.testing.assert_frame_equal(df_default, df_ts)

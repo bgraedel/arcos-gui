@@ -44,7 +44,9 @@ def test_get_verticesHull(data_frame_2d):
 
 def test_make_surface_3d(data_frame_3d):
     df_in = data_frame_3d[data_frame_3d["collid"] == 1]
-    hulls = make_surface_3d(df_in, "time", "X", "Y", "Z", "collid")
+    hulls = make_surface_3d(
+        df_in, ["time", "X", "Y", "Z"], "collid", output_order="txyz"
+    )
     cube_vertices = np.array(
         [
             [6, 2, 0],
@@ -68,7 +70,9 @@ def test_make_surface_3d(data_frame_3d):
 
 def test_fix_3d_convex_hull(data_frame_3d):
     df_in = data_frame_3d
-    hulls = make_surface_3d(df_in, "time", "X", "Y", "Z", "collid")
+    hulls = make_surface_3d(
+        df_in, ["time", "X", "Y", "Z"], "collid", output_order="txyz"
+    )
     cube_vertices = np.array(
         [
             [6, 2, 0],

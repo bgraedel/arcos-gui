@@ -4,13 +4,16 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 import pytest
+from arcos_gui.processing import columnnames
 from arcos_gui.processing._preprocessing_utils import (
+    DataFrameMatcher,
     DataLoader,
     calculate_measurement,
     check_for_collid_column,
     filter_data,
     get_delimiter,
     get_tracklengths,
+    match_dataframes,
     preprocess_data,
     process_input,
     read_data_header,
@@ -124,7 +127,7 @@ def test_get_tracklengths(test_df):
     # create dataframe
     df = test_df
     # get tracklengths
-    tracklengths = get_tracklengths(df, "None", "track_id", "None")
+    tracklengths = get_tracklengths(df, None, "track_id", None)
     # check if tracklengths are calculated
     assert tracklengths == (3, 3)
 
@@ -134,7 +137,7 @@ def test_tracklengths_with_pos(test_df):
     # create dataframe
     df = test_df
     # get tracklengths
-    tracklengths = get_tracklengths(df, "pos", "track_id", "None")
+    tracklengths = get_tracklengths(df, "pos", "track_id", None)
     # check if tracklengths are calculated
     assert tracklengths == (1, 3)
 
@@ -162,10 +165,10 @@ def test_filter_data(test_df):
         frame_name="time",
         track_id_name="track_id",
         measurement_name="m",
-        additional_filter_column_name="None",
+        additional_filter_column_name=None,
         posCols=["x", "y"],
         fov_val=1,
-        additional_filter_value="None",
+        additional_filter_value=None,
         min_tracklength_value=1,
         max_tracklength_value=5,
         frame_interval=1,
@@ -236,10 +239,10 @@ def test_filter_data_with_min_tracklength(test_df):
         frame_name="time",
         track_id_name="track_id",
         measurement_name="m",
-        additional_filter_column_name="None",
+        additional_filter_column_name=None,
         posCols=["x", "y"],
         fov_val=1,
-        additional_filter_value="None",
+        additional_filter_value=None,
         min_tracklength_value=0,
         max_tracklength_value=1,
         frame_interval=1,
@@ -274,7 +277,12 @@ def test_check_for_collid_column():
 
 def test_preprocess_data_func(test_df):
     df = test_df
-    meas_name, df = preprocess_data(df, "Multiply", "m", "m2", OPERATOR_DICTIONARY)
+    col_names = columnnames(
+        measurement_column_1="m",
+        measurement_column_2="m2",
+        measurement_math_operation="Multiply",
+    )
+    meas_name, df = preprocess_data(df, col_names)
     assert df[meas_name].to_list() == [2, 4, 6, 8, 10, 12, 14, 16, 18]
 
 
@@ -383,15 +391,14 @@ def test_rescale_measurment(process_input_fixture: process_input):
     pd.testing.assert_frame_equal(out, test_df)
 
 
-def test_data_loader_thread_no_meas(qtbot):
+def test_data_loader_thread(qtbot):
     loop = QEventLoop()
     thread = QThread(loop)
     data_loader = DataLoader(
         "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ","
     )
 
-    def assert_data(df, meas_name):
-        assert meas_name == "None"
+    def assert_data(df):
         assert isinstance(df, pd.DataFrame)
 
     # create event loop so the test function does not end
@@ -406,40 +413,6 @@ def test_data_loader_thread_no_meas(qtbot):
 
     thread.finished.connect(thread.deleteLater)
     data_loader.finished.connect(thread.quit)
-    thread.finished.connect(loop.quit)
-
-    # connect the assert function to the data signal
-    data_loader.new_data.connect(assert_data)
-    # start the thread and the event loop
-    thread.start()
-    loop.exec_()
-
-
-def test_data_loader_thread_meas(qtbot):
-    def assert_data(df, meas_name):
-        assert meas_name == "m"
-        assert isinstance(df, pd.DataFrame)
-
-    # create event loop so the test function does not end
-    # before the thread can finish
-    loop = QEventLoop()
-    thread = QThread()
-    data_loader = DataLoader(
-        "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ","
-    )
-    data_loader.op = "None"
-    data_loader.meas_1 = "m"
-    data_loader.meas_2 = "None"
-
-    # move worker to thread
-    data_loader.moveToThread(thread)
-    # set up starting callbacks
-    thread.started.connect(data_loader.run)
-    # set up finished callbacks
-    data_loader.finished.connect(data_loader.deleteLater)
-    data_loader.finished.connect(thread.quit)
-
-    thread.finished.connect(thread.deleteLater)
     thread.finished.connect(loop.quit)
 
     # connect the assert function to the data signal
@@ -450,14 +423,10 @@ def test_data_loader_thread_meas(qtbot):
 
 
 def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
-    def assert_data(df, meas_name):
-        assert meas_name == "m"
+    def assert_data(df):
         assert isinstance(df, pd.DataFrame)
 
     def set_loading_worker_columns(self):
-        data_loader.op = picker_widget.measurement_math.currentText()
-        data_loader.meas_1 = picker_widget.measurement.currentText()
-        data_loader.meas_2 = picker_widget.second_measurement.currentText()
         data_loader.wait_for_columnpicker = False
 
     # create event loop so the test function does not end
@@ -501,3 +470,72 @@ def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
     qtbot.mouseClick(picker_widget.ok_button, Qt.LeftButton)
 
     loop.exec_()
+
+
+def test_match_dataframes():
+    # Sample data
+    df1 = pd.DataFrame(
+        {"frame": [1, 2, 3], "centroid-0": [1, 2, 3], "centroid-1": [1, 2, 3]}
+    )
+    df2 = pd.DataFrame(
+        {
+            "frame": [1, 2, 3],
+            "centroid-0": [1, 2, 3],
+            "centroid-1": [1, 2, 3],
+            "track_id": [10, 11, 12],
+        }
+    )
+
+    # Test direct merge
+    result = match_dataframes(df1, df2)
+    assert len(result) == 3
+    assert "track_id" in result.columns
+
+    # Test mismatched data
+    df1["centroid-0"] = [10, 20, 30]
+    with pytest.raises(ValueError):
+        match_dataframes(df1, df2)
+
+
+def test_dataframe_matcher():
+    df1 = pd.DataFrame(
+        {"frame": [1, 2, 3], "centroid-0": [1, 2, 3], "centroid-1": [1, 2, 3]}
+    )
+    df2 = pd.DataFrame(
+        {
+            "frame": [1, 2, 3],
+            "centroid-0": [1, 2, 3],
+            "centroid-1": [1, 2, 3],
+            "track_id": [10, 11, 12],
+        }
+    )
+
+    matcher = DataFrameMatcher(df1, df2)
+
+    result_df = None
+
+    def on_matched(df):
+        nonlocal result_df
+        result_df = df
+
+    error = None
+
+    def on_aborted(e):
+        nonlocal error
+        error = e
+
+    matcher.matched.connect(on_matched)
+    matcher.aborted.connect(on_aborted)
+    matcher.run()
+
+    assert error is None
+    assert len(result_df) == 3
+    assert "track_id" in result_df.columns
+
+    # Test mismatched data
+    df1["centroid-0"] = [10, 20, 30]
+    matcher = DataFrameMatcher(df1, df2)
+    matcher.matched.connect(on_matched)
+    matcher.aborted.connect(on_aborted)
+    matcher.run()
+    assert isinstance(error, ValueError)

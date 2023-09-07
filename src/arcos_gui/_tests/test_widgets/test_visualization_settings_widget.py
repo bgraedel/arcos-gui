@@ -46,7 +46,6 @@ def make_points_layer_data_tuple():
             "face_colormap": "inferno",
             "face_contrast_limits": None,
             "size": 2,
-            "edge_width": 0,
             "opacity": 1,
             "symbol": "disc",
             "name": "All Cells",
@@ -98,7 +97,7 @@ def test_reset_contrast(
     assert controller.widget.lut_slider.value() == (0, 10)
     controller._reset_contrast()
     assert controller.widget.lut_slider.value() == (0, 0.5)
-    controller.data_storage_instance.min_max_meas = (10, 50)
+    controller.data_storage_instance.min_max_meas.value = (10, 50)
     controller._reset_contrast()
     assert controller.widget.lut_slider.value() == (10, 50)
     controller.widget.lut_slider.setValue((15.5, 20.5))
@@ -118,7 +117,7 @@ def test_ui_callbacks_settings(
     # assert points_layer.size == 2
     controller.widget.LUT.setCurrentText("viridis")
     controller.widget.point_size.setValue(5)
-    controller.data_storage_instance.min_max_meas = (5, 50)
+    controller.data_storage_instance.min_max_meas.value = (5, 50)
     controller._reset_contrast()  # to set the slider to the new min_max_meas
     assert points_layer.face_colormap.name == "viridis"
     assert points_layer.face_contrast_limits == (5, 50)
@@ -134,7 +133,7 @@ def test_set_settings(
 
     controller.widget.LUT.setCurrentText("viridis")
     controller.widget.point_size.setValue(5)
-    controller.data_storage_instance.min_max_meas = (5, 50)
+    controller.data_storage_instance.min_max_meas.value = (5, 50)
     controller._reset_contrast()  # to set the slider to the new min_max_meas
     points_layer = viewer.add_points(data, **properties)
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from time import sleep
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import pandas as pd
@@ -11,8 +11,11 @@ from arcos4py import ARCOS
 from arcos4py.tools import calcCollevStats, estimate_eps, filterCollev
 from qtpy.QtCore import QObject, Signal
 
-from ._data_storage import arcos_parameters, columnnames
+from ._data_storage import ArcosParameters, columnnames
 from ._preprocessing_utils import check_for_collid_column
+
+if TYPE_CHECKING:
+    pass
 
 
 def init_arcos_object(
@@ -198,7 +201,7 @@ def get_eps(arcos: ARCOS, method: str, minClustersize: int, current_eps: float):
 
     if method == "kneepoint":
         eps = estimate_eps(
-            data=arcos.data[arcos.data[arcos.bin_col] > 0],
+            data=arcos.data[[arcos.bin_col] == 1],
             method="kneepoint",
             pos_cols=arcos.posCols,
             frame_col=arcos.frame_column,
@@ -233,8 +236,6 @@ def filtering_arcos_events(
 
     Parameters
     ----------
-    original_df : pd.DataFrame
-        original dataframe
     detected_events_df : pd.DataFrame
         dataframe with detected events
     frame_col_name : str
@@ -253,16 +254,25 @@ def filtering_arcos_events(
     filtered_events_df : pd.DataFrame
         dataframe with filtered events
     """
-    filterer = filterCollev(
-        data=detected_events_df,
-        frame_column=frame_col_name,
-        collid_column=collid_name,
-        obj_id_column=track_id_col_name,
-    )
-    arcos_filtered = filterer.filter(
-        coll_duration=min_dur,
-        coll_total_size=total_event_size,
-    )
+    if track_id_col_name:
+        filterer = filterCollev(
+            data=detected_events_df,
+            frame_column=frame_col_name,
+            collid_column=collid_name,
+            obj_id_column=track_id_col_name,
+        )
+        arcos_filtered = filterer.filter(
+            coll_duration=min_dur,
+            coll_total_size=total_event_size,
+        )
+    else:
+        # filter dataframe by duraiton of events
+        detect_events_df = detected_events_df.copy()
+        detect_events_df["duration"] = detect_events_df.groupby(
+            [frame_col_name, collid_name]
+        )[frame_col_name].transform("count")
+        arcos_filtered = detect_events_df[detect_events_df["duration"] >= min_dur]
+        arcos_filtered = arcos_filtered.drop(columns=["duration"])
 
     # makes filtered collids sequential
     clid_np = arcos_filtered[collid_name].to_numpy()
@@ -311,6 +321,9 @@ def calculate_arcos_stats(
     df_arcos_stats : pd.DataFrame
         dataframe with statistics for each event
     """
+    if object_id_name is None:
+        df_arcos_stats = pd.DataFrame()
+        return df_arcos_stats
     df_arcos_stats = calcCollevStats().calculate(
         df_arcos_filtered, frame_col, collid_name, object_id_name, posCols
     )
@@ -335,8 +348,8 @@ class arcos_worker(QObject):
     started = Signal()
     finished = Signal()
     aborted = Signal(object)
-    arcos_parameters = arcos_parameters()
-    columns = columnnames()
+    arcos_parameters: ArcosParameters = ArcosParameters()
+    columns: columnnames = columnnames()
     filtered_data: pd.DataFrame = pd.DataFrame()
     parameters_updated_flag = False
     aborted_flag = False
@@ -377,58 +390,58 @@ class arcos_worker(QObject):
             self._connect_parameters_updated()
 
     def _connect_parameters_updated(self):
-        self.arcos_parameters.interpolate_meas.value_changed_connect(
+        self.arcos_parameters.interpolate_meas.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.clip_meas.value_changed_connect(
+        self.arcos_parameters.clip_meas.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.clip_low.value_changed_connect(
+        self.arcos_parameters.clip_low.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.clip_high.value_changed_connect(
+        self.arcos_parameters.clip_high.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.bias_method.value_changed_connect(
+        self.arcos_parameters.bias_method.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.smooth_k.value_changed_connect(
+        self.arcos_parameters.smooth_k.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.bias_k.value_changed_connect(
+        self.arcos_parameters.bias_k.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.polyDeg.value_changed_connect(
+        self.arcos_parameters.polyDeg.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.bin_threshold.value_changed_connect(
+        self.arcos_parameters.bin_threshold.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.bin_peak_threshold.value_changed_connect(
+        self.arcos_parameters.bin_peak_threshold.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.neighbourhood_size.value_changed_connect(
+        self.arcos_parameters.neighbourhood_size.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.eps_method.value_changed_connect(
+        self.arcos_parameters.eps_method.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.epsPrev.value_changed_connect(
+        self.arcos_parameters.epsPrev.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.min_clustersize.value_changed_connect(
+        self.arcos_parameters.min_clustersize.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.nprev.value_changed_connect(
+        self.arcos_parameters.nprev.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.min_dur.value_changed_connect(
+        self.arcos_parameters.min_dur.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.total_event_size.value_changed_connect(
+        self.arcos_parameters.total_event_size.value_changed.connect(
             self.set_parameters_updated_flag
         )
-        self.arcos_parameters.min_clustersize.value_changed_connect(
+        self.arcos_parameters.min_clustersize.value_changed.connect(
             self.set_parameters_updated_flag
         )
 
@@ -487,6 +500,8 @@ class arcos_worker(QObject):
                     self.arcos_object.data,
                 )
             )
+            self.columns.measurement_bin = self.arcos_object.bin_col
+            self.columns.measurement_resc = self.arcos_object.resc_col
             self.what_to_run.remove("binarization")
 
         except Exception as e:
@@ -498,25 +513,25 @@ class arcos_worker(QObject):
         try:
             bin_col = self.columns.measurement_bin
             n_bin = self.arcos_object.data[bin_col].nunique()
+
         except KeyError:
             n_bin = 0
         if n_bin < 2:
             self.std_out("No Binarized Data. Adjust Binazation Parameters.")
             self.aborted_flag = True
             return
+
         self.started.emit()
         try:
             if self.aborted_flag:
                 return
 
-            # print("Calculating eps...")
             eps = get_eps(
                 arcos=self.arcos_object,
                 method=self.arcos_parameters.eps_method.value,
                 minClustersize=self.arcos_parameters.min_clustersize.value,
                 current_eps=self.arcos_parameters.neighbourhood_size.value,
             )
-            # print(f"eps = {eps}")
 
             if self.aborted_flag:
                 return
@@ -581,7 +596,6 @@ class arcos_worker(QObject):
             self.new_arcos_output.emit((arcos_df_filtered, arcos_stats))
             self.what_to_run.clear()
         except Exception as e:
-            # print(f"Error in filtering: {e}")
             self.aborted_flag = True
             self.aborted.emit(e)
 

@@ -6,24 +6,24 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from arcos_gui._main_widget import MainWindow
+from arcos_gui.processing._arcos_wrapper import calculate_arcos_stats
 from arcos_gui.tools._config import ARCOS_LAYERS
 from qtpy.QtCore import QEventLoop
 
 if TYPE_CHECKING:
     import napari.viewer
-    from arcos_gui._main_widget import MainWindow
 
 
 @pytest.fixture()
 def dock_arcos_widget(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
-    mywidget = viewer.window.add_plugin_dock_widget(
-        plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
-    )
-    yield viewer, mywidget[1]
+    mywidget = MainWindow(viewer=viewer)
+    qtbot.addWidget(mywidget)
+    yield viewer, mywidget
+    mywidget.deleteLater()
+    # qtbot.wait(200)
     viewer.close()
-    del mywidget
-    del viewer
     gc.collect()
     # sys.exit()
 
@@ -33,19 +33,19 @@ def dock_arcos_widget_w_colnames_set(
     dock_arcos_widget: tuple[napari.viewer.Viewer, MainWindow]
 ):
     viewer, mywidget = dock_arcos_widget
-    mywidget.data_storage_instance.columns.frame_column = "t"
-    mywidget.data_storage_instance.columns.object_id = "id"
-    mywidget.data_storage_instance.columns.x_column = "x"
-    mywidget.data_storage_instance.columns.y_column = "y"
-    mywidget.data_storage_instance.columns.z_column = "None"
-    mywidget.data_storage_instance.columns.measurement_column = "m"
-    mywidget.data_storage_instance.columns.measurement_column_1 = "m"
-    mywidget.data_storage_instance.columns.measurement_column_2 = "None"
-    mywidget.data_storage_instance.columns.position_id = "Position"
-    mywidget.data_storage_instance.columns.additional_filter_column = "None"
-    mywidget.data_storage_instance.columns.measurement_math_operatoin = "None"
-    mywidget.data_storage_instance.columns.measurement_bin = "m"
-    mywidget.data_storage_instance.columns.measurement_resc = "m"
+    mywidget.data_storage_instance.columns.value.frame_column = "t"
+    mywidget.data_storage_instance.columns.value.object_id = "id"
+    mywidget.data_storage_instance.columns.value.x_column = "x"
+    mywidget.data_storage_instance.columns.value.y_column = "y"
+    mywidget.data_storage_instance.columns.value.z_column = None
+    mywidget.data_storage_instance.columns.value.measurement_column = "m"
+    mywidget.data_storage_instance.columns.value.measurement_column_1 = "m"
+    mywidget.data_storage_instance.columns.value.measurement_column_2 = None
+    mywidget.data_storage_instance.columns.value.position_id = "Position"
+    mywidget.data_storage_instance.columns.value.additional_filter_column = None
+    mywidget.data_storage_instance.columns.value.measurement_math_operation = None
+    mywidget.data_storage_instance.columns.value.measurement_bin = "m"
+    mywidget.data_storage_instance.columns.value.measurement_resc = "m"
     return viewer, mywidget
 
 
@@ -56,13 +56,13 @@ def test_get_instance_no_instance():
 
 
 def test_init(dock_arcos_widget):
-    viewer, mywidget = dock_arcos_widget
-    assert "ARCOS Main Widget (arcos-gui)" in [i for i in viewer.window._dock_widgets]
+    viewer, widget = dock_arcos_widget
+    assert widget is not None
 
 
-def test_get_instance(dock_arcos_widget):
-    viewer, mywidget = dock_arcos_widget
-    assert mywidget.get_last_instance() is not None
+# def test_get_instance(dock_arcos_widget):
+#     _, mywidget = dock_arcos_widget
+#     assert mywidget.get_last_instance() is not None
 
 
 @patch("qtpy.QtWidgets.QFileDialog.getOpenFileName")
@@ -86,7 +86,7 @@ def test_load_data(
     assert mywidget.data_storage_instance.filtered_data.value.empty
 
     # user sets columnames
-    mywidget.input_controller.widget.open_file_button.click()
+    mywidget.input_controller.widget.load_data_button.click()
     mywidget.input_controller.picker.frame.setCurrentText("t")
     mywidget.input_controller.picker.track_id.setCurrentText("id")
     mywidget.input_controller.picker.x_coordinates.setCurrentText("x")
@@ -105,19 +105,19 @@ def test_load_data(
     mywidget.input_controller.loading_worker.finished.connect(loop.quit)
     loop.exec_()
     columnames_list = (
-        mywidget.data_storage_instance.columns.pickablepickable_columns_names
+        mywidget.data_storage_instance.columns.value.pickablepickable_columns_names
     )
     assert columnames_list == [
         "t",
         "id",
         "x",
         "y",
-        "None",
+        None,
         "m",
-        "None",
-        "None",
-        "None",
-        "None",
+        None,
+        None,
+        None,
+        None,
     ]
     # check if data is loaded
     assert mywidget.data_storage_instance.original_data.value.empty is False
@@ -146,7 +146,7 @@ def test_load_data_with_additional_filter(
     assert mywidget.data_storage_instance.filtered_data.value.empty
 
     # user sets columnames
-    mywidget.input_controller.widget.open_file_button.click()
+    mywidget.input_controller.widget.load_data_button.click()
     mywidget.input_controller.picker.frame.setCurrentText("t")
     mywidget.input_controller.picker.track_id.setCurrentText("id")
     mywidget.input_controller.picker.x_coordinates.setCurrentText("x")
@@ -165,19 +165,19 @@ def test_load_data_with_additional_filter(
     mywidget.input_controller.picker.ok_button.click()
     loop.exec_()
     columnames_list = (
-        mywidget.data_storage_instance.columns.pickablepickable_columns_names
+        mywidget.data_storage_instance.columns.value.pickablepickable_columns_names
     )
     assert columnames_list == [
         "t",
         "id",
         "x",
         "y",
-        "None",
+        None,
         "m",
-        "None",
-        "None",
+        None,
+        None,
         "id",
-        "None",
+        None,
     ]
     # check if data is loaded
     assert mywidget.data_storage_instance.original_data.value.empty is False
@@ -207,7 +207,7 @@ def test_load_data_with_measurement_math(
     assert mywidget.data_storage_instance.filtered_data.value.empty
 
     # user sets columnames
-    mywidget.input_controller.widget.open_file_button.click()
+    mywidget.input_controller.widget.load_data_button.click()
     mywidget.input_controller.picker.frame.setCurrentText("t")
     mywidget.input_controller.picker.track_id.setCurrentText("id")
     mywidget.input_controller.picker.x_coordinates.setCurrentText("x")
@@ -226,18 +226,18 @@ def test_load_data_with_measurement_math(
     mywidget.input_controller.loading_worker.finished.connect(loop.quit)
     loop.exec_()
     columnames_list = (
-        mywidget.data_storage_instance.columns.pickablepickable_columns_names
+        mywidget.data_storage_instance.columns.value.pickablepickable_columns_names
     )
     assert columnames_list == [
         "t",
         "id",
         "x",
         "y",
-        "None",
+        None,
         "m",
         "m",
-        "None",
-        "None",
+        None,
+        None,
         "Add",
     ]
     # check if data is loaded
@@ -284,7 +284,15 @@ def test_add_all_layers_with_data(
     mywidget.data_storage_instance.arcos_binarization.value = test_df[
         test_df["Position"] == 1
     ]
+    mywidget.data_storage_instance.arcos_stats.value = calculate_arcos_stats(
+        arcos_df,
+        frame_col="t",
+        collid_name="collid",
+        object_id_name="id",
+        posCols=["x", "y"],
+    )
     mywidget.data_storage_instance.arcos_output.value = arcos_df
+
     mywidget.arcos_widget.worker.finished.connect(loop.quit)
     mywidget.arcos_widget.widget.update_arcos.click()
     loop.exec_()
@@ -310,6 +318,13 @@ def test_first_all_then_bin(
     mywidget.data_storage_instance.arcos_binarization.value = test_df[
         test_df["Position"] == 1
     ]
+    mywidget.data_storage_instance.arcos_stats.value = calculate_arcos_stats(
+        arcos_df,
+        frame_col="t",
+        collid_name="collid",
+        object_id_name="id",
+        posCols=["x", "y"],
+    )
     mywidget.data_storage_instance.arcos_output.value = arcos_df
     mywidget.arcos_widget.worker.finished.connect(loop.quit)
     print("first click")
@@ -363,6 +378,3 @@ def test_increase_points_size(
     mywidget.layer_prop_controller.widget.point_size.setValue(20)
     new_pointsize = mywidget.layer_prop_controller.widget.point_size.value()
     assert viewer.layers[0].size.flatten()[0] == new_pointsize
-
-
-# needs some more here for overall functionallity

@@ -4,7 +4,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pandas as pd
 from arcos_gui.processing import filter_data, get_tracklengths
 from arcos_gui.tools import (
     ARCOS_LAYERS,
@@ -118,7 +117,7 @@ class FilterController:
         self.widget = _filter_dataUI()
 
         self.data_storage_instance = data_storage_instance
-        self.data_storage_instance.original_data.value_changed_connect(
+        self.data_storage_instance.original_data.value_changed.connect(
             self._original_data_changed
         )
         self.widget.filter_input_data.clicked.connect(self._filter_data)
@@ -145,14 +144,16 @@ class FilterController:
         input_data = self.data_storage_instance.original_data.value
 
         # get column names
-        selected_fov_column = self.data_storage_instance.columns.position_id
-        selected_object_id_column = self.data_storage_instance.columns.object_id
+        selected_fov_column = self.data_storage_instance.columns.value.position_id
+        selected_object_id_column = self.data_storage_instance.columns.value.object_id
         selected_additional_filter_column = (
-            self.data_storage_instance.columns.additional_filter_column
+            self.data_storage_instance.columns.value.additional_filter_column
         )
-        selected_frame_column = self.data_storage_instance.columns.frame_column
-        measurement_name_column = self.data_storage_instance.columns.measurement_column
-        coordinate_column = self.data_storage_instance.columns.posCol
+        selected_frame_column = self.data_storage_instance.columns.value.frame_column
+        measurement_name_column = (
+            self.data_storage_instance.columns.value.measurement_column
+        )
+        coordinate_column = self.data_storage_instance.columns.value.posCol
 
         # filter data
         data_filtered, max_meas, min_meas = filter_data(
@@ -177,16 +178,18 @@ class FilterController:
         self._set_default_values()
 
         df_orig = self.data_storage_instance.original_data.value
-        pos_col = self.data_storage_instance.columns.position_id
-        add_filter_col = self.data_storage_instance.columns.additional_filter_column
+        pos_col = self.data_storage_instance.columns.value.position_id
+        add_filter_col = (
+            self.data_storage_instance.columns.value.additional_filter_column
+        )
 
-        if pos_col != "None":
+        if pos_col:
             if len(df_orig[pos_col].unique()) > 1:
                 self.widget.set_position_visible()
                 for pos in df_orig[pos_col].unique():
                     self.widget.position.addItem(str(pos), pos)
 
-        if add_filter_col != "None":
+        if add_filter_col:
             self.widget.set_additional_filter_visible()
             for add_filter in df_orig[add_filter_col].unique():
                 self.widget.additional_filter_combobox.addItem(
@@ -200,18 +203,22 @@ class FilterController:
     def _update_data_storage(self, df_filtered, min_meas, max_meas):
         """Method to update the data storage."""
         self.data_storage_instance.reset_relevant_attributes(True)
-        self.data_storage_instance.filtered_data = df_filtered
-        self.data_storage_instance.min_max_meas = (min_meas, max_meas)
+        self.data_storage_instance.filtered_data.value = df_filtered
+        self.data_storage_instance.min_max_meas.value = (min_meas, max_meas)
 
     def _set_tracklengths(self):
         """Method to set the tracklengths."""
-        # work in progress
-        min_t, max_t = get_tracklengths(
-            self.data_storage_instance.original_data.value,
-            self.data_storage_instance.columns.position_id,
-            self.data_storage_instance.columns.object_id,
-            self.data_storage_instance.columns.additional_filter_column,
-        )
+        if self.data_storage_instance.original_data.value is None:
+            min_t, max_t = 0, 1
+        elif self.data_storage_instance.columns.value.object_id is None:
+            min_t, max_t = 0, 1
+        else:
+            min_t, max_t = get_tracklengths(
+                self.data_storage_instance.original_data.value,
+                self.data_storage_instance.columns.value.position_id,
+                self.data_storage_instance.columns.value.object_id,
+                self.data_storage_instance.columns.value.additional_filter_column,
+            )
         set_track_lenths(
             (min_t, max_t),
             self.widget.tracklenght_slider,
@@ -221,33 +228,3 @@ class FilterController:
 
     def _remove_old_layers(self):
         remove_layers_after_columnpicker(self.viewer, ARCOS_LAYERS.values())
-
-
-if __name__ == "__main__":
-    import sys
-
-    # import pandas as pd
-    from arcos_gui.processing import DataStorage  # noqa: F811
-    from napari import Viewer  # noqa: F811
-
-    data_storage_instance = DataStorage()
-    viewer = Viewer()
-    app = QtWidgets.QApplication(sys.argv)
-    controller = FilterController(viewer, data_storage_instance=data_storage_instance)
-    controller.widget.show()
-    ai = pd.read_csv("C:/Users/benig/test.csv")
-    data_storage_instance.columns.frame_column = "time"
-    data_storage_instance.columns.object_id = "trackID"
-    data_storage_instance.columns.position_id = "None"
-    data_storage_instance.columns.additional_filter_column = "None"
-    data_storage_instance.columns.measurement_column_1 = "ERK_KTR"
-    data_storage_instance.columns.measurement_column_2 = "None"
-    data_storage_instance.columns.measurement_column = "ERK_KTR"
-    data_storage_instance.columns.measurement_math_operatoin = "None"
-    data_storage_instance.columns.x_column = "posx"
-    data_storage_instance.columns.y_column = "posy"
-    data_storage_instance.columns.z_column = "posz"
-
-    data_storage_instance.original_data = ai
-
-    sys.exit(app.exec_())

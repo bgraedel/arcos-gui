@@ -5,11 +5,17 @@ from __future__ import annotations
 import csv
 import gzip
 import time
-from typing import Callable, Union
+from typing import TYPE_CHECKING, Callable, Union
 
 import pandas as pd
 from arcos_gui.tools import OPERATOR_DICTIONARY
 from qtpy.QtCore import QObject, Signal
+from sklearn.neighbors import NearestNeighbors
+
+if TYPE_CHECKING:
+    import napari
+
+    from ._data_storage import columnnames
 
 
 def subtract_timeoffset(data, frame_col):
@@ -20,9 +26,9 @@ def subtract_timeoffset(data, frame_col):
 
 def calculate_measurement(
     data: pd.DataFrame,
-    operation: str,
+    operation: str | None,
     in_meas_1_name: str,
-    in_meas_2_name: str,
+    in_meas_2_name: str | None,
     op_dict: dict,
 ):
     """Perform operation on the two measurement columns.
@@ -40,13 +46,15 @@ def calculate_measurement(
         Operation to perform on the two measurement columns
     in_meas_1_name : str
         Name of the first measurement column
-    in_meas_2_name : str
+    in_meas_2_name : str | None
         Name of the second measurement column
     op_dict : dict
         Dictionary containing the operations to perform on the two measurement columns
     """
     data_in = data.copy()
-    if operation in op_dict.keys():
+    if not operation:
+        return in_meas_1_name, data_in
+    if operation in op_dict.keys() and in_meas_2_name is not None:
         out_meas_name = op_dict[operation][1]
         data_in[out_meas_name] = op_dict[operation][0](
             data[in_meas_1_name], data[in_meas_2_name]
@@ -73,7 +81,6 @@ def get_tracklengths(
     field_of_view_id : str
         Name of the field of view column
     track_id : str
-        Name of the track id column
 
     Returns
     -------
@@ -85,13 +92,13 @@ def get_tracklengths(
     if df.empty:
         return 0, 0
 
-    if field_of_view_id != "None" and second_filter_id != "None":
+    if field_of_view_id and second_filter_id:
         track_lenths = df.groupby([field_of_view_id, second_filter_id, track_id])[
             track_id
         ].agg("count")
-    elif field_of_view_id != "None":
+    elif field_of_view_id:
         track_lenths = df.groupby([field_of_view_id, track_id])[track_id].agg("count")
-    elif second_filter_id != "None":
+    elif second_filter_id:
         track_lenths = df.groupby([second_filter_id, track_id])[track_id].agg("count")
     else:
         track_lenths = df.groupby([track_id])[track_id].agg("count")
@@ -103,7 +110,7 @@ def filter_data(
     df_in: pd.DataFrame,
     field_of_view_id_name: str,
     frame_name: str,
-    track_id_name: str,
+    track_id_name: str | None,
     measurement_name: str,
     additional_filter_column_name: str,
     posCols: list,
@@ -135,7 +142,7 @@ def filter_data(
         Name of the field of view column
     frame_name : str
         Name of the frame column
-    track_id_name : str
+    track_id_name : str | None
         Name of the track id column
     measurement_name : str
         Name of the measurement column
@@ -165,24 +172,25 @@ def filter_data(
 
     # if the position column was not chosen in columnpicker,
     # dont filter by position
-    if field_of_view_id_name != "None":
+    if field_of_view_id_name:
         # filter by position
         if len(df_in[field_of_view_id_name].unique()) > 1:
             # hast to be done before .filter_tracklenght otherwise code could break
             # if track ids are not unique to positions
             in_data.filter_position(fov_val)
 
-    if additional_filter_column_name != "None":
+    if additional_filter_column_name:
         in_data.filter_second_column(
             additional_filter_column_name,
             additional_filter_value,
         )
 
     # filter by tracklenght
-    in_data.filter_tracklength(
-        min_tracklength_value,
-        max_tracklength_value,
-    )
+    if track_id_name:
+        in_data.filter_tracklength(
+            min_tracklength_value,
+            max_tracklength_value,
+        )
     # option to set frame interval
     in_data.frame_interval(frame_interval)
 
@@ -213,33 +221,204 @@ def check_for_collid_column(data: pd.DataFrame, collid_column="collid", suffix="
     return data
 
 
-def preprocess_data(df: pd.DataFrame, op: str, meas_1: str, meas_2: str, op_dict: dict):
+def preprocess_data(
+    df: pd.DataFrame, columnames: columnnames, op_dict: dict | None = None
+):
     """Preprocesses data for calculation of measurement columns.
 
     Parameters
     ----------
     df : pd.DataFrame
         Input data
-    op : str
-        Operation to perform
-    meas_1 : str
-        Name of the first measurement column
-    meas_2 : str
-        Name of the second measurement column
-    op_dict : dict
-        Dictionary containing the operation to perform
+    columnames : columnnames
+        Object containing selected column names
+    op_dict : dict | None, optional
+        Dictionary containing the operation to perform. If None,
+        the OPERATOR_DICTIONARY is used, by default None.
 
     Returns
     -------
     pd.DataFrame
         Preprocessed data
     """
+    if op_dict is None:
+        op_dict = OPERATOR_DICTIONARY
+    op = columnames.measurement_math_operation
+    meas_1 = columnames.measurement_column_1
+    meas_2 = columnames.measurement_column_2
     try:
         return calculate_measurement(df, op, meas_1, meas_2, op_dict)
     except (KeyError, TypeError, ValueError) as err:
         raise type(err)(
-            f"Measurement columns not set properly, has to be int or float. Trying to {op.lower()} columns '{meas_1}' and '{meas_2}' and available columns are {df.columns.tolist()}"  # noqa: E501
+            f"Measurement columns not set properly, has to be int or float. Trying to {str(op).lower()} columns '{meas_1}' and '{str(meas_2)}' and available columns are {df.columns.tolist()}"  # noqa: E501
         ) from err
+
+
+def match_dataframes(
+    df1,
+    df2,
+    threshold_percentage=0.5,
+    frame_col="frame",
+    coord_cols1=["centroid-0", "centroid-1"],
+    coord_cols2=None,
+    std_out: Callable = print,
+):
+    """
+    Match the dataframes df1 and df2 based on centroid coordinates and frame.
+    Tries a direct merge first, then falls back to nearest neighbor approach.
+
+    Parameters:
+    - df1, df2: Input dataframes with coordinate and frame columns.
+    - threshold_percentage: Percentage of the data range to be used as the threshold.
+    - frame_col: Column name for frame identifier.
+    - coord_cols1: List of column names for coordinates in df1.
+    - coord_cols2: List of column names for coordinates in df2.
+    If None, it will be assumed to be the same as coord_cols1.
+
+    Returns:
+    - Combined dataframe of matched points.
+    """
+    if coord_cols2 is None:
+        coord_cols2 = coord_cols1
+
+    # Ensure both dataframes have the same number of coordinate columns
+    assert len(coord_cols1) == len(
+        coord_cols2
+    ), "Number of coordinate columns must be the same for both dataframes"
+
+    # Try a direct merge first
+    merge_cols = [frame_col] + coord_cols1
+    try:
+        merged_df = pd.merge(
+            df1,
+            df2,
+            left_on=merge_cols,
+            right_on=[frame_col] + coord_cols2,
+            how="inner",
+        )
+        # If the merged dataframe has the same length as df1, return it
+        if len(merged_df) == len(df1):
+            return merged_df
+    except Exception:
+        pass
+
+    std_out(
+        "Direct merge of tracking data failed, falling back to nearest neighbor approach"
+    )
+    # If there's an error during merge, we'll proceed with nearest neighbor
+
+    # If direct merge is unsuccessful or results in a dataframe of different length,
+    # proceed with nearest neighbor approach
+    # Calculate threshold based on the provided percentage
+    coord_ranges = [df1[col].max() - df1[col].min() for col in coord_cols1]
+    threshold = (threshold_percentage / 100.0) * max(coord_ranges)
+
+    results = []
+
+    # Iterate through unique frames
+    for frame in df1[frame_col].unique():
+        # Filter dataframes for the current frame
+        df1_frame = df1[df1[frame_col] == frame].copy()
+        df2_frame = df2[df2[frame_col] == frame].copy()
+
+        # If either dataframe segment is empty, skip to the next frame
+        if df1_frame.empty or df2_frame.empty:
+            continue
+
+        # Fit the NearestNeighbors model for df2's coordinates
+        neigh = NearestNeighbors(n_neighbors=1)
+        neigh.fit(df2_frame[coord_cols2])
+
+        # Query the nearest neighbor for each point in df1
+        distances, indices = neigh.kneighbors(df1_frame[coord_cols1])
+
+        # Filter out matches that exceed the threshold
+        mask = distances.ravel() < threshold
+        matched_df1 = df1_frame[mask]
+        matched_df2 = df2_frame.iloc[indices[mask].ravel()]
+
+        # Combine the matched dataframes and append to results
+        combined = pd.concat(
+            [
+                matched_df1.reset_index(drop=True),
+                matched_df2.track_id.reset_index(drop=True),
+            ],
+            axis=1,
+        )
+        results.append(combined)
+    merged_df = pd.concat(results)
+
+    if len(merged_df) != len(df1):
+        raise ValueError("Failed to match all points from tracking data")
+    return merged_df
+
+
+class DataFrameMatcher(QObject):
+    """Match dataframes in a separate thread.
+
+    Parameters
+    ----------
+    df1, df2 : pd.DataFrame
+        Dataframes to match
+    threshold_percentage : float, optional
+        Percentage of the data range to be used as the threshold
+    frame_col : str, optional
+        Column name for frame identifier
+    coord_cols1 : list of str, optional
+        List of column names for coordinates in df1
+    coord_cols2 : list of str, optional
+        List of column names for coordinates in df2. If None, it will be assumed to be the same as coord_cols1
+    parent : QObject, optional
+        Parent object
+
+    Signals
+    -------
+    finished : Signal
+        Emitted when the task is finished
+    matched : Signal
+        Emitted when matching is finished
+    aborted : Signal
+        Emitted when the task is aborted either by the user or an error
+    """
+
+    finished = Signal()
+    matched = Signal(pd.DataFrame)
+    aborted = Signal(object)
+
+    def __init__(
+        self,
+        df1,
+        df2,
+        threshold_percentage=0.5,
+        frame_col="frame",
+        coord_cols1=["centroid-0", "centroid-1"],
+        coord_cols2=None,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self.df1 = df1
+        self.df2 = df2
+        self.threshold_percentage = threshold_percentage
+        self.frame_col = frame_col
+        self.coord_cols1 = coord_cols1
+        self.coord_cols2 = coord_cols2
+
+    def run(self):
+        """Task to match dataframes."""
+        try:
+            matched_df = match_dataframes(
+                self.df1,
+                self.df2,
+                self.threshold_percentage,
+                self.frame_col,
+                self.coord_cols1,
+                self.coord_cols2,
+            )
+            self.matched.emit(matched_df)
+        except Exception as e:
+            self.aborted.emit(e)
+        finally:
+            self.finished.emit()
 
 
 def get_delimiter(file_path: str, bytes_to_load=4096):
@@ -307,7 +486,7 @@ class process_input:
         field_of_view_column: str,
         frame_column: str,
         pos_columns: list,
-        track_id_column: str,
+        track_id_column: str | None,
         measurement_column: str,
     ):
         """Process input data. Optionally filter by position and track length.
@@ -323,7 +502,7 @@ class process_input:
         pos_columns : list
             list of column names containing position
 
-        track_id_column : str
+        track_id_column : str | None
             name of column containing track id
         measurement_column : str
             name of column containing measurement
@@ -388,6 +567,10 @@ class process_input:
         return_dataframe : bool, optional
             if True, returns filtered dataframe, by default False
         """
+        if self.track_id_column is None:
+            raise ValueError(
+                "Track id column not set, can not filter by track length. Set track id column in constructor."  # noqa: E501
+            )
         track_length = self.df.groupby(self.track_id_column).size()
         track_length_filtered = track_length.between(min_val, max_val)
         track_length_filtered_names = track_length_filtered[track_length_filtered].index
@@ -415,6 +598,40 @@ class process_input:
     def return_pd_df(self) -> pd.DataFrame:
         """Returns the dataframe."""
         return self.df
+
+
+def layer_to_df(layer: napari.layers.Layer) -> pd.DataFrame:
+    """Returns a dataframe from a napari layer properties object.
+
+    Parameters
+    ----------
+    layer : napari.layers.Layer
+        Napari layer
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    df = pd.DataFrame(layer.properties)
+    return df
+
+
+def dataframe_from_layers(layers: list[napari.layers.Layer]):
+    """Returns a dataframe from a list of napari layers.
+
+    Parameters
+    ----------
+    layers : list[napari.layers.Layer]
+        List of napari layers
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe with columns: fov, frame, x, y, track_id, measurement
+    """
+    dfs = [layer_to_df(layer) for layer in layers]
+    df = pd.concat(dfs, ignore_index=True)
+    return df
 
 
 class DataLoader(QObject):
@@ -445,7 +662,7 @@ class DataLoader(QObject):
 
     finished = Signal()
     loading_finished = Signal()
-    new_data = Signal(pd.DataFrame, str)
+    new_data = Signal(pd.DataFrame)
     aborted = Signal(object)
 
     def __init__(
@@ -461,15 +678,11 @@ class DataLoader(QObject):
         self.wait_for_columnpicker = wait_for_columnpicker
         self.abort_loading = False
 
-        self.op = None
-        self.meas_1 = None
-        self.meas_2 = None
-
     def run(self):
         """Task to load data."""
         try:
             df = self._load_data(self.filepath, self.delimiter)
-            self._preprocess_data(df)
+            self._emit_when_ready(df)
             self.aborted.emit(0)
         except Exception as e:
             # print(e)
@@ -484,7 +697,7 @@ class DataLoader(QObject):
 
         return df
 
-    def _preprocess_data(self, dataframe):
+    def _emit_when_ready(self, df):
         """Preprocesses data and stores it in the data storage."""
         while self.wait_for_columnpicker:
             time.sleep(0.1)
@@ -493,17 +706,4 @@ class DataLoader(QObject):
             self.aborted.emit(1)
             return
 
-        operation = self.op
-        in_meas1 = self.meas_1
-        in_meas2 = self.meas_2
-        names_list = [operation, in_meas1, in_meas2]
-
-        if names_list.count(None) == len(names_list):
-            self.new_data.emit(dataframe, "None")
-            return
-
-        meas_name, df_new = preprocess_data(
-            dataframe, operation, in_meas1, in_meas2, OPERATOR_DICTIONARY
-        )
-
-        self.new_data.emit(df_new, meas_name)
+        self.new_data.emit(df)
