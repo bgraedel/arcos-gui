@@ -120,6 +120,15 @@ class FilterController:
         self.data_storage_instance.original_data.value_changed.connect(
             self._original_data_changed
         )
+        self.data_storage_instance.min_max_tracklenght.value_changed.connect(
+            self._set_tracklengths
+        )
+        self.widget.max_tracklength_spinbox.valueChanged.connect(
+            self._update_data_storage_tracklenght
+        )
+        self.widget.min_tracklength_spinbox.valueChanged.connect(
+            self._update_data_storage_tracklenght
+        )
         self.widget.filter_input_data.clicked.connect(self._filter_data)
         self._set_default_values()
 
@@ -204,7 +213,7 @@ class FilterController:
         """Method to update the data storage."""
         self.data_storage_instance.reset_relevant_attributes(True)
         self.data_storage_instance.filtered_data.value = df_filtered
-        self.data_storage_instance.min_max_meas.value = (min_meas, max_meas)
+        self.data_storage_instance.min_max_meas.value = [min_meas, max_meas]
 
     def _set_tracklengths(self):
         """Method to set the tracklengths."""
@@ -228,3 +237,12 @@ class FilterController:
 
     def _remove_old_layers(self):
         remove_layers_after_columnpicker(self.viewer, ARCOS_LAYERS.values())
+
+    def _update_data_storage_tracklenght(self):
+        """Method to update the data storage."""
+        self.data_storage_instance.toggle_callback_block(True)
+        self.data_storage_instance.min_max_tracklenght.value = [
+            self.widget.min_tracklength_spinbox.value(),
+            self.widget.max_tracklength_spinbox.value(),
+        ]
+        self.data_storage_instance.toggle_callback_block(False)

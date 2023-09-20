@@ -21,7 +21,7 @@ from arcos_gui.processing._preprocessing_utils import (
 )
 from arcos_gui.tools import OPERATOR_DICTIONARY
 from arcos_gui.widgets import columnpicker
-from qtpy.QtCore import QEventLoop, Qt, QThread
+from qtpy.QtCore import QEventLoop, Qt
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -393,7 +393,6 @@ def test_rescale_measurment(process_input_fixture: process_input):
 
 def test_data_loader_thread(qtbot):
     loop = QEventLoop()
-    thread = QThread(loop)
     data_loader = DataLoader(
         "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ","
     )
@@ -401,24 +400,12 @@ def test_data_loader_thread(qtbot):
     def assert_data(df):
         assert isinstance(df, pd.DataFrame)
 
-    # create event loop so the test function does not end
-    # before the thread can finish
-
-    # move worker to thread
-    data_loader.moveToThread(thread)
-    # set up starting callbacks
-    thread.started.connect(data_loader.run)
-    # set up finished callbacks
-    data_loader.finished.connect(data_loader.deleteLater)
-
-    thread.finished.connect(thread.deleteLater)
-    data_loader.finished.connect(thread.quit)
-    thread.finished.connect(loop.quit)
+    data_loader.finished.connect(loop.quit)
 
     # connect the assert function to the data signal
     data_loader.new_data.connect(assert_data)
     # start the thread and the event loop
-    thread.start()
+    data_loader.start()
     loop.exec_()
 
 
@@ -432,7 +419,6 @@ def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
     # create event loop so the test function does not end
     # before the thread can finish
     loop = QEventLoop()
-    thread = QThread()
     # now with option True to make sure that the data loader waits for the colosing of columnpicker
     data_loader = DataLoader(
         "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ",", True
@@ -447,21 +433,12 @@ def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
     # Quite important otherwise the test will not end
     picker_widget.ok_button.clicked.connect(set_loading_worker_columns)
 
-    # move worker to thread
-    data_loader.moveToThread(thread)
-    # set up starting callbacks
-    thread.started.connect(data_loader.run)
-    # set up finished callbacks
-    data_loader.finished.connect(data_loader.deleteLater)
-    data_loader.finished.connect(thread.quit)
-
-    thread.finished.connect(thread.deleteLater)
-    thread.finished.connect(loop.quit)
+    data_loader.finished.connect(loop.quit)
 
     data_loader.new_data.connect(assert_data)
 
     # start the thread and the event loop
-    thread.start()
+    data_loader.start()
 
     # set the columnpicker to the correct values needed for the test
     picker_widget.measurement_math.setCurrentText("None")

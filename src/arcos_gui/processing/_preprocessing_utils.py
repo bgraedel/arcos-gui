@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import csv
 import gzip
+import os
 import time
+from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Union
 
 import pandas as pd
 from arcos_gui.tools import OPERATOR_DICTIONARY
-from qtpy.QtCore import QObject, Signal
+from napari.qt.threading import WorkerBase, WorkerBaseSignals
+from qtpy.QtCore import Signal
 from sklearn.neighbors import NearestNeighbors
 
 if TYPE_CHECKING:
@@ -18,8 +21,59 @@ if TYPE_CHECKING:
     from ._data_storage import columnnames
 
 
+def create_output_folders(base_path, subfolders):
+    # Get the current date in the desired format
+    current_date = datetime.today().strftime("%Y%m%d")
+
+    # Create the base directory structure
+    base_directory = os.path.join(base_path, "arcos_output", current_date)
+    counter = 0
+    while os.path.exists(base_directory):
+        counter += 1
+        base_directory = os.path.join(
+            base_path, "arcos_output", f"{current_date}_{counter}"
+        )
+
+    # Ensure the base directory exists
+    os.makedirs(base_directory, exist_ok=True)
+
+    # Create subfolders inside the base directory
+    for subfolder in subfolders:
+        os.makedirs(os.path.join(base_directory, subfolder), exist_ok=True)
+
+    return base_directory, subfolders
+
+
+def create_file_names(
+    base_path: str,
+    file_name: str,
+    what_to_export: list[str],
+    file_extension: list[str],
+    fov=None,
+    additional_filter=None,
+    fov_name=None,
+    additional_filter_name=None,
+):
+    # Create a dictionary to hold the file paths
+    file_paths = {}
+
+    # Create a file name for each item in what_to_export
+    for file_to_export, ext in zip(what_to_export, file_extension):
+        if fov is not None and fov_name is not None:
+            file_name += f"_{fov_name}{fov}"
+        if additional_filter is not None and additional_filter_name is not None:
+            file_name += f"_{additional_filter_name}{additional_filter}"
+        file_paths[file_to_export] = os.path.join(
+            base_path, file_to_export, f"{file_name}.{ext}"
+        )
+
+    return file_paths
+
+
 def subtract_timeoffset(data, frame_col):
     """Method to subtract the timeoffset in the frame column of data"""
+    if data.empty:
+        return data
     data[frame_col] -= min(data[frame_col])
     return data
 
@@ -168,7 +222,7 @@ def filter_data(
 
     if df_in.empty or field_of_view_id_name == measurement_name:
         st_out("No data loaded, or not loaded correctly")
-        return pd.DataFrame([]), None, None
+        return pd.DataFrame([]), 1, 1
 
     # if the position column was not chosen in columnpicker,
     # dont filter by position
@@ -353,7 +407,13 @@ def match_dataframes(
     return merged_df
 
 
-class DataFrameMatcher(QObject):
+class DataFrameMatcherSignals(WorkerBaseSignals):
+    finished = Signal()
+    aborted = Signal(object)
+    matched = Signal(pd.DataFrame)
+
+
+class DataFrameMatcher(WorkerBase):
     """Match dataframes in a separate thread.
 
     Parameters
@@ -381,10 +441,6 @@ class DataFrameMatcher(QObject):
         Emitted when the task is aborted either by the user or an error
     """
 
-    finished = Signal()
-    matched = Signal(pd.DataFrame)
-    aborted = Signal(object)
-
     def __init__(
         self,
         df1,
@@ -393,9 +449,8 @@ class DataFrameMatcher(QObject):
         frame_col="frame",
         coord_cols1=["centroid-0", "centroid-1"],
         coord_cols2=None,
-        parent=None,
     ):
-        super().__init__(parent)
+        super().__init__(SignalsClass=DataFrameMatcherSignals)
         self.df1 = df1
         self.df2 = df2
         self.threshold_percentage = threshold_percentage
@@ -634,7 +689,14 @@ def dataframe_from_layers(layers: list[napari.layers.Layer]):
     return df
 
 
-class DataLoader(QObject):
+class DataLoaderSignals(WorkerBaseSignals):
+    finished = Signal()
+    loading_finished = Signal()
+    new_data = Signal(pd.DataFrame)
+    aborted = Signal(object)
+
+
+class DataLoader(WorkerBase):
     """Load data in a separate thread.
 
     Parameters
@@ -660,19 +722,18 @@ class DataLoader(QObject):
         Emitted when the task is aborted either by the user or an error.
     """
 
-    finished = Signal()
-    loading_finished = Signal()
-    new_data = Signal(pd.DataFrame)
-    aborted = Signal(object)
+    # finished = Signal()
+    # loading_finished = Signal()
+    # new_data = Signal(pd.DataFrame)
+    # aborted = Signal(object)
 
     def __init__(
         self,
         filepath: str,
         delimiter: str,
         wait_for_columnpicker=False,
-        parent=None,
     ):
-        super().__init__(parent)
+        super().__init__(SignalsClass=DataLoaderSignals)
         self.filepath = filepath
         self.delimiter = delimiter
         self.wait_for_columnpicker = wait_for_columnpicker

@@ -286,7 +286,7 @@ def test_update_arcos_parameters(make_arcos_widget):
     # updates the DataStorage instance linked to the arcos widget
     ds_test.arcos_parameters
     arcos_widget, qtbot = make_arcos_widget
-    arcos_widget._update_arcos_parameters()
+    arcos_widget._update_arcos_parameters_object()
     # checks if the parameters are updated correctly
     assert (
         arcos_widget._data_storage_instance.arcos_parameters == ds_test.arcos_parameters
@@ -334,13 +334,13 @@ def test_output_order_text_changed(make_arcos_widget, qtbot):
     widget = make_arcos_widget[0].widget
     widget.updateValidator(None)
     widget.output_order.setText("tyx")
-    widget.onTextChanged("tyx")
+    widget._onTextChanged("tyx")
     assert widget.update_arcos.isEnabled() is True
     assert widget.run_binarization_only.isEnabled() is True
     assert widget.output_order.styleSheet() == ""
 
     widget.output_order.setText("tzx")
-    widget.onTextChanged("tzx")
+    widget._onTextChanged("tzx")
     assert widget.update_arcos.isEnabled() is False
     assert widget.run_binarization_only.isEnabled() is False
     assert (
@@ -353,11 +353,10 @@ def test_output_order_text_changed(make_arcos_widget, qtbot):
 def test_createWorkerThread(make_arcos_widget):
     arcos_widget = make_arcos_widget[0]
     # Call the method
-    arcos_widget.createWorkerThread()
+    arcos_widget.createWorkerThread(arcos_widget._what_to_run)
 
-    # Check that the worker and worker_thread attributes are set
+    # Check that the worker is up
     assert arcos_widget.worker is not None
-    assert arcos_widget.worker_thread is not None
 
 
 def test_update_eps(make_arcos_widget):
@@ -375,21 +374,23 @@ def test_update_eps(make_arcos_widget):
 
 def test_abort_worker(make_arcos_widget):
     arcos_widget = make_arcos_widget[0]
+    arcos_widget.createWorkerThread(arcos_widget._what_to_run)
     # Call the method
     arcos_widget.abort_worker()
 
     # Check that the aborted_flag attribute was set to True
-    assert arcos_widget.worker.aborted_flag is True
+    assert arcos_widget.worker.abort_requested is True
     arcos_widget.widget.close()
 
 
 def test_closeEvent(make_arcos_widget):
     arcos_widget = make_arcos_widget[0]
+    arcos_widget.createWorkerThread(arcos_widget._what_to_run)
     # Call the method
     arcos_widget.closeEvent()
 
     # Check that the worker_thread was terminated
-    assert arcos_widget.worker_thread.isRunning() is False
+    assert arcos_widget.worker.abort_requested is True
 
 
 def test_bin_advanced_options_toggle(make_arcos_ui):

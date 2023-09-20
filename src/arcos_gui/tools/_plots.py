@@ -242,7 +242,7 @@ class CollevPlotter(QtWidgets.QWidget):
         clid = int(self.stats.iloc[ind[0]].iloc[0])
         current_colev = self.arcos[self.arcos["collid"] == clid]
         edge_size = self.point_size / 5
-        frame = self.stats.iloc[ind[0]].iloc[5]
+        frame = self.stats.iloc[ind[0]].iloc[2]
         if ARCOS_LAYERS["event_boundingbox"] in self.viewer.layers:
             self.viewer.layers.remove(ARCOS_LAYERS["event_boundingbox"])
         if self.posz is None:
@@ -621,7 +621,7 @@ class NoodlePlot(QtWidgets.QWidget):
         clid = int(self.dat_grpd[clid_index][0, 0])
         current_colev = self.arcos[self.arcos["collid"] == clid]
         edge_size = self.point_size / 5
-        frame = int(self.stats[self.stats.iloc[:, 0] == clid].iloc[:, 5].iloc[0])
+        frame = int(self.stats[self.stats.iloc[:, 0] == clid].iloc[:, 2].iloc[0])
         if ARCOS_LAYERS["event_boundingbox"] in self.viewer.layers:
             self.viewer.layers.remove(ARCOS_LAYERS["event_boundingbox"])
         if self.posz is None:

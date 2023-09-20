@@ -48,4 +48,4 @@ repos:
         files: "^src/"
         pass_filenames: true
         args: [--ignore-missing-imports]
-        additional_dependencies: ['types-requests']
+        additional_dependencies: ['types-requests', types-PyYAML]

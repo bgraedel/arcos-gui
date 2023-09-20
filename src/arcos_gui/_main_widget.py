@@ -70,53 +70,49 @@ class MainWindow(QtWidgets.QWidget):
         """Constructs class with provided arguments."""
         super().__init__(parent=parent)
         self.viewer: napari.viewer.Viewer = viewer
-        self.widget = _MainUI(self)
+        self._widget = _MainUI(self)
         MainWindow._instance = weakref.ref(self)
-        self.setLayout(self.widget.layout())
+        self.setLayout(self._widget.layout())
 
-        self.data_storage_instance = DataStorage()
+        self.data = DataStorage()
         # self.data_storage_instance.set_verbose(
         #     True
         # )  # uncomment to make callbacks verbose
 
-        self.input_controller = InputdataController(
-            data_storage_instance=self.data_storage_instance,
+        self._input_controller = InputdataController(
+            data_storage_instance=self.data,
             std_out=show_info,
             viewer=self.viewer,
             parent=self,
         )
-        self.filter_controller = FilterController(
+        self._filter_controller = FilterController(
             viewer=self.viewer,
-            data_storage_instance=self.data_storage_instance,
+            data_storage_instance=self.data,
             parent=self,
         )
-        self.arcos_widget = ArcosController(
-            data_storage_instance=self.data_storage_instance,
+        self._arcos_widget = ArcosController(
+            data_storage_instance=self.data,
             parent=self,
         )
-        self.layer_prop_controller = LayerpropertiesController(
+        self._layer_prop_controller = LayerpropertiesController(
             viewer=self.viewer,
-            data_storage_instance=self.data_storage_instance,
+            data_storage_instance=self.data,
             parent=self,
         )
-        self.ts_plots_widget = tsPlotWidget(
-            self.viewer, self.data_storage_instance, self
-        )
-        self.collev_plots_widget = collevPlotWidget(
-            self.viewer, self.data_storage_instance, self
-        )
-        self.export = ExportController(
+        self._ts_plots_widget = tsPlotWidget(self.viewer, self.data, self)
+        self._collev_plots_widget = collevPlotWidget(self.viewer, self.data, self)
+        self._export = ExportController(
             viewer=self.viewer,
-            data_storage_instance=self.data_storage_instance,
+            data_storage_instance=self.data,
             parent=self,
         )
 
-        self.bottom_bar = BottombarController(
-            data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+        self._bottom_bar = BottombarController(
+            data_storage_instance=self.data,
+            parent=self._widget,
         )
 
-        self.layermaker = Layermaker(self.viewer, self.data_storage_instance)
+        self._layermaker = Layermaker(self.viewer, self.data)
 
         self._add_widgets()
         self._connect_signals()
@@ -127,22 +123,22 @@ class MainWindow(QtWidgets.QWidget):
         return cls._instance() if cls._instance else None
 
     def _connect_signals(self):
-        self.data_storage_instance.arcos_binarization.value_changed.connect(
-            self.layermaker.make_layers_bin
+        self.data.arcos_binarization.value_changed.connect(
+            self._layermaker.make_layers_bin
         )
-        self.data_storage_instance.arcos_output.value_changed.connect(
-            self.layermaker.make_layers_all
-        )
+        self.data.arcos_output.value_changed.connect(self._layermaker.make_layers_all)
 
     def _add_widgets(self):
-        self.widget.inputdata_groupBox.layout().addWidget(self.input_controller.widget)
-        self.widget.filter_groupBox.layout().addWidget(self.filter_controller.widget)
-        self.widget.arcos_layout.addWidget(self.arcos_widget.widget)
-        self.widget.layer_prop_layout.addWidget(self.layer_prop_controller.widget)
-        self.widget.tsplots_layout.addWidget(self.ts_plots_widget)
-        self.widget.evplots_layout.addWidget(self.collev_plots_widget)
-        self.widget.export_layout.addWidget(self.export.widget)
-        self.widget.bottom_bar_layout.addWidget(self.bottom_bar.widget)
+        self._widget.inputdata_groupBox.layout().addWidget(
+            self._input_controller.widget
+        )
+        self._widget.filter_groupBox.layout().addWidget(self._filter_controller.widget)
+        self._widget.arcos_layout.addWidget(self._arcos_widget.widget)
+        self._widget.layer_prop_layout.addWidget(self._layer_prop_controller.widget)
+        self._widget.tsplots_layout.addWidget(self._ts_plots_widget)
+        self._widget.evplots_layout.addWidget(self._collev_plots_widget)
+        self._widget.export_layout.addWidget(self._export.widget)
+        self._widget.bottom_bar_layout.addWidget(self._bottom_bar.widget)
 
 
 if __name__ == "__main__":

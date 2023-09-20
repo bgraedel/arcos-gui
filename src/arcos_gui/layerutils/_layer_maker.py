@@ -187,4 +187,4 @@ class Layermaker:
         self.point_index = list(event.sources[0].selected_data)
         self.id = event.sources[0].properties["id"][self.point_index]
         self._prev_point_data = event.sources[0].data[self.point_index]
-        self.data_storage_instance.selected_object_id.value = self.id
+        self.data_storage_instance.selected_object_id.value = self.id.tolist()

@@ -23,7 +23,7 @@ def prepare_all_cells_layer(
     track_id_col: str | None,
     measurement_name: str,
     lut: str,
-    min_max: tuple,
+    min_max: list[float],
     size: float,
     axis_order: str | None = None,
 ) -> Union[tuple, None]:
@@ -75,7 +75,7 @@ def prepare_all_cells_layer(
             "edge_color": "act",
             "face_color": "act",
             "face_colormap": lut,
-            "face_contrast_limits": min_max,
+            "face_contrast_limits": tuple(min_max),
             "size": size,
             "opacity": 1,
             "symbol": "disc",

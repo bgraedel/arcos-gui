@@ -3,7 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 from arcos4py import ARCOS
-from arcos_gui.processing import DataStorage
+from arcos_gui.processing import (
+    ArcosParameters,
+    BatchProcessor,
+    DataStorage,
+    columnnames,
+)
 from arcos_gui.processing._arcos_wrapper import (
     arcos_worker,
     binarization,
@@ -141,9 +146,6 @@ def test_calculate_arcos_stats():
     assert arcos_stats["collid"].nunique() == 1
 
 
-@pytest.mark.xfail(
-    reason="currently expected to fail due to bug in arcos4py eps_estimatoin function"
-)
 def test_get_eps():
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     arcos_object = init_arcos_object(df, ["x", "y"], "m", "t", "id")
@@ -164,7 +166,7 @@ def test_arcos_wrapper_run_all():
     what_to_run = {"binarization", "filtering", "tracking"}
     ds = DataStorage()
     filtered_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
-    ds.set_verbose(True)
+    ds.set_callbacks_verbose(True)
     ds.columns.value.frame_column = "t"
     ds.columns.value.object_id = "id"
     ds.columns.value.x_column = "x"
@@ -197,7 +199,7 @@ def test_arcos_wrapper_run_all():
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
     assert not worker.arcos_raw_output.empty
@@ -236,7 +238,7 @@ def test_arcos_wrapper_run_no_data(capsys):
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     captured_data = capsys.readouterr()
     assert worker.filtered_data.empty
     assert worker.arcos_object.data.empty
@@ -282,7 +284,7 @@ def test_arcos_wrapper_run_no_bin_data(capsys):
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     captured_data = capsys.readouterr()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
@@ -328,7 +330,7 @@ def test_arcos_wrapper_run_no_detected_events_data(capsys):
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 50
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     captured_data = capsys.readouterr()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
@@ -377,7 +379,7 @@ def test_arcos_wrapper_run_no_filtered_data(capsys):
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 50
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     captured_data = capsys.readouterr()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
@@ -438,14 +440,14 @@ def test_arcos_wrapper_run_specific_parts():
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
     assert worker.arcos_raw_output.empty
 
     what_to_run.clear()
     what_to_run.add("tracking")
-    worker.run_arcos()
+    worker.run()
 
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
@@ -455,7 +457,7 @@ def test_arcos_wrapper_run_specific_parts():
 
     what_to_run.clear()
     what_to_run.add("filtering")
-    worker.run_arcos()
+    worker.run()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
     assert not worker.arcos_raw_output.empty
@@ -510,9 +512,84 @@ def test_arcos_wrapper_epsMethod():
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
     assert not worker.arcos_raw_output.empty
 
     assert get_data_from_eps.eps != 0
+
+
+def test_init_batch():
+    # Test the initialization of the BatchProcessor class
+
+    # Replace these with the correct initialization based on your class definitions
+    arcos_parameters = ArcosParameters()
+    column_names = columnnames()
+
+    bp = BatchProcessor(
+        input_path="path/to/directory",
+        arcos_parameters=arcos_parameters,
+        columnames=column_names,
+        min_tracklength=1,
+        max_tracklength=100,
+        what_to_export=["arcos_output", "arcos_stats"],
+    )
+
+    assert bp.input_path == "path/to/directory"
+    assert bp.arcos_parameters == arcos_parameters
+    assert bp.columnames == column_names
+
+
+def test_create_fileendings_list():
+    # Test the _create_fileendings_list method
+    arcos_parameters = ArcosParameters()
+    column_names = columnnames()
+
+    bp = BatchProcessor(
+        input_path="path/to/directory",
+        arcos_parameters=arcos_parameters,
+        columnames=column_names,
+        min_tracklength=1,
+        max_tracklength=100,
+        what_to_export=["arcos_output", "statsplot"],
+    )
+
+    fileendings = bp._create_fileendings_list()
+    assert fileendings == [
+        ".csv",
+        ".svg",
+    ]  # replace with the expected list of file endings
+
+
+def test_run_arcos_batch():
+    arcos_parameters = ArcosParameters()
+    column_names = columnnames(
+        frame_column="t",
+        object_id="id",
+        x_column="x",
+        y_column="y",
+        z_column=None,
+        measurement_column="m",
+        position_id=None,
+        additional_filter_column=None,
+        measurement_math_operation=None,
+        measurement_bin="m.bin",
+        measurement_resc="m.resc",
+    )
+
+    bp = BatchProcessor(
+        input_path="src/arcos_gui/_tests/test_data/arcos_data.csv",
+        arcos_parameters=arcos_parameters,
+        columnames=column_names,
+        min_tracklength=1,
+        max_tracklength=100,
+        what_to_export=["arcos_output", "arcos_stats"],
+    )
+
+    df_in = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
+
+    # Call the method with the test data
+    arcos_df_filtered, arcos_stats = bp.run_arcos_batch(df_in)
+    assert arcos_df_filtered is not None
+    assert arcos_stats is not None

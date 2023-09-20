@@ -44,3 +44,11 @@ ARCOS_LAYERS = {
     "event_boundingbox": "Event Bounding Box",
     "timestamp": "Timestamp",
 }
+
+AVAILABLE_OPTIONS_FOR_BATCH = [
+    "arcos_output",
+    "arcos_stats",
+    "per_frame_statistics",
+    "noodleplot",
+    "statsplot",
+]

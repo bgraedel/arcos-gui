@@ -33,19 +33,19 @@ def dock_arcos_widget_w_colnames_set(
     dock_arcos_widget: tuple[napari.viewer.Viewer, MainWindow]
 ):
     viewer, mywidget = dock_arcos_widget
-    mywidget.data_storage_instance.columns.value.frame_column = "t"
-    mywidget.data_storage_instance.columns.value.object_id = "id"
-    mywidget.data_storage_instance.columns.value.x_column = "x"
-    mywidget.data_storage_instance.columns.value.y_column = "y"
-    mywidget.data_storage_instance.columns.value.z_column = None
-    mywidget.data_storage_instance.columns.value.measurement_column = "m"
-    mywidget.data_storage_instance.columns.value.measurement_column_1 = "m"
-    mywidget.data_storage_instance.columns.value.measurement_column_2 = None
-    mywidget.data_storage_instance.columns.value.position_id = "Position"
-    mywidget.data_storage_instance.columns.value.additional_filter_column = None
-    mywidget.data_storage_instance.columns.value.measurement_math_operation = None
-    mywidget.data_storage_instance.columns.value.measurement_bin = "m"
-    mywidget.data_storage_instance.columns.value.measurement_resc = "m"
+    mywidget.data.columns.value.frame_column = "t"
+    mywidget.data.columns.value.object_id = "id"
+    mywidget.data.columns.value.x_column = "x"
+    mywidget.data.columns.value.y_column = "y"
+    mywidget.data.columns.value.z_column = None
+    mywidget.data.columns.value.measurement_column = "m"
+    mywidget.data.columns.value.measurement_column_1 = "m"
+    mywidget.data.columns.value.measurement_column_2 = None
+    mywidget.data.columns.value.position_id = "Position"
+    mywidget.data.columns.value.additional_filter_column = None
+    mywidget.data.columns.value.measurement_math_operation = None
+    mywidget.data.columns.value.measurement_bin = "m"
+    mywidget.data.columns.value.measurement_resc = "m"
     return viewer, mywidget
 
 
@@ -74,39 +74,37 @@ def test_load_data(
         "src/arcos_gui/_tests/test_data/arcos_data.csv",
         "csv (*.csv)",
     )
-    mywidget.input_controller.widget.browse_file.click()
+    mywidget._input_controller.widget.browse_file.click()
     assert (
-        mywidget.input_controller.widget.file_LineEdit.text()
+        mywidget._input_controller.widget.file_LineEdit.text()
         == "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
 
     # asser that there indeed is no data loaded for now
-    assert mywidget.data_storage_instance.original_data.value.empty
+    assert mywidget.data.original_data.value.empty
     # check if data was filtered / filtered_data was updated
-    assert mywidget.data_storage_instance.filtered_data.value.empty
+    assert mywidget.data.filtered_data.value.empty
 
     # user sets columnames
-    mywidget.input_controller.widget.load_data_button.click()
-    mywidget.input_controller.picker.frame.setCurrentText("t")
-    mywidget.input_controller.picker.track_id.setCurrentText("id")
-    mywidget.input_controller.picker.x_coordinates.setCurrentText("x")
-    mywidget.input_controller.picker.y_coordinates.setCurrentText("y")
-    mywidget.input_controller.picker.z_coordinates.setCurrentText("None")
-    mywidget.input_controller.picker.measurement.setCurrentText("m")
-    mywidget.input_controller.picker.second_measurement.setCurrentText("None")
-    mywidget.input_controller.picker.field_of_view_id.setCurrentText("None")
-    mywidget.input_controller.picker.additional_filter.setCurrentText("None")
-    mywidget.input_controller.picker.measurement_math.setCurrentText("None")
+    mywidget._input_controller.widget.load_data_button.click()
+    mywidget._input_controller.picker.frame.setCurrentText("t")
+    mywidget._input_controller.picker.track_id.setCurrentText("id")
+    mywidget._input_controller.picker.x_coordinates.setCurrentText("x")
+    mywidget._input_controller.picker.y_coordinates.setCurrentText("y")
+    mywidget._input_controller.picker.z_coordinates.setCurrentText("None")
+    mywidget._input_controller.picker.measurement.setCurrentText("m")
+    mywidget._input_controller.picker.second_measurement.setCurrentText("None")
+    mywidget._input_controller.picker.field_of_view_id.setCurrentText("None")
+    mywidget._input_controller.picker.additional_filter.setCurrentText("None")
+    mywidget._input_controller.picker.measurement_math.setCurrentText("None")
     # user clicks ok
-    mywidget.input_controller.picker.ok_button.click()
+    mywidget._input_controller.picker.ok_button.click()
 
     # need this event loop thingy to wait for the creation of the preprocessing worker
     loop = QEventLoop()
-    mywidget.input_controller.loading_worker.finished.connect(loop.quit)
+    mywidget._input_controller.loading_worker.finished.connect(loop.quit)
     loop.exec_()
-    columnames_list = (
-        mywidget.data_storage_instance.columns.value.pickablepickable_columns_names
-    )
+    columnames_list = mywidget.data.columns.value.pickablepickable_columns_names
     assert columnames_list == [
         "t",
         "id",
@@ -120,9 +118,9 @@ def test_load_data(
         None,
     ]
     # check if data is loaded
-    assert mywidget.data_storage_instance.original_data.value.empty is False
+    assert mywidget.data.original_data.value.empty is False
     # check if data was filtered / filtered_data was updated
-    assert mywidget.data_storage_instance.filtered_data.value.empty is False
+    assert mywidget.data.filtered_data.value.empty is False
 
 
 @patch("qtpy.QtWidgets.QFileDialog.getOpenFileName")
@@ -134,39 +132,37 @@ def test_load_data_with_additional_filter(
         "src/arcos_gui/_tests/test_data/arcos_data.csv",
         "csv (*.csv)",
     )
-    mywidget.input_controller.widget.browse_file.click()
+    mywidget._input_controller.widget.browse_file.click()
     assert (
-        mywidget.input_controller.widget.file_LineEdit.text()
+        mywidget._input_controller.widget.file_LineEdit.text()
         == "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
 
     # asser that there indeed is no data loaded for now
-    assert mywidget.data_storage_instance.original_data.value.empty
+    assert mywidget.data.original_data.value.empty
     # check if data was filtered / filtered_data was updated
-    assert mywidget.data_storage_instance.filtered_data.value.empty
+    assert mywidget.data.filtered_data.value.empty
 
     # user sets columnames
-    mywidget.input_controller.widget.load_data_button.click()
-    mywidget.input_controller.picker.frame.setCurrentText("t")
-    mywidget.input_controller.picker.track_id.setCurrentText("id")
-    mywidget.input_controller.picker.x_coordinates.setCurrentText("x")
-    mywidget.input_controller.picker.y_coordinates.setCurrentText("y")
-    mywidget.input_controller.picker.z_coordinates.setCurrentText("None")
-    mywidget.input_controller.picker.measurement.setCurrentText("m")
-    mywidget.input_controller.picker.second_measurement.setCurrentText("None")
-    mywidget.input_controller.picker.field_of_view_id.setCurrentText("None")
-    mywidget.input_controller.picker.additional_filter.setCurrentText("id")
-    mywidget.input_controller.picker.measurement_math.setCurrentText("None")
+    mywidget._input_controller.widget.load_data_button.click()
+    mywidget._input_controller.picker.frame.setCurrentText("t")
+    mywidget._input_controller.picker.track_id.setCurrentText("id")
+    mywidget._input_controller.picker.x_coordinates.setCurrentText("x")
+    mywidget._input_controller.picker.y_coordinates.setCurrentText("y")
+    mywidget._input_controller.picker.z_coordinates.setCurrentText("None")
+    mywidget._input_controller.picker.measurement.setCurrentText("m")
+    mywidget._input_controller.picker.second_measurement.setCurrentText("None")
+    mywidget._input_controller.picker.field_of_view_id.setCurrentText("None")
+    mywidget._input_controller.picker.additional_filter.setCurrentText("id")
+    mywidget._input_controller.picker.measurement_math.setCurrentText("None")
 
     # need this event loop thingy to wait for the creation of the preprocessing worker
     loop = QEventLoop()
-    mywidget.input_controller.loading_worker.finished.connect(loop.quit)
+    mywidget._input_controller.loading_worker.finished.connect(loop.quit)
     # user clicks ok
-    mywidget.input_controller.picker.ok_button.click()
+    mywidget._input_controller.picker.ok_button.click()
     loop.exec_()
-    columnames_list = (
-        mywidget.data_storage_instance.columns.value.pickablepickable_columns_names
-    )
+    columnames_list = mywidget.data.columns.value.pickablepickable_columns_names
     assert columnames_list == [
         "t",
         "id",
@@ -180,9 +176,9 @@ def test_load_data_with_additional_filter(
         None,
     ]
     # check if data is loaded
-    assert mywidget.data_storage_instance.original_data.value.empty is False
+    assert mywidget.data.original_data.value.empty is False
     # check if data was filtered / filtered_data was updated
-    assert mywidget.data_storage_instance.filtered_data.value.empty is False
+    assert mywidget.data.filtered_data.value.empty is False
 
 
 @patch("qtpy.QtWidgets.QFileDialog.getOpenFileName")
@@ -195,39 +191,37 @@ def test_load_data_with_measurement_math(
         "src/arcos_gui/_tests/test_data/arcos_data.csv",
         "csv (*.csv)",
     )
-    mywidget.input_controller.widget.browse_file.click()
+    mywidget._input_controller.widget.browse_file.click()
     assert (
-        mywidget.input_controller.widget.file_LineEdit.text()
+        mywidget._input_controller.widget.file_LineEdit.text()
         == "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
 
     # asser that there indeed is no data loaded for now
-    assert mywidget.data_storage_instance.original_data.value.empty
+    assert mywidget.data.original_data.value.empty
     # check if data was filtered / filtered_data was updated
-    assert mywidget.data_storage_instance.filtered_data.value.empty
+    assert mywidget.data.filtered_data.value.empty
 
     # user sets columnames
-    mywidget.input_controller.widget.load_data_button.click()
-    mywidget.input_controller.picker.frame.setCurrentText("t")
-    mywidget.input_controller.picker.track_id.setCurrentText("id")
-    mywidget.input_controller.picker.x_coordinates.setCurrentText("x")
-    mywidget.input_controller.picker.y_coordinates.setCurrentText("y")
-    mywidget.input_controller.picker.z_coordinates.setCurrentText("None")
-    mywidget.input_controller.picker.measurement.setCurrentText("m")
-    mywidget.input_controller.picker.second_measurement.setCurrentText("m")
-    mywidget.input_controller.picker.field_of_view_id.setCurrentText("None")
-    mywidget.input_controller.picker.additional_filter.setCurrentText("None")
-    mywidget.input_controller.picker.measurement_math.setCurrentText("Add")
+    mywidget._input_controller.widget.load_data_button.click()
+    mywidget._input_controller.picker.frame.setCurrentText("t")
+    mywidget._input_controller.picker.track_id.setCurrentText("id")
+    mywidget._input_controller.picker.x_coordinates.setCurrentText("x")
+    mywidget._input_controller.picker.y_coordinates.setCurrentText("y")
+    mywidget._input_controller.picker.z_coordinates.setCurrentText("None")
+    mywidget._input_controller.picker.measurement.setCurrentText("m")
+    mywidget._input_controller.picker.second_measurement.setCurrentText("m")
+    mywidget._input_controller.picker.field_of_view_id.setCurrentText("None")
+    mywidget._input_controller.picker.additional_filter.setCurrentText("None")
+    mywidget._input_controller.picker.measurement_math.setCurrentText("Add")
     # user clicks ok
-    mywidget.input_controller.picker.ok_button.click()
+    mywidget._input_controller.picker.ok_button.click()
 
     # need this event loop thingy to wait for the creation of the preprocessing worker
     loop = QEventLoop()
-    mywidget.input_controller.loading_worker.finished.connect(loop.quit)
+    mywidget._input_controller.loading_worker.finished.connect(loop.quit)
     loop.exec_()
-    columnames_list = (
-        mywidget.data_storage_instance.columns.value.pickablepickable_columns_names
-    )
+    columnames_list = mywidget.data.columns.value.pickablepickable_columns_names
     assert columnames_list == [
         "t",
         "id",
@@ -241,11 +235,11 @@ def test_load_data_with_measurement_math(
         "Add",
     ]
     # check if data is loaded
-    assert mywidget.data_storage_instance.original_data.value.empty is False
+    assert mywidget.data.original_data.value.empty is False
     # check if data was filtered / filtered_data was updated
-    assert mywidget.data_storage_instance.filtered_data.value.empty is False
+    assert mywidget.data.filtered_data.value.empty is False
     assert (
-        mywidget.data_storage_instance.original_data.value["Measurement_Sum"].sum() / 2
+        mywidget.data.original_data.value["Measurement_Sum"].sum() / 2
         == test_df["m"].sum()
     )
 
@@ -256,12 +250,11 @@ def test_add_binarization_layers_with_data(
     loop = QEventLoop()
     viewer, mywidget = dock_arcos_widget_w_colnames_set
     test_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
-    mywidget.data_storage_instance.original_data.value = test_df
-    mywidget.data_storage_instance.filtered_data.value = test_df[
-        test_df["Position"] == 1
-    ]
-    mywidget.arcos_widget.worker.finished.connect(loop.quit)
-    mywidget.arcos_widget.widget.run_binarization_only.click()
+    mywidget.data.original_data.value = test_df
+    mywidget.data.filtered_data.value = test_df[test_df["Position"] == 1]
+
+    mywidget._arcos_widget.widget.run_binarization_only.click()
+    mywidget._arcos_widget.worker.finished.connect(loop.quit)
 
     loop.exec_()
     assert len(viewer.layers) == 2
@@ -277,24 +270,21 @@ def test_add_all_layers_with_data(
     viewer, mywidget = dock_arcos_widget_w_colnames_set
     test_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     arcos_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
-    mywidget.data_storage_instance.original_data.value = test_df
-    mywidget.data_storage_instance.filtered_data.value = test_df[
-        test_df["Position"] == 1
-    ]
-    mywidget.data_storage_instance.arcos_binarization.value = test_df[
-        test_df["Position"] == 1
-    ]
-    mywidget.data_storage_instance.arcos_stats.value = calculate_arcos_stats(
+    mywidget.data.original_data.value = test_df
+    mywidget.data.filtered_data.value = test_df[test_df["Position"] == 1]
+    mywidget.data.arcos_binarization.value = test_df[test_df["Position"] == 1]
+    mywidget.data.arcos_stats.value = calculate_arcos_stats(
         arcos_df,
         frame_col="t",
         collid_name="collid",
         object_id_name="id",
         posCols=["x", "y"],
     )
-    mywidget.data_storage_instance.arcos_output.value = arcos_df
+    mywidget.data.arcos_output.value = arcos_df
 
-    mywidget.arcos_widget.worker.finished.connect(loop.quit)
-    mywidget.arcos_widget.widget.update_arcos.click()
+    mywidget._arcos_widget.widget.update_arcos.click()
+    mywidget._arcos_widget.worker.finished.connect(loop.quit)
+
     loop.exec_()
 
     assert len(viewer.layers) == 4
@@ -311,28 +301,24 @@ def test_first_all_then_bin(
     viewer, mywidget = dock_arcos_widget_w_colnames_set
     test_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     arcos_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
-    mywidget.data_storage_instance.original_data.value = test_df
-    mywidget.data_storage_instance.filtered_data.value = test_df[
-        test_df["Position"] == 1
-    ]
-    mywidget.data_storage_instance.arcos_binarization.value = test_df[
-        test_df["Position"] == 1
-    ]
-    mywidget.data_storage_instance.arcos_stats.value = calculate_arcos_stats(
+    mywidget.data.original_data.value = test_df
+    mywidget.data.filtered_data.value = test_df[test_df["Position"] == 1]
+    mywidget.data.arcos_binarization.value = test_df[test_df["Position"] == 1]
+    mywidget.data.arcos_stats.value = calculate_arcos_stats(
         arcos_df,
         frame_col="t",
         collid_name="collid",
         object_id_name="id",
         posCols=["x", "y"],
     )
-    mywidget.data_storage_instance.arcos_output.value = arcos_df
-    mywidget.arcos_widget.worker.finished.connect(loop.quit)
-    print("first click")
-    mywidget.arcos_widget.widget.update_arcos.click()
+    mywidget.data.arcos_output.value = arcos_df
+    mywidget._arcos_widget.widget.update_arcos.click()
+    mywidget._arcos_widget.worker.finished.connect(loop.quit)
+
     # wait until assertions are done before continuing
     loop.exec_()
-    mywidget.arcos_widget.worker.finished.disconnect(loop.quit)
-    mywidget.arcos_widget.worker.aborted.connect(loop.quit)
+    mywidget._arcos_widget.worker.finished.disconnect(loop.quit)
+    mywidget._arcos_widget.worker.aborted.connect(loop.quit)
 
     assert len(viewer.layers) == 4
     assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
@@ -340,13 +326,13 @@ def test_first_all_then_bin(
     assert viewer.layers[2].name == ARCOS_LAYERS["collective_events_cells"]
     assert viewer.layers[3].name == ARCOS_LAYERS["event_hulls"]
 
-    mywidget.arcos_widget.widget.bin_threshold.setValue(0.5)
+    mywidget._arcos_widget.widget.bin_threshold.setValue(0.5)
     loop = QEventLoop()
-    mywidget.arcos_widget.worker.finished.connect(loop.quit)
-    mywidget.arcos_widget.worker.aborted.connect(loop.quit)
     print("second click")
-    print(mywidget.arcos_widget.widget.run_binarization_only.isEnabled())
-    mywidget.arcos_widget.widget.run_binarization_only.click()
+    print(mywidget._arcos_widget.widget.run_binarization_only.isEnabled())
+    mywidget._arcos_widget.widget.run_binarization_only.click()
+    mywidget._arcos_widget.worker.finished.connect(loop.quit)
+    mywidget._arcos_widget.worker.aborted.connect(loop.quit)
 
     # wait until assertions are done before continuing
     loop.exec_()
@@ -361,20 +347,19 @@ def test_increase_points_size(
     loop = QEventLoop()
     viewer, mywidget = dock_arcos_widget_w_colnames_set
     test_df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
-    mywidget.data_storage_instance.original_data.value = test_df
-    mywidget.data_storage_instance.filtered_data.value = test_df[
-        test_df["Position"] == 1
-    ]
-    mywidget.arcos_widget.worker.finished.connect(loop.quit)
-    mywidget.arcos_widget.widget.run_binarization_only.click()
+    mywidget.data.original_data.value = test_df
+    mywidget.data.filtered_data.value = test_df[test_df["Position"] == 1]
+
+    mywidget._arcos_widget.widget.run_binarization_only.click()
+    mywidget._arcos_widget.worker.finished.connect(loop.quit)
     # wait until thread returns back to idle before continuing
     loop.exec_()
 
     assert len(viewer.layers) == 2
     assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
     assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
-    starting_pointsize = mywidget.layer_prop_controller.widget.point_size.value()
+    starting_pointsize = mywidget._layer_prop_controller.widget.point_size.value()
     assert viewer.layers[0].size.flatten()[0] == starting_pointsize
-    mywidget.layer_prop_controller.widget.point_size.setValue(20)
-    new_pointsize = mywidget.layer_prop_controller.widget.point_size.value()
+    mywidget._layer_prop_controller.widget.point_size.setValue(20)
+    new_pointsize = mywidget._layer_prop_controller.widget.point_size.value()
     assert viewer.layers[0].size.flatten()[0] == new_pointsize

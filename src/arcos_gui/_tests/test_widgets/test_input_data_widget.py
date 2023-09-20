@@ -69,8 +69,6 @@ def test_open_columnpicker(make_input_widget: tuple[InputdataController, QtBot])
     # assert that the columnpicker window was opened
     assert controller.picker.isVisibleTo(controller.widget)
     qtbot.mouseClick(controller.picker.abort_button, Qt.LeftButton)
-    controller.loading_thread.quit()
-    controller.loading_thread.exit()
     controller.widget.close()
 
 
@@ -151,8 +149,6 @@ def test_set_choices_names_from_previous(
     qtbot.mouseClick(controller.picker.ok_button, Qt.LeftButton)
 
     assert controller.picker.get_column_names == column_names
-    controller.loading_thread.quit()
-    controller.loading_thread.exit()
     controller.widget.close()
 
 
@@ -178,11 +174,11 @@ def test_data_loading(make_input_widget: tuple[InputdataController, QtBot]):
     controller.picker.second_measurement.setCurrentText("None")
     controller.picker.field_of_view_id.setCurrentText("None")
     controller.picker.additional_filter.setCurrentText("None")
-    controller.loading_thread.started.connect(lambda: print("started"))
-    controller.loading_thread.finished.connect(lambda: print("finished"))
+    controller.loading_worker.started.connect(lambda: print("started"))
+    controller.loading_worker.finished.connect(lambda: print("finished"))
     controller.loading_worker.finished.connect(lambda: print("worker finished"))
     # quit event loop when the thread is finished
-    controller.loading_thread.finished.connect(loopy.quit)
+    controller.loading_worker.finished.connect(loopy.quit)
 
     qtbot.mouseClick(controller.picker.ok_button, Qt.LeftButton)
     # press ok to close the picker widget
@@ -216,7 +212,7 @@ def test_data_loading_abort(
 
     # need this event loop thingy to wait for the creation of the preprocessing worker
     loop = QEventLoop()
-    controller.loading_thread.finished.connect(loop.quit)
+    controller.loading_worker.finished.connect(loop.quit)
     # press abort to close the picker widget
     controller.picker.abort_button.click()
     loop.exec_()
@@ -324,7 +320,7 @@ def test_succesfully_loaded_from_layer(
     controller, qtbot = make_input_widget
 
     # Mock the necessary methods and data
-    mock_dataframe = Mock(spec=pd.DataFrame)
+    mock_dataframe = pd.DataFrame()
 
     with patch.object(
         controller,
@@ -374,14 +370,10 @@ def test_on_matching_success(
 
 
 @patch("arcos_gui.widgets._input_data_widget.DataFrameMatcher")
-@patch("arcos_gui.widgets._input_data_widget.QThread")
 def test_run_dataframe_matching(
-    mock_QThread,
     mock_DataFrameMatcher,
     make_input_widget: tuple[InputdataController, QtBot],
 ):
-    _ = mock_DataFrameMatcher.return_value
-    _ = mock_QThread.return_value
     controller, qtbot = make_input_widget
 
     # Mock the necessary methods and data
@@ -394,7 +386,7 @@ def test_run_dataframe_matching(
     mock_DataFrameMatcher.assert_called_once_with(
         df1, df2, frame_col=frame_col, coord_cols1=coord_cols1
     )
-    controller.matching_thread.start.assert_called_once()
+    controller.matching_worker.start.assert_called_once()
 
 
 def test_matching_aborted(make_input_widget: tuple[InputdataController, QtBot], capsys):

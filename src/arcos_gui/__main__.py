@@ -1,7 +1,7 @@
 """Main module for napari plugin."""
 
 import napari
-from arcos_gui._loading_functions import open_plugin
+from arcos_gui import open_plugin
 
 
 def main():

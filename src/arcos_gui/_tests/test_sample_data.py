@@ -38,15 +38,15 @@ def test_load_sample_data(dock_arcos_widget):
     _, widget = dock_arcos_widget
     loop = QEventLoop()
     load_synthetic_dataset()
-    widget.input_controller.loading_worker.finished.connect(loop.quit)
-    widget.input_controller.picker.ok_button.click()
+    widget._input_controller.loading_worker.finished.connect(loop.quit)
+    widget._input_controller.picker.ok_button.click()
     loop.exec_()
-    assert not widget.data_storage_instance.filtered_data.value.empty
-    assert widget.input_controller.picker.frame.currentText() == "t"
-    assert widget.input_controller.picker.track_id.currentText() == "id"
-    assert widget.input_controller.picker.x_coordinates.currentText() == "x"
-    assert widget.input_controller.picker.y_coordinates.currentText() == "y"
-    assert widget.input_controller.picker.measurement.currentText() == "m"
+    assert not widget.data.filtered_data.value.empty
+    assert widget._input_controller.picker.frame.currentText() == "t"
+    assert widget._input_controller.picker.track_id.currentText() == "id"
+    assert widget._input_controller.picker.x_coordinates.currentText() == "x"
+    assert widget._input_controller.picker.y_coordinates.currentText() == "y"
+    assert widget._input_controller.picker.measurement.currentText() == "m"
 
 
 def test_load_real_data(dock_arcos_widget):
@@ -54,12 +54,12 @@ def test_load_real_data(dock_arcos_widget):
     _, widget = dock_arcos_widget
     loop = QEventLoop()
     load_real_dataset(load_image=False)
-    widget.input_controller.loading_worker.finished.connect(loop.quit)
-    widget.input_controller.picker.ok_button.click()
+    widget._input_controller.loading_worker.finished.connect(loop.quit)
+    widget._input_controller.picker.ok_button.click()
     loop.exec_()
-    assert not widget.data_storage_instance.filtered_data.value.empty
-    assert widget.input_controller.picker.frame.currentText() == "t"
-    assert widget.input_controller.picker.track_id.currentText() == "id"
-    assert widget.input_controller.picker.x_coordinates.currentText() == "x"
-    assert widget.input_controller.picker.y_coordinates.currentText() == "y"
-    assert widget.input_controller.picker.measurement.currentText() == "m"
+    assert not widget.data.filtered_data.value.empty
+    assert widget._input_controller.picker.frame.currentText() == "t"
+    assert widget._input_controller.picker.track_id.currentText() == "id"
+    assert widget._input_controller.picker.x_coordinates.currentText() == "x"
+    assert widget._input_controller.picker.y_coordinates.currentText() == "y"
+    assert widget._input_controller.picker.measurement.currentText() == "m"

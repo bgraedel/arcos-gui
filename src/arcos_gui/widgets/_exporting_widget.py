@@ -2,13 +2,18 @@
 from __future__ import annotations
 
 import os
+import traceback
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from arcos_gui.tools import MovieExporter
+from arcos_gui.processing import BatchProcessor
+from arcos_gui.tools import BatchFileDialog, MovieExporter
+from napari.utils import progress
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
+from qtpy.QtCore import Signal
 from qtpy.QtGui import QIcon
 
 if TYPE_CHECKING:
@@ -29,7 +34,10 @@ class _exportwidget(QtWidgets.QWidget):
     base_name_LineEdit_data: QtWidgets.QLineEdit
     data_export_button: QtWidgets.QPushButton
     param_export_button: QtWidgets.QPushButton
+    param_import_button: QtWidgets.QPushButton
     stats_export_button: QtWidgets.QPushButton
+    batch_processing_button: QtWidgets.QPushButton
+    abort_batch_button: QtWidgets.QPushButton
 
     browse_file_img: QtWidgets.QPushButton
     file_LineEdit_img: QtWidgets.QLineEdit
@@ -38,6 +46,8 @@ class _exportwidget(QtWidgets.QWidget):
     automatic_size_img: QtWidgets.QCheckBox
     spinBox_height_img: QtWidgets.QSpinBox
     spinBox_width_img: QtWidgets.QSpinBox
+
+    closing = Signal()
 
     def __init__(self, data_storage: DataStorage, parent=None):
         super().__init__(parent)
@@ -60,6 +70,50 @@ class _exportwidget(QtWidgets.QWidget):
         )
         self.file_LineEdit_img.setText(path)
 
+    def _browse_parmeters_export(self):
+        base_path = self._data_storage_instance.file_name.value
+        base_path = str(Path(base_path).parent)
+        path = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save as Yaml", base_path, filter="*.yaml"
+        )[0]
+        if path:
+            if not path.endswith(".yaml"):
+                path = os.path.join(path, ".yaml")
+            return path
+        else:
+            return None
+
+    def _browse_parmeters_import(self):
+        base_path = self._data_storage_instance.file_name.value
+        base_path = str(Path(base_path).parent)
+        path = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Select Yaml File", base_path, filter="*.yaml"
+        )[0]
+        if path:
+            return path
+        else:
+            return None
+
+    def _browse_batch_output(self):
+        base_path = self._data_storage_instance.file_name.value
+        base_path = str(Path(base_path).parent)
+
+        dialog = BatchFileDialog(directory=base_path, parent=self)
+        dialog.setWindowTitle("Select Directory")
+
+        if dialog.exec_():
+            # Get the selected directory
+            path = dialog.selectedFiles()[0]
+
+            # Get the values corresponding to the checkboxes that are checked
+            options_selected = [
+                key for key, value in dialog.checkboxes.items() if value.isChecked()
+            ]
+
+            return path, options_selected
+        else:
+            return None, None
+
     def _update_base_name_data(self):
         base_name = self._data_storage_instance.file_name.value
         self.base_name_LineEdit_data.setText(Path(base_name).stem)
@@ -79,6 +133,26 @@ class _exportwidget(QtWidgets.QWidget):
         self.browse_file_icon = QIcon(str(ICONS / "folder-open-line.svg"))
         self.browse_file_data.setIcon(self.browse_file_icon)
         self.browse_file_img.setIcon(self.browse_file_icon)
+        self.abort_batch_button.setStyleSheet(
+            "background-color : #7C0A02; color : white"
+        )
+        self._hide_abort_batch_button()
+
+    def _hide_abort_batch_button(self):
+        self.abort_batch_button.setVisible(False)
+        self.abort_batch_button.setEnabled(False)
+        self.batch_processing_button.setVisible(True)
+        self.batch_processing_button.setEnabled(True)
+
+    def _show_abort_batch_button(self):
+        self.abort_batch_button.setVisible(True)
+        self.abort_batch_button.setEnabled(True)
+        self.batch_processing_button.setVisible(False)
+        self.batch_processing_button.setEnabled(False)
+
+    def closeEvent(self, event):
+        self.closing.emit()
+        event.accept()
 
 
 class ExportController:
@@ -124,16 +198,18 @@ class ExportController:
             show_info(f"wrote csv file to {outpath}")
 
     def _export_arcos_params(self):
-        if self._data_storage_instance.arcos_output.value.empty:
-            show_info("No data to export, run arcos first")
-        else:
-            path = Path(self.widget.file_LineEdit_data.text())
-            output_name = f"{self.current_date}_{self.widget.base_name_LineEdit_data.text()}_arcos_params.csv"
-            outpath = os.path.join(path, output_name)
-            self._data_storage_instance.arcos_parameters.value.as_dataframe.to_csv(
-                outpath, index=False
-            )
-            show_info(f"wrote csv file to {outpath}")
+        path = self.widget._browse_parmeters_export()
+        if path is None:
+            return
+        self._data_storage_instance.export_to_yaml(path)
+        show_info(f"wrote yaml file to {path}")
+
+    def _import_arcos_params(self):
+        path = self.widget._browse_parmeters_import()
+        if path is None:
+            return
+        self._data_storage_instance.import_from_yaml(path)
+        show_info(f"imported yaml file from {path}")
 
     def _export_image_series(self):
         if self.viewer.layers == []:
@@ -151,7 +227,98 @@ class ExportController:
             ).run()
 
     def _connect_callbacks(self):
+        self.widget.closing.connect(self.closeEvent)
         self.widget.data_export_button.clicked.connect(self._export_arcos_data)
         self.widget.stats_export_button.clicked.connect(self._export_arcos_stats)
         self.widget.param_export_button.clicked.connect(self._export_arcos_params)
+        self.widget.param_import_button.clicked.connect(self._import_arcos_params)
         self.widget.img_seq_export_button.clicked.connect(self._export_image_series)
+        self.widget.batch_processing_button.clicked.connect(self.batch_processing)
+        self.widget.abort_batch_button.clicked.connect(self._abort_batch)
+
+    def batch_processing(self):
+        inpath, what_to_export = self.widget._browse_batch_output()
+        print(what_to_export)
+        if inpath is None:
+            return
+        self.batch_worker = BatchProcessor(
+            inpath,
+            self._data_storage_instance.arcos_parameters.value,
+            self._data_storage_instance.columns.value,
+            self._data_storage_instance.min_max_tracklenght.value[0],
+            self._data_storage_instance.min_max_tracklenght.value[1],
+            what_to_export,
+        )
+
+        self.show_activity_dock(True)
+        # Connect signals and slots - assuming batch_worker has finished, aborted, and run methods, and signals
+        self.batch_worker.finished.connect(self._on_batch_finish)
+        self.batch_worker.errored.connect(self._batch_error)
+
+        self.batch_worker.new_total_files.connect(self.update_progress_files)
+        self.batch_worker.new_total_filters.connect(self.update_progress_filters)
+
+        self.batch_worker.start()
+        self.widget._show_abort_batch_button()
+
+    def update_progress_files(self, value):
+        if value < 2:
+            self.pbar_files = progress(desc="Files")
+            return
+        self.pbar_files = progress(total=value, desc="Files")
+        self.batch_worker.progress_update_files.connect(
+            lambda: self.pbar_files.update(1)
+        )
+        self.batch_worker.aborted.connect(self._close_progress)
+
+    def update_progress_filters(self, value):
+        if value < 2:
+            return
+        self.pbar_filters = progress(
+            total=value, nest_under=self.pbar_files, desc="Positions / Filters"
+        )
+        self.batch_worker.progress_update_filters.connect(
+            lambda: self.pbar_filters.update(1)
+        )
+
+    def _on_batch_finish(self):
+        show_info("Batch processing finished")
+        self.widget._hide_abort_batch_button()
+        self._close_progress()
+
+    def _close_progress(self):
+        try:
+            self.pbar_filters.close()
+        except AttributeError:
+            pass
+        try:
+            self.pbar_files.close()
+        except AttributeError:
+            pass
+        self.show_activity_dock(False)
+
+    def _batch_error(self, error_message):
+        show_info(error_message)
+        traceback.print_exception(None, error_message, error_message.__traceback__)
+
+    def show_activity_dock(self, state=True):
+        # show/hide activity dock if there is actual progress to see
+        try:
+            with warnings.catch_warnings():
+                # suppress FutureWarning for now: https://github.com/napari/napari/issues/4598
+                warnings.simplefilter(action="ignore", category=FutureWarning)
+                self.viewer.window._status_bar._toggle_activity_dock(state)
+        except AttributeError:
+            print("show_activity_dock failed")
+
+    def closeEvent(self):
+        self._abort_batch()
+
+    def _abort_batch(self):
+        self.widget._hide_abort_batch_button()
+        self._close_progress()
+        try:
+            self.batch_worker.quit()
+        except (AttributeError, RuntimeError):
+            pass
+        show_info("Aborting Batch Processing")

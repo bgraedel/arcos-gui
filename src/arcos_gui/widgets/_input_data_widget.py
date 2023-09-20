@@ -19,7 +19,7 @@ from arcos_gui.widgets._dialog_widgets import columnpicker
 from napari import viewer
 from napari.layers import Labels, Tracks
 from qtpy import QtCore, QtWidgets, uic
-from qtpy.QtCore import QThread, Signal
+from qtpy.QtCore import Signal
 from qtpy.QtGui import QIcon, QMovie
 
 if TYPE_CHECKING:
@@ -165,6 +165,9 @@ class InputdataController:
         self.widget.load_data_button.clicked.connect(self._load_data)
         self.widget.closing.connect(self.closeEvent)
         self.viewer.layers.selection.events.changed.connect(self._on_selection)
+        self.data_storage_instance.file_name.value_changed.connect(
+            self._update_filename_from_datastorage
+        )
 
     def _on_selection(self, event=None):
         num_labels_in_viewer = len(
@@ -178,6 +181,12 @@ class InputdataController:
         """Updates the filename in the data storage instance."""
         self.data_storage_instance.file_name.value = filename
 
+    def _update_filename_from_datastorage(self):
+        """Updates the filename in the widget from the data storage instance."""
+        self.data_storage_instance.file_name.toggle_callback_block(True)
+        self.widget.file_LineEdit.setText(self.data_storage_instance.file_name.value)
+        self.data_storage_instance.file_name.toggle_callback_block(False)
+
     def load_sample_data(self, path, columns):
         """Loads sample data from a given path and sets the column names.
 
@@ -188,6 +197,7 @@ class InputdataController:
         columns : columnames instance
             Instance of the columnames class.
         """
+        self.widget.from_csv_selector.setChecked(True)
         self.widget.file_LineEdit.setText(path)
         self.data_storage_instance.columns.value = columns
         self.widget.load_data_button.click()
@@ -415,33 +425,22 @@ class InputdataController:
                 ui_element.setCurrentText(column_name)
 
     def _run_data_loading(self, filename, delimiter=None):
-        self.loading_thread = QThread(self.widget)
+        # self.loading_thread = QThread(self.widget)
         self.loading_worker = DataLoader(
-            filename, delimiter, wait_for_columnpicker=True
+            filename,
+            delimiter,
+            wait_for_columnpicker=True,
         )
         self.picker.rejected.connect(self._abort_loading_worker)
         self.picker.accepted.connect(self._set_loading_worker_columnpicker)
 
         self.widget.start_loading_icon()
-        self.loading_worker.moveToThread(self.loading_thread)
-        # Connect signals and slots
-        # this signal ensures that if a user closes the columnpicker window with X
-        # the loaded data is not updated in the data storage object and layers are not deleted
-        # aswell as the columnnames are not updated
         self.loading_worker.new_data.connect(self._succesfully_loaded)
         self.loading_worker.aborted.connect(self._loading_aborted)
-
-        self.loading_thread.started.connect(self.loading_worker.run)
-
         self.loading_worker.finished.connect(self.widget.stop_loading_icon)
-        self.loading_worker.finished.connect(self.loading_thread.quit)
-        self.loading_worker.finished.connect(self.loading_worker.deleteLater)
-        self.loading_thread.finished.connect(self.loading_thread.deleteLater)
-        self.loading_thread.start()
-        # self.loading_worker.loading_finished.connect(lambda: print("loading finished"))
-        # self.loading_thread.finished.connect(lambda: print("thread finished"))
         self.widget.load_data_button.setEnabled(False)
         self.widget.load_data_button.setText("")
+        self.loading_worker.start()
 
     def closeEvent(self):
         if self.picker.isVisible():
@@ -481,26 +480,17 @@ class InputdataController:
 
     def _run_dataframe_matching(self, df1, df2, frame_col, coord_cols1):
         """Start the DataFrameMatcher in a separate thread."""
-        self.matching_thread = QThread(
-            self.widget
-        )  # Assuming 'self.widget' exists in your class
         self.matching_worker = DataFrameMatcher(
             df1, df2, frame_col=frame_col, coord_cols1=coord_cols1
         )
 
-        self.matching_worker.moveToThread(self.matching_thread)
         # Connect signals and slots
         self.matching_worker.matched.connect(self._on_matching_success)
         self.matching_worker.aborted.connect(self._matching_aborted)
 
         self.widget.start_loading_icon()
         self.matching_worker.finished.connect(self.widget.stop_loading_icon)
-        self.matching_thread.started.connect(self.matching_worker.run)
-
-        self.matching_worker.finished.connect(self.matching_thread.quit)
-        self.matching_worker.finished.connect(self.matching_worker.deleteLater)
-        self.matching_thread.finished.connect(self.matching_thread.deleteLater)
-        self.matching_thread.start()
+        self.matching_worker.start()
 
     def _on_matching_success(self, matched_df):
         """Handle the successful completion of the DataFrameMatcher operation."""

@@ -4,9 +4,9 @@ from typing import Literal
 
 import napari
 import pandas as pd
-
-from . import _main_widget
-from .processing import columnnames
+from arcos_gui import _main_widget
+from arcos_gui.processing import columnnames
+from arcos_gui.sample_data import load_real_dataset, load_synthetic_dataset
 
 
 def open_plugin(viewer: napari.Viewer):
@@ -27,6 +27,29 @@ def open_plugin(viewer: napari.Viewer):
         plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
     )
     return plugin
+
+
+def load_sample_data(
+    sample_data: Literal["synthetic", "real"] = "synthetic",
+    plugin: _main_widget.MainWindow | None = None,
+):
+    """Load sample data into arcos-gui.
+
+    Parameters
+    ----------
+    plugin : _main_widget.MainWindow | None
+        If None, will try to get the last instance of the plugin (can fail if the plugin has been closed before
+        and some stray reference is hanging arround).
+        If not None, will use the given plugin instance. Plugin can be opened with open_plugin(viewer).
+    sample_data : Literal['synthetic', 'real']
+        Which sample data to load. Either synthetic or real.
+    """
+    if sample_data == "synthetic":
+        load_synthetic_dataset(plugin=plugin)
+    elif sample_data == "real":
+        load_real_dataset(plugin=plugin)
+    else:
+        raise ValueError("sample_data must be either 'synthetic' or 'real'")
 
 
 def load_dataframe(
@@ -105,12 +128,12 @@ def load_dataframe(
         _plugin = plugin
 
     try:
-        _plugin.input_controller.load_from_dataframe(dataframe=df, columns=columns)
+        _plugin._input_controller.load_from_dataframe(dataframe=df, columns=columns)
     except RuntimeError:
         print("Cannot find the plugin. Opening a new one.")
         _plugin = open_plugin(napari.current_viewer())
-        _plugin.input_controller.load_from_dataframe(dataframe=df, columns=columns)
-    _plugin.widget.maintabwidget.setCurrentIndex(1)
+        _plugin._input_controller.load_from_dataframe(dataframe=df, columns=columns)
+    _plugin._widget.maintabwidget.setCurrentIndex(1)
 
 
 def load_dataframe_with_columnpicker(df, plugin: _main_widget.MainWindow | None = None):
@@ -133,11 +156,11 @@ def load_dataframe_with_columnpicker(df, plugin: _main_widget.MainWindow | None 
         _plugin = plugin
 
     try:
-        _plugin.input_controller.load_from_dataframe_with_columnpicker(df)
+        _plugin._input_controller.load_from_dataframe_with_columnpicker(df)
     except RuntimeError:
         print("Cannot find the plugin. Opening a new one.")
         _plugin = open_plugin(napari.current_viewer())
-        _plugin.input_controller.load_from_dataframe_with_columnpicker(df)
+        _plugin._input_controller.load_from_dataframe_with_columnpicker(df)
 
 
 def filter_data(
@@ -173,16 +196,16 @@ def filter_data(
 
     try:
         if fov_id is not None:
-            _plugin.filter_controller.widget.position.setCurrentText(fov_id)
+            _plugin._filter_controller.widget.position.setCurrentText(fov_id)
         if additional_filter is not None:
-            _plugin.filter_controller.widget.additional_filter_combobox.setCurrentText(
+            _plugin._filter_controller.widget.additional_filter_combobox.setCurrentText(
                 additional_filter
             )
         if track_length is not None:
-            _plugin.filter_controller.widget.min_tracklength_spinbox.setValue(
+            _plugin._filter_controller.widget.min_tracklength_spinbox.setValue(
                 track_length[0]
             )
-            _plugin.filter_controller.widget.max_tracklength_spinbox.setValue(
+            _plugin._filter_controller.widget.max_tracklength_spinbox.setValue(
                 track_length[1]
             )
     except RuntimeError:
@@ -190,7 +213,7 @@ def filter_data(
             "Cannot find the plugin. Either specify a plugin or open one."
         )
 
-    _plugin.filter_controller.widget.filter_input_data.click()
+    _plugin._filter_controller.widget.filter_input_data.click()
 
 
 def run_binarization_only(
@@ -240,18 +263,18 @@ def run_binarization_only(
         _plugin = plugin
 
     try:
-        _plugin.arcos_widget.widget.bias_method.setCurrentText(bias_method)
-        _plugin.arcos_widget.widget.smooth_k.setValue(smooth_k)
-        _plugin.arcos_widget.widget.bias_k.setValue(bias_k)
-        _plugin.arcos_widget.widget.polyDeg.setValue(polyDeg)
-        _plugin.arcos_widget.widget.bin_peak_threshold.setValue(bin_peak_threshold)
-        _plugin.arcos_widget.widget.bin_threshold.setValue(bin_threshold)
-        _plugin.arcos_widget.widget.interpolate_meas.setChecked(interpolate)
-        _plugin.arcos_widget.widget.clip_meas.setChecked(clip)
-        _plugin.arcos_widget.widget.clip_low.setValue(clip_range[0])
-        _plugin.arcos_widget.widget.clip_high.setValue(clip_range[1])
+        _plugin._arcos_widget.widget.bias_method.setCurrentText(bias_method)
+        _plugin._arcos_widget.widget.smooth_k.setValue(smooth_k)
+        _plugin._arcos_widget.widget.bias_k.setValue(bias_k)
+        _plugin._arcos_widget.widget.polyDeg.setValue(polyDeg)
+        _plugin._arcos_widget.widget.bin_peak_threshold.setValue(bin_peak_threshold)
+        _plugin._arcos_widget.widget.bin_threshold.setValue(bin_threshold)
+        _plugin._arcos_widget.widget.interpolate_meas.setChecked(interpolate)
+        _plugin._arcos_widget.widget.clip_meas.setChecked(clip)
+        _plugin._arcos_widget.widget.clip_low.setValue(clip_range[0])
+        _plugin._arcos_widget.widget.clip_high.setValue(clip_range[1])
 
-        _plugin.arcos_widget.widget.run_binarization_only.click()
+        _plugin._arcos_widget.widget.run_binarization_only.click()
     except RuntimeError:
         raise RuntimeError(
             "Cannot find the plugin. Either specify a plugin or open one."
@@ -328,32 +351,64 @@ def run_arcos(
         _plugin = plugin
 
     try:
-        _plugin.arcos_widget._update_what_to_run_all()
+        _plugin._arcos_widget._update_what_to_run_all()
     except RuntimeError:
         raise RuntimeError(
             "Cannot find the plugin. Either specify a plugin or open one."
         )
-    _plugin.arcos_widget.widget.bias_method.setCurrentText(bias_method)
-    _plugin.arcos_widget.widget.smooth_k.setValue(smooth_k)
-    _plugin.arcos_widget.widget.bias_k.setValue(bias_k)
-    _plugin.arcos_widget.widget.polyDeg.setValue(polyDeg)
-    _plugin.arcos_widget.widget.bin_peak_threshold.setValue(bin_peak_threshold)
-    _plugin.arcos_widget.widget.bin_threshold.setValue(bin_threshold)
-    _plugin.arcos_widget.widget.interpolate_meas.setChecked(interpolate)
-    _plugin.arcos_widget.widget.clip_meas.setChecked(clip)
-    _plugin.arcos_widget.widget.clip_low.setValue(clip_range[0])
-    _plugin.arcos_widget.widget.clip_high.setValue(clip_range[1])
-    _plugin.arcos_widget.widget.eps_estimation_combobox.setCurrentText(eps_estimation)
-    _plugin.arcos_widget.widget.neighbourhood_size.setValue(eps)
+    _plugin._arcos_widget.widget.bias_method.setCurrentText(bias_method)
+    _plugin._arcos_widget.widget.smooth_k.setValue(smooth_k)
+    _plugin._arcos_widget.widget.bias_k.setValue(bias_k)
+    _plugin._arcos_widget.widget.polyDeg.setValue(polyDeg)
+    _plugin._arcos_widget.widget.bin_peak_threshold.setValue(bin_peak_threshold)
+    _plugin._arcos_widget.widget.bin_threshold.setValue(bin_threshold)
+    _plugin._arcos_widget.widget.interpolate_meas.setChecked(interpolate)
+    _plugin._arcos_widget.widget.clip_meas.setChecked(clip)
+    _plugin._arcos_widget.widget.clip_low.setValue(clip_range[0])
+    _plugin._arcos_widget.widget.clip_high.setValue(clip_range[1])
+    _plugin._arcos_widget.widget.eps_estimation_combobox.setCurrentText(eps_estimation)
+    _plugin._arcos_widget.widget.neighbourhood_size.setValue(eps)
     if eps_prev is not None:
-        _plugin.arcos_widget.widget.Cluster_linking_dist_checkbox.setChecked(True)
-        _plugin.arcos_widget.widget.epsPrev_spinbox.setValue(eps_prev)
+        _plugin._arcos_widget.widget.Cluster_linking_dist_checkbox.setChecked(True)
+        _plugin._arcos_widget.widget.epsPrev_spinbox.setValue(eps_prev)
     else:
-        _plugin.arcos_widget.widget.Cluster_linking_dist_checkbox.setChecked(False)
+        _plugin._arcos_widget.widget.Cluster_linking_dist_checkbox.setChecked(False)
 
-    _plugin.arcos_widget.widget.min_clustersize.setValue(min_clustersize)
-    _plugin.arcos_widget.widget.min_dur.setValue(min_duration)
-    _plugin.arcos_widget.widget.total_event_size.setValue(min_event_size)
-    _plugin.arcos_widget.widget.add_convex_hull_checkbox.setChecked(add_convex_hull)
+    _plugin._arcos_widget.widget.min_clustersize.setValue(min_clustersize)
+    _plugin._arcos_widget.widget.min_dur.setValue(min_duration)
+    _plugin._arcos_widget.widget.total_event_size.setValue(min_event_size)
+    _plugin._arcos_widget.widget.add_convex_hull_checkbox.setChecked(add_convex_hull)
 
-    _plugin.arcos_widget.widget.update_arcos.click()
+    _plugin._arcos_widget.widget.update_arcos.click()
+
+
+def get_arcos_output(plugin: _main_widget.MainWindow | None = None):
+    """Get the ARCoS output dataframe.
+
+    Parameters
+    ----------
+    plugin : _main_widget.MainWindow | None
+        If None, will try to get the last instance of the plugin (can fail if the plugin has been closed before and
+        some stray reference is hanging arround).
+        If not None, will use the given plugin instance. Plugin can be opened with open_plugin(viewer).
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Dataframe with the ARCoS output.
+    stats : pd.DataFrame
+        Dataframe with summary statistics of the ARCOS output.
+    """
+    if plugin is None:
+        plugin = _main_widget.MainWindow.get_last_instance()
+    if not plugin:
+        _plugin = open_plugin(napari.current_viewer())
+    else:
+        _plugin = plugin
+
+    try:
+        return _plugin.data.arcos_output.value, _plugin.data.arcos_stats.value
+    except RuntimeError:
+        raise RuntimeError(
+            "Cannot find the plugin. Either specify a plugin or open one."
+        )
