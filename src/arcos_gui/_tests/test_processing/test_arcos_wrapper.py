@@ -3,7 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 from arcos4py import ARCOS
-from arcos_gui.processing import DataStorage
+from arcos_gui.processing import (
+    ArcosParameters,
+    BatchProcessor,
+    DataStorage,
+    columnnames,
+)
 from arcos_gui.processing._arcos_wrapper import (
     arcos_worker,
     binarization,
@@ -161,21 +166,22 @@ def test_arcos_wrapper_run_all():
     what_to_run = {"binarization", "filtering", "tracking"}
     ds = DataStorage()
     filtered_data = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
-    ds.columns.frame_column = "t"
-    ds.columns.object_id = "id"
-    ds.columns.x_column = "x"
-    ds.columns.y_column = "y"
-    ds.columns.z_column = "None"
-    ds.columns.measurement_column = "m"
-    ds.columns.position_id = "None"
-    ds.columns.additional_filter_column = "None"
-    ds.columns.measurement_math_operatoin = "None"
-    ds.columns.measurement_bin = "m.bin"
-    ds.columns.measurement_resc = "m.resc"
+    ds.set_callbacks_verbose(True)
+    ds.columns.value.frame_column = "t"
+    ds.columns.value.object_id = "id"
+    ds.columns.value.x_column = "x"
+    ds.columns.value.y_column = "y"
+    ds.columns.value.z_column = None
+    ds.columns.value.measurement_column = "m"
+    ds.columns.value.position_id = None
+    ds.columns.value.additional_filter_column = None
+    ds.columns.value.measurement_math_operation = "None"
+    ds.columns.value.measurement_bin = "m.bin"
+    ds.columns.value.measurement_resc = "m.resc"
 
     worker = arcos_worker(what_to_run, print)
     worker.filtered_data = filtered_data
-    worker.columns = ds.columns
+    worker.columns = ds.columns.value
     worker.arcos_parameters.interpolate_meas.value = True
     worker.arcos_parameters.clip_meas.value = True
     worker.arcos_parameters.clip_low.value = 0.01
@@ -193,7 +199,7 @@ def test_arcos_wrapper_run_all():
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
     assert not worker.arcos_raw_output.empty
@@ -202,19 +208,19 @@ def test_arcos_wrapper_run_all():
 def test_arcos_wrapper_run_no_data(capsys):
     what_to_run = {"binarization", "filtering", "tracking"}
     ds = DataStorage()
-    ds.columns.frame_column = "t"
-    ds.columns.object_id = "id"
-    ds.columns.x_column = "x"
-    ds.columns.y_column = "y"
-    ds.columns.z_column = "None"
-    ds.columns.measurement_column = "m"
-    ds.columns.position_id = "None"
-    ds.columns.additional_filter_column = "None"
-    ds.columns.measurement_math_operatoin = "None"
-    ds.columns.measurement_bin = "m.bin"
-    ds.columns.measurement_resc = "m.resc"
+    ds.columns.value.frame_column = "t"
+    ds.columns.value.object_id = "id"
+    ds.columns.value.x_column = "x"
+    ds.columns.value.y_column = "y"
+    ds.columns.value.z_column = "None"
+    ds.columns.value.measurement_column = "m"
+    ds.columns.value.position_id = "None"
+    ds.columns.value.additional_filter_column = "None"
+    ds.columns.value.measurement_math_operation = "None"
+    ds.columns.value.measurement_bin = "m.bin"
+    ds.columns.value.measurement_resc = "m.resc"
     worker = arcos_worker(what_to_run, print)
-    worker.columns = ds.columns
+    worker.columns = ds.columns.value
     worker.arcos_parameters.interpolate_meas.value = True
     worker.arcos_parameters.clip_meas.value = True
     worker.arcos_parameters.clip_low.value = 0.01
@@ -232,7 +238,7 @@ def test_arcos_wrapper_run_no_data(capsys):
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     captured_data = capsys.readouterr()
     assert worker.filtered_data.empty
     assert worker.arcos_object.data.empty
@@ -247,19 +253,19 @@ def test_arcos_wrapper_run_no_bin_data(capsys):
         "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
 
-    ds.columns.frame_column = "t"
-    ds.columns.object_id = "id"
-    ds.columns.x_column = "x"
-    ds.columns.y_column = "y"
-    ds.columns.z_column = "None"
-    ds.columns.measurement_column = "m"
-    ds.columns.position_id = "None"
-    ds.columns.additional_filter_column = "None"
-    ds.columns.measurement_math_operatoin = "None"
-    ds.columns.measurement_bin = "m.bin"
-    ds.columns.measurement_resc = "m.resc"
+    ds.columns.value.frame_column = "t"
+    ds.columns.value.object_id = "id"
+    ds.columns.value.x_column = "x"
+    ds.columns.value.y_column = "y"
+    ds.columns.value.z_column = "None"
+    ds.columns.value.measurement_column = "m"
+    ds.columns.value.position_id = "None"
+    ds.columns.value.additional_filter_column = "None"
+    ds.columns.value.measurement_math_operation = "None"
+    ds.columns.value.measurement_bin = "m.bin"
+    ds.columns.value.measurement_resc = "m.resc"
     worker = arcos_worker(what_to_run, print)
-    worker.columns = ds.columns
+    worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
     worker.arcos_parameters.clip_meas.value = True
@@ -278,7 +284,7 @@ def test_arcos_wrapper_run_no_bin_data(capsys):
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     captured_data = capsys.readouterr()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
@@ -293,19 +299,19 @@ def test_arcos_wrapper_run_no_detected_events_data(capsys):
         "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
 
-    ds.columns.frame_column = "t"
-    ds.columns.object_id = "id"
-    ds.columns.x_column = "x"
-    ds.columns.y_column = "y"
-    ds.columns.z_column = "None"
-    ds.columns.measurement_column = "m"
-    ds.columns.position_id = "None"
-    ds.columns.additional_filter_column = "None"
-    ds.columns.measurement_math_operatoin = "None"
-    ds.columns.measurement_bin = "m.bin"
-    ds.columns.measurement_resc = "m.resc"
+    ds.columns.value.frame_column = "t"
+    ds.columns.value.object_id = "id"
+    ds.columns.value.x_column = "x"
+    ds.columns.value.y_column = "y"
+    ds.columns.value.z_column = None
+    ds.columns.value.measurement_column = "m"
+    ds.columns.value.position_id = None
+    ds.columns.value.additional_filter_column = None
+    ds.columns.value.measurement_math_operation = None
+    ds.columns.value.measurement_bin = "m.bin"
+    ds.columns.value.measurement_resc = "m.resc"
     worker = arcos_worker(what_to_run, print)
-    worker.columns = ds.columns
+    worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
     worker.arcos_parameters.clip_meas.value = False
@@ -319,12 +325,12 @@ def test_arcos_wrapper_run_no_detected_events_data(capsys):
     worker.arcos_parameters.bin_peak_threshold.value = 0.5
     worker.arcos_parameters.neighbourhood_size.value = 0.01
     worker.arcos_parameters.eps_method.value = "manual"
-    worker.arcos_parameters.epsPrev.value = 0.01
+    worker.arcos_parameters.epsPrev.value = 1
     worker.arcos_parameters.min_clustersize.value = 4
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 50
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     captured_data = capsys.readouterr()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
@@ -342,19 +348,19 @@ def test_arcos_wrapper_run_no_filtered_data(capsys):
         "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
 
-    ds.columns.frame_column = "t"
-    ds.columns.object_id = "id"
-    ds.columns.x_column = "x"
-    ds.columns.y_column = "y"
-    ds.columns.z_column = "None"
-    ds.columns.measurement_column = "m"
-    ds.columns.position_id = "None"
-    ds.columns.additional_filter_column = "None"
-    ds.columns.measurement_math_operatoin = "None"
-    ds.columns.measurement_bin = "m.bin"
-    ds.columns.measurement_resc = "m.resc"
+    ds.columns.value.frame_column = "t"
+    ds.columns.value.object_id = "id"
+    ds.columns.value.x_column = "x"
+    ds.columns.value.y_column = "y"
+    ds.columns.value.z_column = None
+    ds.columns.value.measurement_column = "m"
+    ds.columns.value.position_id = None
+    ds.columns.value.additional_filter_column = None
+    ds.columns.value.measurement_math_operation = None
+    ds.columns.value.measurement_bin = "m.bin"
+    ds.columns.value.measurement_resc = "m.resc"
     worker = arcos_worker(what_to_run, print)
-    worker.columns = ds.columns
+    worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
     worker.arcos_parameters.clip_meas.value = False
@@ -373,7 +379,7 @@ def test_arcos_wrapper_run_no_filtered_data(capsys):
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 50
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     captured_data = capsys.readouterr()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
@@ -400,22 +406,22 @@ def test_arcos_wrapper_run_specific_parts():
         "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
 
-    ds.columns.frame_column = "t"
-    ds.columns.object_id = "id"
-    ds.columns.x_column = "x"
-    ds.columns.y_column = "y"
-    ds.columns.z_column = "None"
-    ds.columns.measurement_column = "m"
-    ds.columns.position_id = "None"
-    ds.columns.additional_filter_column = "None"
-    ds.columns.measurement_math_operatoin = "None"
-    ds.columns.measurement_bin = "m.bin"
-    ds.columns.measurement_resc = "m.resc"
+    ds.columns.value.frame_column = "t"
+    ds.columns.value.object_id = "id"
+    ds.columns.value.x_column = "x"
+    ds.columns.value.y_column = "y"
+    ds.columns.value.z_column = None
+    ds.columns.value.measurement_column = "m"
+    ds.columns.value.position_id = None
+    ds.columns.value.additional_filter_column = None
+    ds.columns.value.measurement_math_operation = None
+    ds.columns.value.measurement_bin = "m.bin"
+    ds.columns.value.measurement_resc = "m.resc"
     worker = arcos_worker(what_to_run, print)
 
     worker.new_arcos_output.connect(get_data_from_filtering.get_data_from_callback)
 
-    worker.columns = ds.columns
+    worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
     worker.arcos_parameters.clip_meas.value = False
@@ -434,14 +440,14 @@ def test_arcos_wrapper_run_specific_parts():
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
     assert worker.arcos_raw_output.empty
 
     what_to_run.clear()
     what_to_run.add("tracking")
-    worker.run_arcos()
+    worker.run()
 
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
@@ -451,7 +457,7 @@ def test_arcos_wrapper_run_specific_parts():
 
     what_to_run.clear()
     what_to_run.add("filtering")
-    worker.run_arcos()
+    worker.run()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
     assert not worker.arcos_raw_output.empty
@@ -472,22 +478,22 @@ def test_arcos_wrapper_epsMethod():
     ds.filtered_data.value = pd.read_csv(
         "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )
-    ds.columns.frame_column = "t"
-    ds.columns.object_id = "id"
-    ds.columns.x_column = "x"
-    ds.columns.y_column = "y"
-    ds.columns.z_column = "None"
-    ds.columns.measurement_column = "m"
-    ds.columns.position_id = "None"
-    ds.columns.additional_filter_column = "None"
-    ds.columns.measurement_math_operatoin = "None"
-    ds.columns.measurement_bin = "m.bin"
-    ds.columns.measurement_resc = "m.resc"
+    ds.columns.value.frame_column = "t"
+    ds.columns.value.object_id = "id"
+    ds.columns.value.x_column = "x"
+    ds.columns.value.y_column = "y"
+    ds.columns.value.z_column = None
+    ds.columns.value.measurement_column = "m"
+    ds.columns.value.position_id = None
+    ds.columns.value.additional_filter_column = None
+    ds.columns.value.measurement_math_operation = None
+    ds.columns.value.measurement_bin = "m.bin"
+    ds.columns.value.measurement_resc = "m.resc"
 
     worker = arcos_worker(what_to_run, print)
     worker.new_eps.connect(get_data_from_eps.get_data_from_callback)
 
-    worker.columns = ds.columns
+    worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
     worker.arcos_parameters.clip_meas.value = False
@@ -506,9 +512,84 @@ def test_arcos_wrapper_epsMethod():
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
     worker.arcos_parameters.total_event_size.value = 1
-    worker.run_arcos()
+    worker.run()
     assert not worker.filtered_data.empty
     assert not worker.arcos_object.data.empty
     assert not worker.arcos_raw_output.empty
 
     assert get_data_from_eps.eps != 0
+
+
+def test_init_batch():
+    # Test the initialization of the BatchProcessor class
+
+    # Replace these with the correct initialization based on your class definitions
+    arcos_parameters = ArcosParameters()
+    column_names = columnnames()
+
+    bp = BatchProcessor(
+        input_path="path/to/directory",
+        arcos_parameters=arcos_parameters,
+        columnames=column_names,
+        min_tracklength=1,
+        max_tracklength=100,
+        what_to_export=["arcos_output", "arcos_stats"],
+    )
+
+    assert bp.input_path == "path/to/directory"
+    assert bp.arcos_parameters == arcos_parameters
+    assert bp.columnames == column_names
+
+
+def test_create_fileendings_list():
+    # Test the _create_fileendings_list method
+    arcos_parameters = ArcosParameters()
+    column_names = columnnames()
+
+    bp = BatchProcessor(
+        input_path="path/to/directory",
+        arcos_parameters=arcos_parameters,
+        columnames=column_names,
+        min_tracklength=1,
+        max_tracklength=100,
+        what_to_export=["arcos_output", "statsplot"],
+    )
+
+    fileendings = bp._create_fileendings_list()
+    assert fileendings == [
+        ".csv",
+        ".svg",
+    ]  # replace with the expected list of file endings
+
+
+def test_run_arcos_batch():
+    arcos_parameters = ArcosParameters()
+    column_names = columnnames(
+        frame_column="t",
+        object_id="id",
+        x_column="x",
+        y_column="y",
+        z_column=None,
+        measurement_column="m",
+        position_id=None,
+        additional_filter_column=None,
+        measurement_math_operation=None,
+        measurement_bin="m.bin",
+        measurement_resc="m.resc",
+    )
+
+    bp = BatchProcessor(
+        input_path="src/arcos_gui/_tests/test_data/arcos_data.csv",
+        arcos_parameters=arcos_parameters,
+        columnames=column_names,
+        min_tracklength=1,
+        max_tracklength=100,
+        what_to_export=["arcos_output", "arcos_stats"],
+    )
+
+    df_in = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
+
+    # Call the method with the test data
+    arcos_df_filtered, arcos_stats = bp.run_arcos_batch(df_in)
+    assert arcos_df_filtered is not None
+    assert arcos_stats is not None

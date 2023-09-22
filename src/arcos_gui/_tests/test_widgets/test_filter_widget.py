@@ -146,15 +146,15 @@ def test_filter_data(make_input_widget: tuple[FilterController, QtBot]):
         controller.widget.min_tracklength_spinbox,
         controller.widget.max_tracklength_spinbox,
     )
-    controller.data_storage_instance.columns.position_id = "Position"
-    controller.data_storage_instance.columns.additional_filter_column = "None"
-    controller.data_storage_instance.columns.x_column = "x"
-    controller.data_storage_instance.columns.y_column = "y"
-    controller.data_storage_instance.columns.object_id = "id"
-    controller.data_storage_instance.columns.frame_column = "t"
-    controller.data_storage_instance.columns.measurement_column = "m"
+    controller.data_storage_instance.columns.value.position_id = "Position"
+    controller.data_storage_instance.columns.value.additional_filter_column = None
+    controller.data_storage_instance.columns.value.x_column = "x"
+    controller.data_storage_instance.columns.value.y_column = "y"
+    controller.data_storage_instance.columns.value.object_id = "id"
+    controller.data_storage_instance.columns.value.frame_column = "t"
+    controller.data_storage_instance.columns.value.measurement_column = "m"
     controller.widget.position.addItem(str(1), 1)
-    controller.widget.additional_filter_combobox.addItem(str(None), "None")
+    controller.widget.additional_filter_combobox.addItem("None", None)
     controller.data_storage_instance.load_data(
         "src/arcos_gui/_tests/test_data/arcos_data.csv", trigger_callback=False
     )
@@ -174,15 +174,15 @@ def test_filter_data_with_buttonpress(
         controller.widget.min_tracklength_spinbox,
         controller.widget.max_tracklength_spinbox,
     )
-    controller.data_storage_instance.columns.position_id = "Position"
-    controller.data_storage_instance.columns.additional_filter_column = "None"
-    controller.data_storage_instance.columns.x_column = "x"
-    controller.data_storage_instance.columns.y_column = "y"
-    controller.data_storage_instance.columns.object_id = "id"
-    controller.data_storage_instance.columns.frame_column = "t"
-    controller.data_storage_instance.columns.measurement_column = "m"
+    controller.data_storage_instance.columns.value.position_id = "Position"
+    controller.data_storage_instance.columns.value.additional_filter_column = None
+    controller.data_storage_instance.columns.value.x_column = "x"
+    controller.data_storage_instance.columns.value.y_column = "y"
+    controller.data_storage_instance.columns.value.object_id = "id"
+    controller.data_storage_instance.columns.value.frame_column = "t"
+    controller.data_storage_instance.columns.value.measurement_column = "m"
     controller.widget.position.addItem(str(1), 1)
-    controller.widget.additional_filter_combobox.addItem(str(None), "None")
+    controller.widget.additional_filter_combobox.addItem("None", None)
     controller.data_storage_instance.load_data(
         "src/arcos_gui/_tests/test_data/arcos_data.csv", trigger_callback=False
     )
@@ -194,13 +194,13 @@ def test_filter_data_with_buttonpress(
 def test_original_data_changed(make_input_widget: tuple[FilterController, QtBot]):
     controller, qtbot = make_input_widget
     assert controller.data_storage_instance.filtered_data.value.empty
-    controller.data_storage_instance.columns.position_id = "Position"
-    controller.data_storage_instance.columns.additional_filter_column = "Position"
-    controller.data_storage_instance.columns.x_column = "x"
-    controller.data_storage_instance.columns.y_column = "y"
-    controller.data_storage_instance.columns.object_id = "id"
-    controller.data_storage_instance.columns.frame_column = "t"
-    controller.data_storage_instance.columns.measurement_column = "m"
+    controller.data_storage_instance.columns.value.position_id = "Position"
+    controller.data_storage_instance.columns.value.additional_filter_column = "Position"
+    controller.data_storage_instance.columns.value.x_column = "x"
+    controller.data_storage_instance.columns.value.y_column = "y"
+    controller.data_storage_instance.columns.value.object_id = "id"
+    controller.data_storage_instance.columns.value.frame_column = "t"
+    controller.data_storage_instance.columns.value.measurement_column = "m"
     controller.data_storage_instance.load_data(
         "src/arcos_gui/_tests/test_data/arcos_data.csv"
     )

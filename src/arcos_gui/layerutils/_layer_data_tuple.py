@@ -13,18 +13,19 @@ from arcos_gui.tools import (
     fix_3d_convex_hull,
     get_verticesHull,
     make_surface_3d,
-    make_timestamp,
+    reshape_by_input_string,
 )
 
 
 def prepare_all_cells_layer(
     df_all: pd.DataFrame,
-    vColsCore,
-    track_id_col: str,
+    vColsCore: list[str | None],
+    track_id_col: str | None,
     measurement_name: str,
     lut: str,
-    min_max: tuple,
+    min_max: list[float],
     size: float,
+    axis_order: str | None = None,
 ) -> Union[tuple, None]:
     """Prepare all cells layer.
 
@@ -43,18 +44,24 @@ def prepare_all_cells_layer(
         min and max values for measurement
     size : float
         size of cells
-
+    axis_order : str
+        order of axis, e.g. 'tzyx', possible values: ['t', 'z', 'y', 'x'].
+        Default: 'tzyx' for 3D data, 'tyx' for 2D data
     Returns
     -------
     all_cells_layer : dict
         dictionary with all cells layer
     """
-
     # np matrix with all cells
     df_all = df_all.copy()
     df_all.interpolate(method="linear", inplace=True)
     data_all_np = df_all[vColsCore].to_numpy()
-    data_id_np = df_all[track_id_col].to_numpy()
+    data_all_np = reshape_by_input_string(data_all_np, axis_order, vColsCore)
+
+    if track_id_col:
+        data_id_np = df_all[track_id_col].to_numpy()
+    else:
+        data_id_np = np.zeros(data_all_np.shape[0])
 
     # a dictionary with activities;
     # shown as a color code of all cells
@@ -68,7 +75,7 @@ def prepare_all_cells_layer(
             "edge_color": "act",
             "face_color": "act",
             "face_colormap": lut,
-            "face_contrast_limits": min_max,
+            "face_contrast_limits": tuple(min_max),
             "size": size,
             "opacity": 1,
             "symbol": "disc",
@@ -80,7 +87,11 @@ def prepare_all_cells_layer(
 
 
 def prepare_active_cells_layer(
-    df_bin: pd.DataFrame, vColsCore: list, measbin_col: str, size: float
+    df_bin: pd.DataFrame,
+    vColsCore: list,
+    measbin_col: str | None,
+    size: float,
+    axis_order: str | None = None,
 ) -> Union[tuple, None]:
     """Prepare active cells layer.
 
@@ -93,6 +104,11 @@ def prepare_active_cells_layer(
         order: [framecol, ycol, xcol, zcol(optional)]
     measbin_col : str
         name of binarized measurement column
+    size : float
+        size of cells
+    axis_order : str
+        order of axis, e.g. 'tzyx', possible values: ['t', 'z', 'y', 'x'].
+        Default: 'tzyx' for 3D data, 'tyx' for 2D data.
 
     Returns
     -------
@@ -101,7 +117,9 @@ def prepare_active_cells_layer(
     """
 
     # np matrix with acvtive cells; shown as black dots
-    datAct = df_bin[df_bin[measbin_col] > 0][vColsCore].to_numpy()
+    df_bin_filtered = df_bin[df_bin[measbin_col] > 0]
+    datAct = df_bin_filtered[vColsCore].to_numpy()
+    datAct = reshape_by_input_string(datAct, axis_order, vColsCore)
 
     if datAct.size == 0:
         return None
@@ -123,7 +141,10 @@ def prepare_active_cells_layer(
 
 
 def prepare_events_layer(
-    df_coll: pd.DataFrame, vColsCore: list, size: float
+    df_coll: pd.DataFrame,
+    vColsCore: list,
+    size: float,
+    axis_order: str | None = None,
 ) -> Union[tuple, None]:
     """Prepare events layer.
 
@@ -136,6 +157,9 @@ def prepare_events_layer(
         order: [framecol, ycol, xcol, zcol(optional)]
     size : float
         size of cells
+    axis_order : str
+        order of axis, e.g. 'tzyx', possible values: ['t', 'z', 'y', 'x'].
+        Default: 'tzyx' for 3D data, 'tyx' for 2D data.
 
     Returns
     -------
@@ -144,6 +168,9 @@ def prepare_events_layer(
     """
     # np matrix with cells in collective events
     data_collevent_np = df_coll[vColsCore].to_numpy()
+    data_collevent_np = reshape_by_input_string(
+        data_collevent_np, axis_order, vColsCore
+    )
 
     # create remaining layer.data.tuples
     np_clids = df_coll["collid"].to_numpy()
@@ -172,6 +199,7 @@ def prepare_convex_hull_layer(
     df_coll: pd.DataFrame,
     collid_name: str,
     vColsCore: list,
+    axis_order: str | None = None,
 ) -> Union[tuple, None]:
     """Prepare convex hull layer.
 
@@ -186,6 +214,9 @@ def prepare_convex_hull_layer(
     vColsCore : list
         list with core columns in dataframe
         order: [framecol, ycol, xcol, zcol(optional)]
+    axis_order : str
+        order of axis, e.g. 'tzyx', possible values: ['t', 'z', 'y', 'x'].
+        Default: 'tzyx' for 3D data, 'tyx' for 2D data.
 
     Returns
     -------
@@ -206,6 +237,12 @@ def prepare_convex_hull_layer(
             col_y=vColsCore[1],
         )
 
+        # order according to input string
+        datChull = [
+            reshape_by_input_string(i, input_string=axis_order, vColsCore=vColsCore)
+            for i in datChull
+        ]
+
         coll_events = (
             datChull,
             {
@@ -221,13 +258,14 @@ def prepare_convex_hull_layer(
         )
         return coll_events
 
+    # 3D data
+    # reorder columns list to match axis order
+
     event_surfaces = make_surface_3d(
         df_coll,
-        frame=vColsCore[0],
+        vColsCore=vColsCore,
         colid=collid_name,
-        col_x=vColsCore[2],
-        col_y=vColsCore[1],
-        col_z=vColsCore[3],
+        output_order=axis_order,
     )
 
     event_surfaces = fix_3d_convex_hull(
@@ -248,55 +286,3 @@ def prepare_convex_hull_layer(
         "surface",
     )
     return coll_events
-
-
-def prepare_timestamp_layer(
-    viewer, start_time, step_time, position, prefix, suffix, size, x_shift, y_shift
-):
-    """Prepare timestamp layer.
-
-    Parameters
-    ----------
-    viewer : napari.Viewer
-        napari viewer
-    start_time : int
-        start time
-    step_time : int
-        step time
-    position : tuple
-        position of timestamp
-    prefix : str
-        prefix of timestamp
-    suffix : str
-        suffix of timestamp
-    size : float
-        size of timestamp
-    x_shift : float
-        x shift of timestamp
-    y_shift : float
-        y shift of timestamp
-
-    Returns
-    -------
-    time_stamp_layer : tuple
-        tuple with timestamp layer
-    """
-    kw_timestamp = make_timestamp(
-        viewer, start_time, step_time, prefix, suffix, position, size, x_shift, y_shift
-    )
-
-    time_stamp_layer = (
-        kw_timestamp["data"],
-        {
-            "properties": kw_timestamp["properties"],
-            "face_color": kw_timestamp["face_color"],
-            "edge_color": kw_timestamp["edge_color"],
-            "shape_type": kw_timestamp["shape_type"],
-            "text": kw_timestamp["text"],
-            "opacity": kw_timestamp["opacity"],
-            "name": ARCOS_LAYERS["timestamp"],
-        },
-        "shapes",
-    )
-
-    return time_stamp_layer

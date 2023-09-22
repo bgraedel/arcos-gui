@@ -6,6 +6,7 @@ The MainWidget is the entry point for the napari plugin.
 """
 from __future__ import annotations
 
+import weakref
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -32,7 +33,7 @@ class _MainUI(QtWidgets.QWidget):
     UI_FILE = str(Path(__file__).parent / "_ui" / "main_widget.ui")
 
     # The UI_FILE above contains these objects:
-    tabWidget: QtWidgets.QTabWidget
+    maintabwidget: QtWidgets.QTabWidget
 
     filter_groupBox: QtWidgets.QGroupBox
     inputdata_groupBox: QtWidgets.QGroupBox
@@ -63,86 +64,87 @@ class MainWindow(QtWidgets.QWidget):
     choose arcos parameters, choose LUT mappings aswell as shape sizes.
     """
 
-    def __init__(self, viewer: napari.viewer.Viewer):
-        """Constructs class with provided arguments."""
-        super().__init__()
-        self.viewer: napari.viewer.Viewer = viewer
-        self.widget = _MainUI(self)
-        MainWindow._instance = self
-        self.setLayout(self.widget.layout())
+    _instance = None
 
-        self.data_storage_instance = DataStorage()
+    def __init__(self, viewer: napari.viewer.Viewer, parent=None):
+        """Constructs class with provided arguments."""
+        super().__init__(parent=parent)
+        self.viewer: napari.viewer.Viewer = viewer
+        self._widget = _MainUI(self)
+        MainWindow._instance = weakref.ref(self)
+
+        self.setLayout(self._widget.layout())
+
+        self.data = DataStorage()
         # self.data_storage_instance.set_verbose(
         #     True
         # )  # uncomment to make callbacks verbose
 
-        self.input_controller = InputdataController(
-            data_storage_instance=self.data_storage_instance,
+        self._input_controller = InputdataController(
+            data_storage_instance=self.data,
             std_out=show_info,
-            parent=self.widget,
-        )
-        self.filter_controller = FilterController(
             viewer=self.viewer,
-            data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+            parent=self,
         )
-        self.arcos_widget = ArcosController(
-            data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
-        )
-        self.layer_prop_controller = LayerpropertiesController(
+        self._filter_controller = FilterController(
             viewer=self.viewer,
-            data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+            data_storage_instance=self.data,
+            parent=self,
         )
-        self.ts_plots_widget = tsPlotWidget(self.viewer, self.data_storage_instance)
-        self.collev_plots_widget = collevPlotWidget(
-            self.viewer, self.data_storage_instance
+        self._arcos_widget = ArcosController(
+            data_storage_instance=self.data,
+            parent=self,
         )
-        self.export = ExportController(
+        self._layer_prop_controller = LayerpropertiesController(
             viewer=self.viewer,
-            data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+            data_storage_instance=self.data,
+            parent=self,
+        )
+        self._ts_plots_widget = tsPlotWidget(self.viewer, self.data, self)
+        self._collev_plots_widget = collevPlotWidget(self.viewer, self.data, self)
+        self._export = ExportController(
+            viewer=self.viewer,
+            data_storage_instance=self.data,
+            parent=self,
         )
 
-        self.bottom_bar = BottombarController(
-            data_storage_instance=self.data_storage_instance,
-            parent=self.widget,
+        self._bottom_bar = BottombarController(
+            data_storage_instance=self.data,
+            parent=self._widget,
         )
 
-        self.layermaker = Layermaker(self.viewer, self.data_storage_instance)
-
+        self._layermaker = Layermaker(self.viewer, self.data)
         self._add_widgets()
         self._connect_signals()
 
     @classmethod
     def get_last_instance(cls) -> MainWindow | None:
         """Returns the last instance of this class. Returns None if no instance exists."""
+        # check if instance exists and is still valid, otherwise delete it and return None
         try:
-            return cls._instance
-        except AttributeError:
-            return None
+            cls._instance._widget.maintabwidget.currentIndex()  # type: ignore
+        except (AttributeError, RuntimeError):
+            del cls._instance
+            cls._instance = None
+        return cls._instance() if cls._instance else None
 
     def _connect_signals(self):
-        self.data_storage_instance.arcos_binarization.value_changed_connect(
-            self.layermaker.make_layers_bin
+        self.data.arcos_binarization.value_changed.connect(
+            self._layermaker.make_layers_bin
         )
-        self.data_storage_instance.arcos_output.value_changed_connect(
-            self.layermaker.make_layers_all
-        )
-        self.data_storage_instance.timestamp_parameters.value_changed_connect(
-            self.layermaker.make_timestamp_layer
-        )
+        self.data.arcos_output.value_changed.connect(self._layermaker.make_layers_all)
 
     def _add_widgets(self):
-        self.widget.inputdata_groupBox.layout().addWidget(self.input_controller.widget)
-        self.widget.filter_groupBox.layout().addWidget(self.filter_controller.widget)
-        self.widget.arcos_layout.addWidget(self.arcos_widget.widget)
-        self.widget.layer_prop_layout.addWidget(self.layer_prop_controller.widget)
-        self.widget.tsplots_layout.addWidget(self.ts_plots_widget)
-        self.widget.evplots_layout.addWidget(self.collev_plots_widget)
-        self.widget.export_layout.addWidget(self.export.widget)
-        self.widget.bottom_bar_layout.addWidget(self.bottom_bar.widget)
+        self._widget.inputdata_groupBox.layout().addWidget(
+            self._input_controller.widget
+        )
+        self._widget.filter_groupBox.layout().addWidget(self._filter_controller.widget)
+        self._widget.arcos_layout.addWidget(self._arcos_widget.widget)
+        self._widget.layer_prop_layout.addWidget(self._layer_prop_controller.widget)
+        self._widget.tsplots_layout.addWidget(self._ts_plots_widget)
+        self._widget.evplots_layout.addWidget(self._collev_plots_widget)
+        self._widget.export_layout.addWidget(self._export.widget)
+        self._widget.bottom_bar_layout.addWidget(self._bottom_bar.widget)
 
 
 if __name__ == "__main__":

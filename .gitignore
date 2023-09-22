@@ -82,3 +82,6 @@ venv/
 
 # written by setuptools_scm
 **/_version.py
+
+# example tif file
+src/arcos_gui/sample_data/MDCK_example_event.tif

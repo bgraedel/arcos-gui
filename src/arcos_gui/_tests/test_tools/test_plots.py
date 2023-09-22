@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pandas as pd
+from arcos_gui.processing._arcos_wrapper import calculate_arcos_stats
 from arcos_gui.tools import ARCOS_LAYERS, CollevPlotter, NoodlePlot, TimeSeriesPlots
 from matplotlib.backend_bases import MouseEvent, PickEvent
 from pytestqt.qtbot import QtBot
@@ -18,13 +19,15 @@ def test_collev_plotter_with_data(make_napari_viewer):
     viewer = make_napari_viewer()
     widget = CollevPlotter(viewer=viewer)
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
+    arcos_stats = calculate_arcos_stats(df, "t", "collid", "id", ["x", "y"])
     widget.update_plot(
         frame_col="t",
         trackid_col="id",
         posx="x",
         posy="y",
-        posz="None",
+        posz=None,
         arcos_data=df,
+        arcos_stats=arcos_stats,
         point_size=10,
     )
     assert widget.ax.has_data()
@@ -34,13 +37,15 @@ def test_pick_event(make_napari_viewer):
     viewer = make_napari_viewer()
     widget = CollevPlotter(viewer=viewer)
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
+    arcos_stats = calculate_arcos_stats(df, "t", "collid", "id", ["x", "y"])
     widget.update_plot(
         frame_col="t",
         trackid_col="id",
         posx="x",
         posy="y",
-        posz="None",
+        posz=None,
         arcos_data=df,
+        arcos_stats=arcos_stats,
         point_size=10,
     )
 
@@ -75,7 +80,7 @@ def test_noodles_with_data(make_napari_viewer):
         trackid_col="id",
         posx="x",
         posy="y",
-        posz="None",
+        posz=None,
         arcos_data=df,
         point_size=10,
     )
@@ -91,7 +96,7 @@ def test_pick_event_noodles(make_napari_viewer):
         trackid_col="id",
         posx="x",
         posy="y",
-        posz="None",
+        posz=None,
         arcos_data=df,
         point_size=10,
     )

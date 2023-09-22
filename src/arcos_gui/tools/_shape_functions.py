@@ -1,6 +1,5 @@
 """Various utility functions for generating shapes and text."""
-
-from copy import deepcopy
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
@@ -9,86 +8,52 @@ from scipy.spatial import ConvexHull, QhullError
 from ._config import ARCOS_LAYERS, COLOR_CYCLE
 
 
-def make_timestamp(
-    viewer,
-    start_time=0,
-    step_time=1,
-    prefix="T =",
-    suffix="frame",
-    position="upper_left",
-    size=12,
-    x_shift=12,
-    y_shift=0,
-):
+def reshape_by_input_string(selected_columns, input_string, vColsCore):
+    """Reshape a 2D array of selected columns based on an input string.
+
+    Parameters:
+        selected_columns (np.ndarray): A 2D array of selected columns.
+        Order Corresponds to vColsCore order.
+        input_string (str): A string that contains the characters 't', 'x', 'y', and 'z'.
+        vColsCore (list): List of column names in the order tyxz.
+
+    Returns (np.ndarray): A 2D array with the selected columns reshaped based on the input string.
     """
-    Create a timestamp displayed in the viewer.
-    This is done by creating a dummy shape layer
-    and annotating it with the current time.
+    if input_string is None and len(vColsCore) == 3:
+        # 2D data
+        input_string = "tyx"
 
-    Parameters
-    ----------
-    viewer : napari.Viewer
-        napari viewer
-    start_time : int
-        start time
-    step_time : int
-        step time
-    prefix : str
-        prefix of timestamp
-    suffix : str
-        suffix of timestamp
-    position : str
-        position of timestamp
-    size : float
-        size of timestamp
-    x_shift : float
-        x shift of timestamp
-    y_shift : float
-        y shift of timestamp
+    elif input_string is None and len(vColsCore) == 4:
+        # 3D data
+        input_string = "tzyx"
 
-    Returns
-    -------
-    out : dict
-        dictionary with properties for timestamp layer
-    """
-    anchors = ["upper_right", "upper_left", "lower_right", "lower_left", "center"]
-    if position not in anchors:
-        raise ValueError(f'"position" must be one of: {anchors}')
+    # Convert the input string to lowercase
+    input_string = input_string.lower()
 
-    text_parameters_tmstp = {
-        "string": "{label}",
-        "size": size,
-        "color": "white",
-        "anchor": position,
-        "translation": [x_shift, y_shift],
-    }
-    out = {}
-    rgt, rgy, rgx = deepcopy(viewer.dims.range)
-    # Napari uses float64 for dims
-    maxx, maxy, maxt = rgx[1], rgy[1], rgt[1] - 1
-    # Points to the corners of the image at each frame
-    corners = [
-        np.array(
-            [
-                [t, np.float64(0), np.float64(0)],
-                [t, np.float64(0), maxx],
-                [t, maxy, maxx],
-                [t, maxy, np.float64(0)],
-            ]
+    # Check if the input string contains only the allowed characters
+    if any(char not in "tzyx" for char in input_string):
+        raise ValueError(
+            "Input string must contain only the characters 't', 'x', 'y', and 'z'."
         )
-        for t in np.arange(maxt + 1).astype("float64")
-    ]
-    out["properties"] = {}
-    timestamp = [start_time + step * step_time for step in range(int(maxt + 1))]
-    out["properties"]["label"] = [f"{prefix} {str(i)} {suffix}" for i in timestamp]
-    out["data"] = corners
-    # Fully transparent white because just want the text, not the shape
-    out["face_color"] = np.repeat("#ffffff00", len(corners))
-    out["edge_color"] = np.repeat("#ffffff00", len(corners))
-    out["shape_type"] = "rectangle"
-    out["text"] = text_parameters_tmstp
-    out["opacity"] = 1
-    return out
+
+    # Determine the length of the second dimension based on the input string
+    second_dim_length = len(input_string)
+
+    # Create a new array with zeros and the shape based on the input string
+    reshaped_array = np.zeros((selected_columns.shape[0], second_dim_length))
+
+    # Map the characters to the corresponding column indexes
+    char_to_index = {"t": 0, "y": 1, "x": 2, "z": 3 if len(vColsCore) > 3 else None}
+
+    # Fill the new array with the selected columns and zeros
+    for i, char in enumerate(input_string):
+        if (
+            char_to_index[char] is not None
+            and char_to_index[char] < selected_columns.shape[1]
+        ):
+            reshaped_array[:, i] = selected_columns[:, char_to_index[char]]
+
+    return reshaped_array
 
 
 def calculate_convex_hull(array):
@@ -141,7 +106,13 @@ def calculate_convex_hull_3d(array):
         return array_faces
 
 
-def get_verticesHull(df, frame, colid, col_x, col_y):
+def get_verticesHull(
+    df,
+    frame,
+    colid,
+    col_x,
+    col_y,
+):
     """Calculate convex hull for 2d collective events.
 
     Input dataframe is converted into a numpy array and split into groups
@@ -161,6 +132,7 @@ def get_verticesHull(df, frame, colid, col_x, col_y):
     one for each collective event. Array of colors, a unique
     one for each collective event.
     """
+
     df = df.sort_values([colid, frame])
     array_txy = df[[colid, frame, col_y, col_x]].to_numpy()
     array_txy = array_txy[~np.isnan(array_txy).any(axis=1)]
@@ -181,7 +153,10 @@ def get_verticesHull(df, frame, colid, col_x, col_y):
 
 # @profile
 def make_surface_3d(
-    df: pd.DataFrame, frame: str, col_x: str, col_y: str, col_z: str, colid: str
+    df: pd.DataFrame,
+    vColsCore: list[str],
+    colid: str,
+    output_order: str | None = "tyxz",
 ):
     """Calculate convex hull for 3d collective events.
 
@@ -200,18 +175,31 @@ def make_surface_3d(
         as frame and collective id columns.
         frame (str): Name of frame column in df.
         colid (str): Name of collective id column in df.
-        col_x (str): Name of x coordinate column in df.
-        col_y (str): Name of y coordinate column in df.
-        col_z (str): Name of z coordinate column in df.
+        vColsCore (list): List of column names in the order tyxz.
+        output_order (str): String that defines the order of the output. Default is tyxz.
 
     Returns (tuple(np.ndarray, np.ndarray, np.ndarray)): Tuple that contains
     vertex coordinates, face indices and color ids
     """
+    if output_order is None:
+        output_order = "tyxz"
+    frame = vColsCore[0]
+
+    # reorder columns according to output_order
+    map_dict = {
+        "t": vColsCore[0],
+        "y": vColsCore[1],
+        "x": vColsCore[2],
+        "z": vColsCore[3],
+    }
+    reordered_cols = [map_dict[i] for i in output_order]
+
     data_faces = []
     vertices_count = 0
     # sort needed for np.split
     df = df.sort_values([colid, frame])
-    array_idtyxz = df[[colid, frame, col_y, col_x, col_z]].to_numpy()
+    selection_cols = [colid] + reordered_cols
+    array_idtyxz = df[selection_cols].to_numpy()
     array_idtyxz = array_idtyxz[~np.isnan(array_idtyxz).any(axis=1)]
     # split array into list of arrays, one for each collid/timepoint combination
     grouped_array = np.split(
@@ -274,6 +262,8 @@ def calc_bbox(array: np.ndarray):
 
     Returns (np.ndarray): 2d array of coordinates for the bounding box.
     """
+    # reorder columns according to output_order
+
     time_point = array[0, 0]
     pos_array = array[:, 1:]
     # 3d case
@@ -306,7 +296,13 @@ def calc_bbox(array: np.ndarray):
 
 
 def get_bbox(
-    df: pd.DataFrame, clid: int, frame: str, xcol: str, ycol: str, edge_size: float = 10
+    df: pd.DataFrame,
+    clid: int,
+    frame: str,
+    xcol: str,
+    ycol: str,
+    edge_size: float = 10,
+    output_order: str = "tyx",
 ):
     """Get bounding box of dataframe in long format with position columns, for 2d case.
 
@@ -325,12 +321,14 @@ def get_bbox(
     df = df.sort_values([frame])
     array_tpos = df[[frame, ycol, xcol]].to_numpy()
     array_tpos = array_tpos[~np.isnan(array_tpos).any(axis=1)]
+    # reorder columns according to output_order
     # split array into list of arrays, one for each collid/timepoint combination
     grouped_array = np.split(
         array_tpos, np.unique(array_tpos[:, 0], axis=0, return_index=True)[1][1:]
     )
     # calc bbox for every array in the list
     bbox = [calc_bbox(i) for i in grouped_array]
+    bbox = [reshape_by_input_string(i, output_order, [frame, ycol, xcol]) for i in bbox]
     text_size = edge_size * 2.5
     if text_size < 1:
         text_size = 1
@@ -353,7 +351,14 @@ def get_bbox(
     return bbox, bbox_layer
 
 
-def get_bbox_3d(df: pd.DataFrame, frame: str, xcol: str, ycol: str, zcol: str):
+def get_bbox_3d(
+    df: pd.DataFrame,
+    frame: str,
+    xcol: str,
+    ycol: str,
+    zcol: str,
+    output_order: str = "tzyx",
+):
     """Get bounding box of dataframe in long format with position columns, for 3d case.
 
     Can be added to napari with the add_surfaces function.
@@ -373,12 +378,17 @@ def get_bbox_3d(df: pd.DataFrame, frame: str, xcol: str, ycol: str, zcol: str):
     df = df.sort_values([frame])
     array_tpos = df[[frame, ycol, xcol, zcol]].to_numpy()
     array_tpos = array_tpos[~np.isnan(array_tpos).any(axis=1)]
+
     # split array into list of arrays, one for each collid/timepoint combination
     grouped_array = np.split(
         array_tpos, np.unique(array_tpos[:, 0], axis=0, return_index=True)[1][1:]
     )
     # calc bbox for every array in the list
     bbox = [calc_bbox(i) for i in grouped_array]
+    bbox = [
+        reshape_by_input_string(i, output_order, [frame, ycol, xcol, zcol])
+        for i in bbox
+    ]
     data_faces = []
     vertices_count = 0
     data_colors: np.ndarray = np.array([])

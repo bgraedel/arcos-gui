@@ -71,7 +71,7 @@ def test_ts_bin_data_changed(
     widget._data_storage_instance.load_data(
         "src/arcos_gui/_tests/test_data/arcos_data.csv", trigger_callback=False
     )
-    widget._data_storage_instance.arcos_binarization = (
+    widget._data_storage_instance.arcos_binarization.value = (
         widget._data_storage_instance.original_data._value.copy()
     )
     assert mock_update_plot.called
@@ -83,7 +83,7 @@ def test_ts_selected_oid_changed(
 ):
     widget, _, _ = make_ts_widget
     mock_update_plot.return_value = "updated"
-    widget._data_storage_instance.selected_object_id = 1
+    widget._data_storage_instance.selected_object_id.value = 1
     assert mock_update_plot.called
 
 
@@ -100,14 +100,14 @@ def test_on_data_update_data(
     make_ts_widget: tuple[tsPlotWidget, viewer.Viewer, QtBot], capsys
 ):
     widget, _, _ = make_ts_widget
-    widget._data_storage_instance.columns.position_id = "Position"
-    widget._data_storage_instance.columns.additional_filter_column = "None"
-    widget._data_storage_instance.columns.x_column = "x"
-    widget._data_storage_instance.columns.y_column = "y"
-    widget._data_storage_instance.columns.object_id = "id"
-    widget._data_storage_instance.columns.frame_column = "t"
-    widget._data_storage_instance.columns.measurement_column = "m"
-    widget._data_storage_instance.columns.measurement_resc = "m"
+    widget._data_storage_instance.columns.value.position_id = "Position"
+    widget._data_storage_instance.columns.value.additional_filter_column = "None"
+    widget._data_storage_instance.columns.value.x_column = "x"
+    widget._data_storage_instance.columns.value.y_column = "y"
+    widget._data_storage_instance.columns.value.object_id = "id"
+    widget._data_storage_instance.columns.value.frame_column = "t"
+    widget._data_storage_instance.columns.value.measurement_column = "m"
+    widget._data_storage_instance.columns.value.measurement_resc = "m"
     widget._data_storage_instance.load_data(
         "src/arcos_gui/_tests/test_data/arcos_data.csv", trigger_callback=False
     )
@@ -196,7 +196,7 @@ def test_collev_bin_data_changed(
     widget._data_storage_instance.load_data(
         "src/arcos_gui/_tests/test_data/arcos_data.csv", trigger_callback=False
     )
-    widget._data_storage_instance.arcos_binarization = (
+    widget._data_storage_instance.arcos_binarization.value = (
         widget._data_storage_instance.original_data._value.copy()
     )
 
@@ -217,7 +217,7 @@ def test_collev_arcos_data_changed(
     widget._data_storage_instance.load_data(
         "src/arcos_gui/_tests/test_data/arcos_data.csv", trigger_callback=False
     )
-    widget._data_storage_instance.arcos_output = (
+    widget._data_storage_instance.arcos_output.value = (
         widget._data_storage_instance.original_data._value.copy()
     )
 

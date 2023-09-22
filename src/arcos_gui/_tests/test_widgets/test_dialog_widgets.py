@@ -1,55 +1,7 @@
 from arcos_gui.processing import columnnames
-from arcos_gui.widgets import columnpicker, timestamp_options
+from arcos_gui.widgets import columnpicker
 from pytestqt import qtbot
 from qtpy.QtCore import Qt
-
-
-def test_timestamp_options_defaults(qtbot):
-    # Create an instance of the timestamp_options dialog
-    dialog = timestamp_options()
-    # Attach the dialog to a QApplication instance
-    qtbot.addWidget(dialog)
-    # Ensure the start time spin box has the expected default value
-    assert dialog.start_time.value() == 0
-    # Ensure the step time spin box has the expected default value
-    assert dialog.step_time.value() == 1
-    # Ensure the prefix line edit has the expected default text
-    assert dialog.prefix.text() == "T ="
-    # Ensure the suffix line edit has the expected default text
-    assert dialog.suffix.text() == "frame"
-    # Ensure the position combo box has the expected default value
-    assert dialog.position.currentText() == "upper_left"
-    # Ensure the size spin box has the expected default value
-    assert dialog.ts_size.value() == 12
-    # Ensure the x shift spin box has the expected default value
-    assert dialog.x_shift.value() == 12
-    # Ensure the y shift spin box has the expected default value
-    assert dialog.y_shift.value() == 0
-
-
-def test_timestamp_options_set_values(qtbot):
-    # Create an instance of the timestamp_options dialog
-    dialog = timestamp_options()
-    # Attach the dialog to a QApplication instance
-    qtbot.addWidget(dialog)
-    # Set the values of the spin boxes and line edits
-    dialog.start_time.setValue(10)
-    dialog.step_time.setValue(5)
-    dialog.prefix.setText("Frame =")
-    dialog.suffix.setText("seconds")
-    dialog.position.setCurrentText("center")
-    dialog.ts_size.setValue(24)
-    dialog.x_shift.setValue(50)
-    dialog.y_shift.setValue(100)
-    # Ensure the values have been set correctly
-    assert dialog.start_time.value() == 10
-    assert dialog.step_time.value() == 5
-    assert dialog.prefix.text() == "Frame ="
-    assert dialog.suffix.text() == "seconds"
-    assert dialog.position.currentText() == "center"
-    assert dialog.ts_size.value() == 24
-    assert dialog.x_shift.value() == 50
-    assert dialog.y_shift.value() == 100
 
 
 def test_columnpicker_defaults(qtbot: qtbot):
@@ -57,8 +9,8 @@ def test_columnpicker_defaults(qtbot: qtbot):
     dialog = columnpicker()
     qtbot.addWidget(dialog)
 
-    column_names = ["", "", "", "", "", "", "", "", "", "None"]
-    assert sorted(dialog.get_column_names) == sorted(column_names)
+    column_names = [None, None, None, None, None, None, None, None, None, None]
+    assert dialog.get_column_names == column_names
 
 
 def test_columnpicker_set_columns(qtbot):
@@ -72,6 +24,7 @@ def test_columnpicker_set_columns(qtbot):
             dialog.additional_filter,
             dialog.field_of_view_id,
             dialog.second_measurement,
+            dialog.track_id,
         ]:
             assert sorted(i.itemText(j) for j in range(i.count())) == sorted(
                 [

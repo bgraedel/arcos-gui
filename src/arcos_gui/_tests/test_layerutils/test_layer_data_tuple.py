@@ -9,12 +9,10 @@ from arcos_gui.layerutils._layer_data_tuple import (
     prepare_all_cells_layer,
     prepare_convex_hull_layer,
     prepare_events_layer,
-    prepare_timestamp_layer,
 )
 from arcos_gui.tools import ARCOS_LAYERS, COLOR_CYCLE
 from napari.layers import Layer, Shapes, points
 from numpy.testing import assert_array_equal
-from skimage.data import brain
 
 if TYPE_CHECKING:
     import napari.viewer
@@ -31,7 +29,7 @@ def test_prepare_all_cells_layer(make_napari_viewer: napari.viewer.Viewer):
         track_id_col="id",
         measurement_name="m",
         lut="inferno",
-        min_max=(0, 1),
+        min_max=[0, 1],
         size=1,
     )
     viewer.add_layer(Layer.create(*layer))
@@ -74,22 +72,26 @@ def test_prepare_events_layer(make_napari_viewer):
     assert all([i in COLOR_CYCLE for i in layer[1]["face_color"]])
 
 
+@patch("arcos_gui.layerutils._layer_data_tuple.reshape_by_input_string")
 @patch("arcos_gui.layerutils._layer_data_tuple.fix_3d_convex_hull")
 @patch("arcos_gui.layerutils._layer_data_tuple.make_surface_3d")
 @patch("arcos_gui.layerutils._layer_data_tuple.get_verticesHull")
-def test_prepare_convex_hull_layer_mock2d(mock_2dhull, mock_3dhull, mock_fix3d):
+def test_prepare_convex_hull_layer_mock2d(
+    mock_2dhull, mock_3dhull, mock_fix3d, mock_reshape
+):
     df_test_filtered = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
     df_test = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
     mock_2dhull.return_value = "hull_data2d", "color_ids2d"
     mock_3dhull.return_value = "hull_data3d"
     mock_fix3d.return_value = "hull_data3d_fixed"
+    mock_reshape.return_value = "hull_data2d_reshaped"
     layer = prepare_convex_hull_layer(
         df_filtered=df_test_filtered,
         df_coll=df_test,
         collid_name="collid",
         vColsCore=["t", "y", "x"],
     )
-    assert layer[0] == "hull_data2d"
+    assert set(layer[0]) == {"hull_data2d_reshaped"}
     assert layer[1]["face_color"] == "color_ids2d"
     assert mock_3dhull.called is False
     assert mock_fix3d.called is False
@@ -135,24 +137,3 @@ def test_prepare_convex_hull_layer_with2d_data(make_napari_viewer):
     assert viewer.layers[0].name == ARCOS_LAYERS["event_hulls"]
     assert isinstance(viewer.layers[0], Shapes)
     assert all([i in COLOR_CYCLE for i in layer[1]["face_color"]])
-
-
-# should add here a test for 3d data
-
-
-def test_prepare_timestamp_layer(make_napari_viewer):
-    viewer = make_napari_viewer()
-    viewer.add_image(brain(), name="brain")
-    layer = prepare_timestamp_layer(
-        viewer=viewer,
-        start_time=0,
-        step_time=1,
-        position="upper_left",
-        prefix="T = ",
-        suffix=" s",
-        size=10,
-        x_shift=12,
-        y_shift=12,
-    )
-    viewer.add_layer(Layer.create(*layer))
-    assert [i.name in ARCOS_LAYERS["timestamp"] for i in viewer.layers]

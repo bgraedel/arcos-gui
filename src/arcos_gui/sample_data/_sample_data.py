@@ -4,14 +4,38 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import requests
-from arcos_gui import __main__, _main_widget
+from arcos_gui import _main_widget
 from arcos_gui.processing import columnnames
 from napari import current_viewer
 from napari.utils.notifications import show_info
 from skimage.io import imread
 from tqdm import tqdm
+
+if TYPE_CHECKING:
+    import napari.viewer
+
+
+def open_plugin(viewer: napari.Viewer):
+    """Main function. Adds plugin dock widget to napari viewer.
+
+    Parameters
+    ----------
+    viewer : napari.Viewer
+        Napari viewer to add the plugin to.
+
+    Returns
+    -------
+    plugin : _main_widget.MainWindow
+        The plugin instance.
+    """
+    plugin: _main_widget.MainWindow
+    viewer, plugin = viewer.window.add_plugin_dock_widget(
+        plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
+    )
+    return plugin
 
 
 def resolve(name, basepath=None):
@@ -40,11 +64,15 @@ def download(url: str, fname: str):
             pbar.update(size)
 
 
-def load_synthetic_dataset():
+def load_synthetic_dataset(plugin: _main_widget.MainWindow | None = None):
     """Load sample data into stored_variables"""
-    widget = _main_widget.MainWindow.get_last_instance()
-    if not widget:
-        widget = __main__.main(current_viewer())
+    if plugin is None:
+        plugin = _main_widget.MainWindow.get_last_instance()
+    if not plugin:
+        _plugin = open_plugin(current_viewer())
+    else:
+        _plugin = plugin
+
     sample_data_path = str(resolve(Path("arcos_data.csv")))
     columns = columnnames(
         frame_column="t",
@@ -56,21 +84,31 @@ def load_synthetic_dataset():
         measurement_column_1="m",
         measurement_column_2="None",
         additional_filter_column="None",
-        measurement_math_operatoin="None",
+        measurement_math_operation="None",
         measurement_bin=None,
         measurement_resc=None,
         collid_name="collid",
         measurement_column="m",
     )
 
-    widget.input_controller.load_sample_data(sample_data_path, columns)
-    widget.layer_prop_controller.widget.LUT.setCurrentText("viridis")
+    try:
+        _plugin._input_controller.load_sample_data(sample_data_path, columns)
+        _plugin._layer_prop_controller.widget.LUT.setCurrentText("viridis")
+    except RuntimeError:
+        show_info("Cannot find the plugin, please open it first")
     return []
 
 
-def load_real_dataset(load_image: bool = True):
+def load_real_dataset(
+    load_image: bool = True, plugin: _main_widget.MainWindow | None = None
+):
     """Load sample data and get image correspoinding to the data"""
-    widget = _main_widget.MainWindow.get_last_instance()
+    if plugin is None:
+        plugin = _main_widget.MainWindow.get_last_instance()
+    if not plugin:
+        _plugin = open_plugin(current_viewer())
+    else:
+        _plugin = plugin
     image_url = "https://macdobry.net/ARCOS/data/MDCK_example_event.tif"
     img_path = resolve("MDCK_example_event.tif")
     if not os.path.exists(img_path) and load_image:
@@ -86,8 +124,6 @@ def load_real_dataset(load_image: bool = True):
     else:
         img_data_tuple = []
 
-    if widget is None:
-        widget = __main__.main(current_viewer())
     columns = columnnames(
         frame_column="t",
         position_id="None",
@@ -98,13 +134,15 @@ def load_real_dataset(load_image: bool = True):
         measurement_column_1="m",
         measurement_column_2="None",
         additional_filter_column="None",
-        measurement_math_operatoin="None",
+        measurement_math_operation="None",
         measurement_bin=None,
         measurement_resc=None,
         collid_name="collid",
         measurement_column="m",
     )
-    sample_data_path = str(resolve(Path("arcos_data_2.csv")))
-    widget.input_controller.load_sample_data(sample_data_path, columns)
-    # data = np.random.rand(64, 64)
+    try:
+        sample_data_path = str(resolve(Path("arcos_data_2.csv")))
+        _plugin._input_controller.load_sample_data(sample_data_path, columns)
+    except RuntimeError:
+        show_info("Cannot find the plugin, please open it first")
     return img_data_tuple

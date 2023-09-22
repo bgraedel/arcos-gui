@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import traceback
+from dataclasses import fields
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from arcos_gui.processing import arcos_worker
+from arcos_gui.tools import OutputOrderValidator
+from napari.utils import progress
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
-from qtpy.QtCore import QSize, QThread, QTimer, Signal
-from qtpy.QtGui import QIcon, QMovie
+from qtpy.QtCore import QSize, QTimer, Signal
+from qtpy.QtGui import QIcon, QMovie, QValidator
 
 if TYPE_CHECKING:
     from arcos_gui.processing import DataStorage
@@ -66,7 +70,13 @@ class _arcosWidget(QtWidgets.QWidget):
     run_binarization_only: QtWidgets.QPushButton
     arcos_group: QtWidgets.QGroupBox
     clip_frame: QtWidgets.QFrame
+    add_all_cells_checkbox: QtWidgets.QCheckBox
+    add_bin_cells_checkbox: QtWidgets.QCheckBox
     add_convex_hull_checkbox: QtWidgets.QCheckBox
+    output_order: QtWidgets.QLineEdit
+    output_order_label: QtWidgets.QLabel
+    loading_label: QtWidgets.QLabel
+
     cancel_button: QtWidgets.QPushButton
 
     def __init__(self, parent=None):
@@ -78,21 +88,30 @@ class _arcosWidget(QtWidgets.QWidget):
         uic.loadUi(self.UI_FILE, self)  # load QtDesigner .ui file
         self.loading_icon = QMovie(str(ICONS / "Dual Ring-1s-200px.gif"))
         self.loading_icon.setScaledSize(QSize(40, 40))
-        self.loading_icon.stop()
-        self.update_arcos.setIcon(QIcon(self.loading_icon.currentPixmap()))
+        self.loading_label.setMovie(self.loading_icon)
+        self.loading_icon.start()
+        # self.loading_icon.stop()
+        self.loading_label.hide()
         self.cancel_button.setStyleSheet("background-color : #7C0A02; color : white")
         self.cancel_button.hide()
-        self._set_default_advanced_state()
+        self._set_advanced_state_dict()
         self._setup_timer()
         self._connect_ui_callbacks()
         self._init_callbacks_visible_arcosparameters()
         self._set_default_visible()
+        self.updateValidator(None)
 
-    def _set_default_advanced_state(self):
+    def _set_advanced_state_dict(self):
+        self.set_default_bin_state_dict()
+        self._set_detect_advanced_state_dict()
+
+    def set_default_bin_state_dict(self):
         self.bias_met_advanced_state = {
             "bias_method": self.bias_method.currentText(),
             "smoothK": self.smooth_k.value(),
         }
+
+    def _set_detect_advanced_state_dict(self):
         self.detect_advanced_state = {
             "eps": self.neighbourhood_size.value(),
             "auto_eps": self.eps_estimation_combobox.currentText(),
@@ -102,14 +121,43 @@ class _arcosWidget(QtWidgets.QWidget):
         }
 
     def _connect_ui_callbacks(self):
-        self.bin_advanced_options.clicked.connect(self._bin_advanced_options_toggle)
-        self.detect_advance_options.clicked.connect(
+        self.output_order.textChanged.connect(self._onTextChanged)
+        self.bin_advanced_options.stateChanged.connect(
+            self._bin_advanced_options_toggle
+        )
+        self.detect_advance_options.stateChanged.connect(
             self._detect_advanced_options_toggle
         )
         self.eps_estimation_combobox.currentIndexChanged.connect(
             self._eps_estimation_toggle
         )
-        self.Cluster_linking_dist_checkbox.clicked.connect(self._epsPrev_toggle)
+        self.Cluster_linking_dist_checkbox.stateChanged.connect(self._epsPrev_toggle)
+
+    def _onTextChanged(self, text):
+        validator = self.output_order.validator()
+        if validator:
+            state, _, _ = validator.validate(text.lower(), len(text))
+            if state == QValidator.Acceptable:
+                self.update_arcos.setEnabled(True)
+                self.run_binarization_only.setEnabled(True)
+                self.output_order.setStyleSheet("")
+            elif state == QValidator.Intermediate or state == QValidator.Invalid:
+                color = "#f6989d"  # light red
+                self.update_arcos.setEnabled(False)
+                self.run_binarization_only.setEnabled(False)
+                self.output_order.setStyleSheet(
+                    "QLineEdit { background-color: %s; color: black }" % color
+                )
+
+    def updateValidator(self, vColsCore: list[str] | None = None):
+        if vColsCore is None:
+            vColsCore = ["t", "x", "y"]
+        validator = OutputOrderValidator(vColsCore, self.output_order)
+        self.output_order.setValidator(validator)
+        if len(vColsCore) == 3:
+            self.output_order.setText("tyx")
+        elif len(vColsCore) == 4:
+            self.output_order.setText("tzyx")
 
     def _set_default_visible(self):
         """Method that sets the default visible widgets in the main window."""
@@ -240,6 +288,23 @@ class _arcosWidget(QtWidgets.QWidget):
             self.bin_threshold.setVisible(True)
             self.bin_threshold_label.setVisible(True)
 
+    def toggle_bias_method_enable(self, enabled: bool):
+        """Toggle the enable of the bias method groupbox."""
+        self.bias_method.setEnabled(enabled)
+        self.bias_method_label.setEnabled(enabled)
+        self.smooth_k.setEnabled(enabled)
+        self.smooth_k_label.setEnabled(enabled)
+        self.polyDeg.setEnabled(enabled)
+        self.polyDeg_label.setEnabled(enabled)
+        self.bias_k.setEnabled(enabled)
+        self.bias_k_label.setEnabled(enabled)
+        self.bin_peak_threshold.setEnabled(enabled)
+        self.bin_peak_threshold_label.setEnabled(enabled)
+
+    def toggle_tracklenght_filter_enable(self, enabled: bool):
+        self.total_event_size.setEnabled(enabled)
+        self.tot_size_label.setEnabled(enabled)
+
     def _toggle_clip_visible(self):
         """Toggle the visibility of the clipping options."""
         if self.clip_meas.isChecked():
@@ -264,11 +329,11 @@ class _arcosWidget(QtWidgets.QWidget):
         self.update_arcos.setIcon(QIcon(self.loading_icon.currentPixmap()))
 
     def _hide_loading_icon(self):
-        self.update_arcos.setIcon(QIcon())
-        # self.loading_icon.frameChanged.disconnect(self._set_loading_icon)
+        self.loading_label.hide()
+        self.loading_icon.stop()
 
     def _setup_timer(self):
-        self.timer_loading_icon_show = QTimer()
+        self.timer_loading_icon_show = QTimer(parent=self)
         self.timer_loading_icon_show.setSingleShot(True)
 
     def start_loading(self):
@@ -277,23 +342,19 @@ class _arcosWidget(QtWidgets.QWidget):
         self.run_binarization_only.setEnabled(False)
         self.cancel_button.show()
         self.cancel_button.setEnabled(True)
-        self.update_arcos.setText("")
-        self.run_binarization_only.setText("")
         self.timer_loading_icon_show.timeout.connect(self._show_loading_icon)
         self.timer_loading_icon_show.start(100)
 
     def _show_loading_icon(self):
+        self.loading_label.show()
         self.loading_icon.start()
-        self.loading_icon.frameChanged.connect(self._set_loading_icon)
 
     def stop_loading(self):
         """Stop loading icon animation."""
-        self.timer_loading_icon_show.stop()
+        if self.timer_loading_icon_show.isActive():
+            self.timer_loading_icon_show.stop()
         self._hide_loading_icon()
-        self.loading_icon.stop()
         self.cancel_button.hide()
-        self.update_arcos.setText("Update ARCOS")
-        self.run_binarization_only.setText("Binarize Data")
         self.cancel_button.setEnabled(False)
         self.update_arcos.setEnabled(True)
         self.run_binarization_only.setEnabled(True)
@@ -311,50 +372,108 @@ class ArcosController:
 
         self._what_to_run: set = set()
         self._data_storage_instance = data_storage_instance
-        self.abort_timer = QTimer()
+        self.abort_timer = QTimer(parent)
         self.abort_timer.timeout.connect(self.abort_timer_timeout)
 
         self._init_callbacks_for_whattorun()
         self._update_what_to_run_all()
-        self.createWorkerThread()
+        self._update_arcos_parameters_object()
         self._connect_callbacks()
 
     def _connect_callbacks(self):
         self.widget.closing.connect(self.closeEvent)
-        self.widget.update_arcos.clicked.connect(self._update_arcos_parameters)
-        self.widget.run_binarization_only.clicked.connect(self._update_arcos_parameters)
-        self.widget.run_binarization_only.clicked.connect(
-            self._data_storage_instance.reset_arcos_data
-        )
-        self.widget.update_arcos.clicked.connect(self.update_worker_with_data)
-        self.widget.run_binarization_only.clicked.connect(self.update_worker_with_data)
+        self.widget.update_arcos.clicked.connect(self._run_arcos)
+        self.widget.run_binarization_only.clicked.connect(self._run_binarization_only)
+
         self.widget.cancel_button.clicked.connect(self.abort_worker)
+        self._data_storage_instance.original_data.value_changed.connect(
+            self._update_bias_method_availability
+        )
+        self._data_storage_instance.original_data.value_changed.connect(
+            self._update_filter_availability
+        )
+        self._data_storage_instance.original_data.value_changed.connect(
+            lambda: self.widget.updateValidator(
+                self._data_storage_instance.columns.value.vcolscore
+            )
+        )
+
         self._connect_arcos_parameter_callbacks()
 
+    def _update_bias_method_availability(self):
+        """Change availability of bias methods depending on input data."""
+        if self._data_storage_instance.columns.value.object_id is None:
+            self.widget.toggle_bias_method_enable(False)
+            self.widget.bias_method.setCurrentIndex(0)
+        else:
+            self.widget.toggle_bias_method_enable(True)
+
+    def _update_filter_availability(self):
+        """Change availability of filter methods depending on input data."""
+        if self._data_storage_instance.columns.value.object_id is None:
+            self.widget.toggle_tracklenght_filter_enable(False)
+        else:
+            self.widget.toggle_tracklenght_filter_enable(True)
+
     def _update_datastorage_with_bin_data(self, bin_data):
-        self._data_storage_instance.columns.measurement_bin = bin_data[0]
-        self._data_storage_instance.columns.measurement_resc = bin_data[1]
+        self._data_storage_instance.columns.value.measurement_bin = bin_data[0]
+        self._data_storage_instance.columns.value.measurement_resc = bin_data[1]
         self._data_storage_instance.arcos_binarization.value = bin_data[2]
 
     def _update_datastorage_with_arcos(self, arcos_data):
-        self._data_storage_instance.arcos_output.value = arcos_data[0]
         self._data_storage_instance.arcos_stats.value = arcos_data[1]
+        self._data_storage_instance.arcos_output.value = arcos_data[0]
 
-    def createWorkerThread(self):
-        # Setup the worker object and the worker_thread.
+    def _setup_debounce_timer(self):
+        self.debounce_time = (
+            10  # Adjust this value to set the debounce time in milliseconds
+        )
+        self.missed_updates = 0
+        self.update_timer = QTimer()
+        self.update_timer.setSingleShot(True)
+        self.update_timer.timeout.connect(self._perform_update)
+
+    def _perform_update(self):
+        # Get the current value of the progress bar
+        current_value = self.pbar.n
+
+        # Update the progress bar with the missed updates
+        self.pbar.update(self.missed_updates)
+
+        # Correct the number of missed updates based on the actual change in the progress bar value
+        self.missed_updates = (current_value + self.missed_updates) - self.pbar.n
+
+        # Reset the missed updates counter if it's zero
+        if self.pbar.n >= self.pbar.total:
+            self.missed_updates = 0
+
+    def createWorkerThread(self, what_to_run: set):
+        """Create a worker thread to run arcos algorithm."""
+        # try to get the old ARCOS object from the worker,
+        # this allows to continue the calculation if the worker is reset
+        try:
+            self.worker: arcos_worker  # for mypy
+            arcos_object = self.worker.arcos_object
+            arcos_raw_output = self.worker.arcos_raw_output
+        except AttributeError:
+            arcos_object = None
+            arcos_raw_output = None
+
+        self._setup_debounce_timer()
+
+        self.pbar = progress(total=0, desc="ARCOS calculation")
 
         self.worker = arcos_worker(
-            self._what_to_run,
+            what_to_run,
             show_info,
-            wait_for_parameter_update=True,
+            self._data_storage_instance.arcos_parameters.value,
+            columns=self._data_storage_instance.columns.value,
+            filtered_data=self._data_storage_instance.filtered_data.value,
+            arcos_object=arcos_object,
+            arcos_raw_output=arcos_raw_output,
         )
-        self.worker_thread = QThread(self.widget)
-        self.worker.moveToThread(self.worker_thread)
-        self.worker_thread.start()
+        self.worker.arcos_progress_update.connect(self._update_progressbar)
 
-        # Connect any worker signals
-        self.widget.update_arcos.clicked.connect(self.worker.run_arcos)
-        self.widget.run_binarization_only.clicked.connect(self.worker.run_bin)
         self.worker.binarization_finished.connect(
             self._update_datastorage_with_bin_data
         )
@@ -365,77 +484,80 @@ class ArcosController:
         self.worker.finished.connect(self.abort_timer_stop)
         self.worker.aborted.connect(self.abort_timer_stop)
         self.worker.aborted.connect(self._show_aborted_message)
-        if self.widget.parent() is not None:
-            self.widget.parent().destroyed.connect(self._stop_worker)
+
+        self.worker.start()
+        return self.worker
+
+    def _update_progressbar(self, update_type, value):
+        if update_type == "total":
+            self.pbar.reset(value)
+        elif update_type == "reset":
+            self.pbar.reset(value)
+        elif update_type == "update":
+            self.missed_updates += value
+            if not self.update_timer.isActive():
+                self.update_timer.start(self.debounce_time)
         else:
-            self.widget.destroyed.connect(self._stop_worker)
+            raise ValueError(f"Unknown update_type: {update_type}")
+
+    def _run_arcos(self):
+        self.createWorkerThread(self._what_to_run)
+
+    def _run_binarization_only(self):
+        worker = self.createWorkerThread({"binarization"})
+        worker.finished.connect(self._if_data_update_what_to_run)
+
+    def _if_data_update_what_to_run(self):
+        if not self._data_storage_instance.arcos_binarization.value.empty:
+            self._update_what_to_run_tracking()
 
     def _show_aborted_message(self, err):
         show_info(f"ARCOS calculation aborted due to: {err}")
+        traceback.print_exception(None, err, err.__traceback__)
 
     def _update_eps(self, eps):
-        self._data_storage_instance.arcos_parameters.neighbourhood_size.value = eps
+        self._data_storage_instance.arcos_parameters.value.neighbourhood_size.value = (
+            eps
+        )
 
     def update_worker_with_data(self):
         self.worker.what_to_run = self._what_to_run
         self.worker.filtered_data = self._data_storage_instance.filtered_data.value
-        self.worker.columns = self._data_storage_instance.columns
+        self.worker.columns = self._data_storage_instance.columns.value
         self.worker.arcos_parameters.set_all_parameters(
-            self._data_storage_instance.arcos_parameters
+            self._data_storage_instance.arcos_parameters.value
         )
 
     def abort_worker(self):
-        self.worker.aborted_flag = True
+        self.worker.finished.connect(self.abort_timer_stop)
+        self.worker.quit()
         self.widget.cancel_button.setEnabled(False)
-        self.widget.cancel_button.setText("Aborting...")
+        self.widget.cancel_button.setText("Aborting")
         self.abort_timer_start()
 
     def abort_timer_start(self):
-        self.time_left_int = 10
         self.abort_timer.start(1000)
 
     def abort_timer_timeout(self):
-        self.time_left_int -= 1
-
-        if self.time_left_int < 8:
-            self.update_abort_button()
-
-        if self.time_left_int == 0:
-            self.abort_timer_stop()
-            self.forceWorkerReset()
+        self.update_abort_button()
 
     def abort_timer_stop(self):
         self.abort_timer.stop()
+        self.pbar.close()
         self.widget.cancel_button.setText("Abort")
-        self.time_left_int = 10
 
     def update_abort_button(self):
-        self.widget.cancel_button.setText(
-            f"Aborting... {str(self.time_left_int)} s (timeout)"
-        )
-
-    def forceWorkerReset(self):
-        if self.worker_thread.isRunning() and not self.worker.idle_flag:
-            old_arcos_object = self.worker.arcos_object
-            arcos_raw_output = self.worker.arcos_raw_output
-
-            self.worker_thread.terminate()
-            self.worker_thread.wait(5000)
-
-            self.createWorkerThread()
-            self.widget.stop_loading()
-            self.update_worker_with_data()
-            self.worker.arcos_object = old_arcos_object
-            self.worker.arcos_raw_output = arcos_raw_output
-
-        self.abort_timer_stop()
+        self.dots = self.widget.cancel_button.text().count(".")
+        if self.dots < 3:
+            self.widget.cancel_button.setText(self.widget.cancel_button.text() + ".")
+        else:
+            self.widget.cancel_button.setText("Aborting")
 
     def _stop_worker(self):
-        self.worker_thread.quit()
-        self.worker_thread.wait(1000)
-        if self.worker_thread.isRunning():
-            self.worker_thread.terminate()
-            self.worker_thread.wait(1000)
+        try:
+            self.worker.quit()
+        except (AttributeError, RuntimeError):
+            pass
 
     def closeEvent(self):
         self._stop_worker()
@@ -473,10 +595,14 @@ class ArcosController:
             i.currentIndexChanged.connect(self._update_what_to_run_tracking)
         for i in [self.widget.min_dur, self.widget.total_event_size]:
             i.valueChanged.connect(self._update_what_to_run_filtering)
+        for i in [
+            self.widget.add_convex_hull_checkbox,
+            self.widget.add_all_cells_checkbox,
+            self.widget.add_bin_cells_checkbox,
+        ]:
+            i.stateChanged.connect(self._update_what_to_run_filtering)
 
-        self.widget.add_convex_hull_checkbox.stateChanged.connect(
-            self._update_what_to_run_filtering
-        )
+        self.widget.output_order.textChanged.connect(self._update_what_to_run_filtering)
 
     def _update_what_to_run_all(self):
         """Adds 'all' to the what_to_run attirbute,
@@ -491,7 +617,6 @@ class ArcosController:
         """Adds 'from_tracking' to the what_to_run attirbute,
         that is used in the main function to check if what to run
         when certain field have updated values."""
-        self._clear_what_to_run()
         self._what_to_run.add("tracking")
         self._what_to_run.add("filtering")
 
@@ -499,80 +624,246 @@ class ArcosController:
         """Adds 'from_filtering' to the what_to_run attirbute,
         that is used in the main function to check if what to run
         when certain field have updated values."""
-        self._clear_what_to_run()
         self._what_to_run.add("filtering")
 
     def _clear_what_to_run(self):
         """Clears the what_to_run attribute."""
         self._what_to_run.clear()
 
-    def _update_arcos_parameters(self):
+    def _update_arcos_parameters_object(self):
         """Update the parameters in the data storage instance"""
-        if not self.widget.Cluster_linking_dist_checkbox.isChecked():
-            epsPrev = None
-        else:
-            epsPrev = self.widget.epsPrev_spinbox.value()
-        self._data_storage_instance.arcos_parameters.interpolate_meas.value = (
-            self.widget.interpolate_meas.isChecked()
-        )
-        self._data_storage_instance.arcos_parameters.clip_meas.value = (
-            self.widget.clip_meas.isChecked()
-        )
-        self._data_storage_instance.arcos_parameters.clip_low.value = (
-            self.widget.clip_low.value()
-        )
-        self._data_storage_instance.arcos_parameters.clip_high.value = (
-            self.widget.clip_high.value()
-        )
-        self._data_storage_instance.arcos_parameters.smooth_k.value = (
-            self.widget.smooth_k.value()
-        )
-        self._data_storage_instance.arcos_parameters.bias_k.value = (
-            self.widget.bias_k.value()
-        )
-        self._data_storage_instance.arcos_parameters.bias_method.value = (
-            self.widget.bias_method.currentText()
-        )
-        self._data_storage_instance.arcos_parameters.polyDeg.value = (
-            self.widget.polyDeg.value()
-        )
-        self._data_storage_instance.arcos_parameters.bin_threshold.value = (
-            self.widget.bin_threshold.value()
-        )
-        self._data_storage_instance.arcos_parameters.bin_peak_threshold.value = (
-            self.widget.bin_peak_threshold.value()
-        )
-        self._data_storage_instance.arcos_parameters.neighbourhood_size.value = (
-            self.widget.neighbourhood_size.value()
-        )
-        self._data_storage_instance.arcos_parameters.min_clustersize.value = (
-            self.widget.min_clustersize.value()
-        )
-        self._data_storage_instance.arcos_parameters.nprev.value = (
-            self.widget.nprev_spinbox.value()
-        )
-        self._data_storage_instance.arcos_parameters.min_dur.value = (
-            self.widget.min_dur.value()
-        )
-        self._data_storage_instance.arcos_parameters.total_event_size.value = (
-            self.widget.total_event_size.value()
-        )
-        self._data_storage_instance.arcos_parameters.add_convex_hull.value = (
-            self.widget.add_convex_hull_checkbox.isChecked()
-        )
-        self._data_storage_instance.arcos_parameters.epsPrev.value = epsPrev
-        self._data_storage_instance.arcos_parameters.eps_method.value = (
-            self.widget.eps_estimation_combobox.currentText()
-        )
+        try:
+            self._data_storage_instance.toggle_callback_block(True)
+            if not self.widget.Cluster_linking_dist_checkbox.isChecked():
+                epsPrev = None
+            else:
+                epsPrev = self.widget.epsPrev_spinbox.value()
+            self._data_storage_instance.arcos_parameters.value.interpolate_meas.value = (
+                self.widget.interpolate_meas.isChecked()
+            )
+            self._data_storage_instance.arcos_parameters.value.clip_meas.value = (
+                self.widget.clip_meas.isChecked()
+            )
+            self._data_storage_instance.arcos_parameters.value.clip_low.value = (
+                self.widget.clip_low.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.clip_high.value = (
+                self.widget.clip_high.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.bin_advanded_settings.value = (
+                self.widget.bin_advanced_options.isChecked()
+            )
+            self._data_storage_instance.arcos_parameters.value.smooth_k.value = (
+                self.widget.smooth_k.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.bias_k.value = (
+                self.widget.bias_k.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.bias_method.value = (
+                self.widget.bias_method.currentText()
+            )
+            self._data_storage_instance.arcos_parameters.value.polyDeg.value = (
+                self.widget.polyDeg.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.bin_threshold.value = (
+                self.widget.bin_threshold.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.bin_peak_threshold.value = (
+                self.widget.bin_peak_threshold.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.detect_advanced_options.value = (
+                self.widget.detect_advance_options.isChecked()
+            )
+            self._data_storage_instance.arcos_parameters.value.neighbourhood_size.value = (
+                self.widget.neighbourhood_size.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.min_clustersize.value = (
+                self.widget.min_clustersize.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.nprev.value = (
+                self.widget.nprev_spinbox.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.min_dur.value = (
+                self.widget.min_dur.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.total_event_size.value = (
+                self.widget.total_event_size.value()
+            )
+            self._data_storage_instance.arcos_parameters.value.add_convex_hull.value = (
+                self.widget.add_convex_hull_checkbox.isChecked()
+            )
+            self._data_storage_instance.arcos_parameters.value.add_all_cells.value = (
+                self.widget.add_all_cells_checkbox.isChecked()
+            )
+            self._data_storage_instance.arcos_parameters.value.add_bin_cells.value = (
+                self.widget.add_bin_cells_checkbox.isChecked()
+            )
+            self._data_storage_instance.arcos_parameters.value.epsPrev.value = epsPrev
+            self._data_storage_instance.arcos_parameters.value.eps_method.value = (
+                self.widget.eps_estimation_combobox.currentText()
+            )
+            self._data_storage_instance.output_order.value = (
+                self.widget.output_order.text()
+            )
+        finally:
+            self._data_storage_instance.toggle_callback_block(False)
 
-    def _update_neighbourhood_size(self):
-        value = self._data_storage_instance.arcos_parameters.neighbourhood_size.value
-        self.widget.neighbourhood_size.setValue(value)
+    def _update_arcos_parameters_ui(self):
+        try:
+            self._data_storage_instance.toggle_callback_block(True)
+            self.block_qt_signals(True)
+
+            self.widget.interpolate_meas.setChecked(
+                self._data_storage_instance.arcos_parameters.value.interpolate_meas.value
+            )
+            self.widget.clip_meas.setChecked(
+                self._data_storage_instance.arcos_parameters.value.clip_meas.value
+            )
+            self.widget.clip_low.setValue(
+                self._data_storage_instance.arcos_parameters.value.clip_low.value
+            )
+            self.widget.clip_high.setValue(
+                self._data_storage_instance.arcos_parameters.value.clip_high.value
+            )
+            self.widget.smooth_k.setValue(
+                self._data_storage_instance.arcos_parameters.value.smooth_k.value
+            )
+            self.widget.bias_k.setValue(
+                self._data_storage_instance.arcos_parameters.value.bias_k.value
+            )
+            self.widget.bias_method.setCurrentText(
+                self._data_storage_instance.arcos_parameters.value.bias_method.value
+            )
+            self.widget.polyDeg.setValue(
+                self._data_storage_instance.arcos_parameters.value.polyDeg.value
+            )
+            self.widget.bin_threshold.setValue(
+                self._data_storage_instance.arcos_parameters.value.bin_threshold.value
+            )
+            self.widget.bin_peak_threshold.setValue(
+                self._data_storage_instance.arcos_parameters.value.bin_peak_threshold.value
+            )
+            self.widget.neighbourhood_size.setValue(
+                self._data_storage_instance.arcos_parameters.value.neighbourhood_size.value
+            )
+            self.widget.min_clustersize.setValue(
+                self._data_storage_instance.arcos_parameters.value.min_clustersize.value
+            )
+            self.widget.nprev_spinbox.setValue(
+                self._data_storage_instance.arcos_parameters.value.nprev.value
+            )
+            self.widget.min_dur.setValue(
+                self._data_storage_instance.arcos_parameters.value.min_dur.value
+            )
+            self.widget.total_event_size.setValue(
+                self._data_storage_instance.arcos_parameters.value.total_event_size.value
+            )
+            self.widget.add_convex_hull_checkbox.setChecked(
+                self._data_storage_instance.arcos_parameters.value.add_convex_hull.value
+            )
+            self.widget.add_all_cells_checkbox.setChecked(
+                self._data_storage_instance.arcos_parameters.value.add_all_cells.value
+            )
+            self.widget.add_bin_cells_checkbox.setChecked(
+                self._data_storage_instance.arcos_parameters.value.add_bin_cells.value
+            )
+            self.widget.eps_estimation_combobox.setCurrentText(
+                self._data_storage_instance.arcos_parameters.value.eps_method.value
+            )
+            if (
+                self._data_storage_instance.arcos_parameters.value.epsPrev.value
+                is not None
+            ):
+                self.widget.Cluster_linking_dist_checkbox.setChecked(True)
+                self.widget.epsPrev_spinbox.setValue(
+                    self._data_storage_instance.arcos_parameters.value.epsPrev.value
+                )
+            else:
+                self.widget.Cluster_linking_dist_checkbox.setChecked(False)
+                self.widget.epsPrev_spinbox.setValue(
+                    self._data_storage_instance.arcos_parameters.value.neighbourhood_size.value
+                )
+
+            self.widget.output_order.setText(
+                self._data_storage_instance.output_order.value
+            )
+            self.widget.bin_advanced_options.setChecked(
+                self._data_storage_instance.arcos_parameters.value.bin_advanded_settings.value
+            )
+            self.widget.detect_advance_options.setChecked(
+                self._data_storage_instance.arcos_parameters.value.detect_advanced_options.value
+            )
+            self.widget._set_advanced_state_dict()
+        finally:
+            self._data_storage_instance.toggle_callback_block(False)
+            self.block_qt_signals(False)
+            self.widget._bin_advanced_options_toggle()
+            self.widget._detect_advanced_options_toggle()
 
     def _connect_arcos_parameter_callbacks(self):
-        self._data_storage_instance.arcos_parameters.neighbourhood_size.value_changed_connect(
-            self._update_neighbourhood_size
+        for param in fields(self._data_storage_instance.arcos_parameters.value):
+            getattr(
+                self._data_storage_instance.arcos_parameters.value, param.name
+            ).value_changed.connect(self._update_arcos_parameters_ui)
+
+        self._data_storage_instance.output_order.value_changed.connect(
+            self._update_arcos_parameters_ui
         )
+
+        # whenever the ui is updated, update the data storage instance
+        for i in [self.widget.bias_method]:
+            i.currentIndexChanged.connect(self._update_arcos_parameters_object)
+        for i in [
+            self.widget.clip_low,
+            self.widget.clip_high,
+            self.widget.smooth_k,
+            self.widget.bias_k,
+            self.widget.polyDeg,
+            self.widget.bin_threshold,
+            self.widget.bin_peak_threshold,
+        ]:
+            i.valueChanged.connect(self._update_arcos_parameters_object)
+        for i in [
+            self.widget.interpolate_meas,
+            self.widget.clip_meas,
+            self.widget.bin_advanced_options,
+            self.widget.detect_advance_options,
+        ]:
+            i.stateChanged.connect(self._update_arcos_parameters_object)
+        for i in [
+            self.widget.neighbourhood_size,
+            self.widget.min_clustersize,
+            self.widget.nprev_spinbox,
+        ]:
+            i.valueChanged.connect(self._update_arcos_parameters_object)
+        for i in [self.widget.epsPrev_spinbox]:
+            i.valueChanged.connect(self._update_arcos_parameters_object)
+        for i in [self.widget.eps_estimation_combobox]:
+            i.currentIndexChanged.connect(self._update_arcos_parameters_object)
+        for i in [self.widget.min_dur, self.widget.total_event_size]:
+            i.valueChanged.connect(self._update_arcos_parameters_object)
+        for i in [
+            self.widget.add_convex_hull_checkbox,
+            self.widget.add_all_cells_checkbox,
+            self.widget.add_bin_cells_checkbox,
+        ]:
+            i.stateChanged.connect(self._update_arcos_parameters_object)
+
+        self.widget.output_order.textChanged.connect(
+            self._update_arcos_parameters_object
+        )
+
+    def block_qt_signals(self, block=True):
+        """Block or unblock signals for a widget and all its child widgets."""
+        self.widget.blockSignals(block)
+        for child_widget in self.widget.findChildren(QtWidgets.QWidget):
+            child_widget.blockSignals(block)
+
+    def __del__(self):
+        try:
+            self._stop_worker()
+        except (AttributeError, RuntimeError):
+            pass
 
 
 if __name__ == "__main__":

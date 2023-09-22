@@ -2,122 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Union
+from typing import Iterable, Union
 
 from arcos_gui.processing import columnnames
-from arcos_gui.tools import measurement_math_options
+from arcos_gui.tools import OPERATOR_DICTIONARY
 from qtpy import QtWidgets
 from qtpy.QtCore import Signal
-
-
-class timestamp_options(QtWidgets.QDialog):
-    """Dialog for setting timestamp options.
-
-    Parameters
-    ----------
-    parent : QtWidgets.QWidget, optional
-        Parent widget, by default None
-
-    Attributes
-    ----------
-    start_time_label : QtWidgets.QLabel
-        Label for start time
-    start_time : QtWidgets.QSpinBox
-        Spinbox for start time
-    step_time_label : QtWidgets.QLabel
-        Label for step time
-    step_time : QtWidgets.QSpinBox
-        Spinbox for step time
-    prefix_label : QtWidgets.QLabel
-        Label for prefix
-    prefix : QtWidgets.QLineEdit
-        Line edit for prefix
-    suffix_label : QtWidgets.QLabel
-        Label for suffix
-    suffix : QtWidgets.QLineEdit
-        Line edit for suffix
-    position_label : QtWidgets.QLabel
-        Label for position
-    position : QtWidgets.QComboBox
-        Combo box for position
-    size_label : QtWidgets.QLabel
-        Label for size
-    ts_size : QtWidgets.QSpinBox
-        Spinbox for size
-    x_shift_label : QtWidgets.QLabel
-        Label for x shift
-    x_shift : QtWidgets.QSpinBox
-        Spinbox for x shift
-    y_shift_label : QtWidgets.QLabel
-        Label for y shift
-    y_shift : QtWidgets.QSpinBox
-        Spinbox for y shift
-    set_options : QtWidgets.QPushButton
-        Button for setting options
-    """
-
-    def __init__(self, parent=None):
-        super().__init__()
-        self._setupUi()
-
-    def _setupUi(self):
-        self.setObjectName("Timestamp Options")
-        self.gridLayout = QtWidgets.QGridLayout()
-        self.start_time_label = QtWidgets.QLabel("Start Time")
-        self.start_time = QtWidgets.QSpinBox()
-        self.start_time.setRange(0, 10000)
-        self.start_time.setValue(0)
-        self.step_time_label = QtWidgets.QLabel("Step Time")
-        self.step_time = QtWidgets.QSpinBox()
-        self.step_time.setRange(0, 10000)
-        self.step_time.setValue(1)
-        self.prefix_label = QtWidgets.QLabel("Prefix")
-        self.prefix = QtWidgets.QLineEdit()
-        self.prefix.setText("T =")
-        self.suffix_label = QtWidgets.QLabel("Suffix")
-        self.suffix = QtWidgets.QLineEdit()
-        self.suffix.setText("frame")
-        self.position_label = QtWidgets.QLabel("Position")
-        self.position = QtWidgets.QComboBox()
-        self.position.addItems(
-            ["upper_right", "upper_left", "lower_right", "lower_left", "center"]
-        )
-        self.position.setCurrentIndex(1)
-        self.size_label = QtWidgets.QLabel("Size")
-        self.ts_size = QtWidgets.QSpinBox()
-        self.ts_size.setRange(0, 1000)
-        self.ts_size.setValue(12)
-        self.x_shift_label = QtWidgets.QLabel("X Shift")
-        self.x_shift = QtWidgets.QSpinBox()
-        self.x_shift.setRange(-1000, 1000)
-        self.x_shift.setValue(12)
-        self.y_shift_label = QtWidgets.QLabel("Y Shift")
-        self.y_shift = QtWidgets.QSpinBox()
-        self.y_shift.setRange(-1000, 1000)
-        self.y_shift.setValue(0)
-        self.set_options = QtWidgets.QPushButton("OK")
-        self.gridLayout.addWidget(self.start_time_label, 0, 0)
-        self.gridLayout.addWidget(self.start_time, 0, 1)
-        self.gridLayout.addWidget(self.step_time_label, 1, 0)
-        self.gridLayout.addWidget(self.step_time, 1, 1)
-        self.gridLayout.addWidget(self.prefix_label, 2, 0)
-        self.gridLayout.addWidget(self.prefix, 2, 1)
-        self.gridLayout.addWidget(self.suffix_label, 3, 0)
-        self.gridLayout.addWidget(self.suffix, 3, 1)
-        self.gridLayout.addWidget(self.position_label, 4, 0)
-        self.gridLayout.addWidget(self.position, 4, 1)
-        self.gridLayout.addWidget(self.size_label, 5, 0)
-        self.gridLayout.addWidget(self.ts_size, 5, 1)
-        self.gridLayout.addWidget(self.x_shift_label, 6, 0)
-        self.gridLayout.addWidget(self.x_shift, 6, 1)
-        self.gridLayout.addWidget(self.y_shift_label, 7, 0)
-        self.gridLayout.addWidget(self.y_shift, 7, 1)
-        self.gridLayout.addWidget(self.set_options, 8, 0, 1, 2)
-        self.setLayout(self.gridLayout)
-        self.set_options.clicked.connect(self._set_options_clicked)
-
-    def _set_options_clicked(self):
-        self.close()
 
 
 class columnpicker(QtWidgets.QDialog):
@@ -172,7 +62,7 @@ class columnpicker(QtWidgets.QDialog):
         self._setupUi()
         self._add_tooltipps()
         self.columnames_instance = columnames_instance
-        self.set_measurement_math(measurement_math_options)
+        self.set_measurement_math(list(OPERATOR_DICTIONARY.keys()))
         self.measurement_math.setCurrentText("None")
         self.measurement_math.currentTextChanged.connect(
             self.toggle_visible_second_measurment
@@ -312,6 +202,13 @@ class columnpicker(QtWidgets.QDialog):
             arcos calculation on first and second measurement"
         )
 
+    def _add_item_data_pair(
+        self, combobox: QtWidgets.QComboBox, text: Iterable, data: Iterable
+    ):
+        """Add items to comboboxes."""
+        for i, j in zip(text, data):
+            combobox.addItem(i, j)
+
     def set_column_names(self, column_names):
         """Set column names in comboboxes."""
         while "" in column_names:
@@ -327,30 +224,35 @@ class columnpicker(QtWidgets.QDialog):
         self.field_of_view_id.clear()
         self.additional_filter.clear()
 
-        self.frame.addItems(column_names)
-        self.track_id.addItems(column_names)
-        self.x_coordinates.addItems(column_names)
-        self.y_coordinates.addItems(column_names)
-        self.z_coordinates.addItems(column_names)
-        self.measurement.addItems(column_names)
-        self.second_measurement.addItems(column_names)
-        self.field_of_view_id.addItems(column_names)
-        self.additional_filter.addItems(column_names)
+        self._add_item_data_pair(self.frame, column_names, column_names)
+        self._add_item_data_pair(self.track_id, column_names, column_names)
+        self._add_item_data_pair(self.x_coordinates, column_names, column_names)
+        self._add_item_data_pair(self.y_coordinates, column_names, column_names)
+        self._add_item_data_pair(self.z_coordinates, column_names, column_names)
+        self._add_item_data_pair(self.measurement, column_names, column_names)
+        self._add_item_data_pair(self.second_measurement, column_names, column_names)
+        self._add_item_data_pair(self.field_of_view_id, column_names, column_names)
+        self._add_item_data_pair(self.additional_filter, column_names, column_names)
 
         self.additional_filter.addItem("None", None)
         self.field_of_view_id.addItem("None", None)
         self.z_coordinates.addItem("None", None)
         self.second_measurement.addItem("None", None)
+        self.track_id.addItem("None", None)
 
         self.additional_filter.setCurrentText("None")
         self.field_of_view_id.setCurrentText("None")
         self.z_coordinates.setCurrentText("None")
         self.second_measurement.setCurrentText("None")
+        self.track_id.setCurrentText("None")
 
     def set_measurement_math(self, measurement_math):
         """Set the measurement math options in the dialog."""
         self.measurement_math.clear()
-        self.measurement_math.addItems(measurement_math)
+        self._add_item_data_pair(
+            self.measurement_math, measurement_math, measurement_math
+        )
+        self.measurement_math.addItem("None", None)
 
     def toggle_visible_second_measurment(self):
         """Toggles visibility of second measurement column."""
@@ -366,16 +268,16 @@ class columnpicker(QtWidgets.QDialog):
     def get_column_names(self):
         """Returns a tuple of all column names in the columnnames dialog."""
         return [
-            self.frame.currentText(),
-            self.track_id.currentText(),
-            self.x_coordinates.currentText(),
-            self.y_coordinates.currentText(),
-            self.z_coordinates.currentText(),
-            self.measurement.currentText(),
-            self.second_measurement.currentText(),
-            self.field_of_view_id.currentText(),
-            self.additional_filter.currentText(),
-            self.measurement_math.currentText(),
+            self.frame.currentData(),
+            self.track_id.currentData(),
+            self.x_coordinates.currentData(),
+            self.y_coordinates.currentData(),
+            self.z_coordinates.currentData(),
+            self.measurement.currentData(),
+            self.second_measurement.currentData(),
+            self.field_of_view_id.currentData(),
+            self.additional_filter.currentData(),
+            self.measurement_math.currentData(),
         ]
 
     @property
@@ -399,19 +301,19 @@ class columnpicker(QtWidgets.QDialog):
         """Retunrs a new columnames object with the current column names."""
         # set column_names
         columnames_instance = columnnames()
-        columnames_instance.frame_column = self.frame.currentText()
-        columnames_instance.position_id = self.field_of_view_id.currentText()
-        columnames_instance.object_id = self.track_id.currentText()
-        columnames_instance.x_column = self.x_coordinates.currentText()
-        columnames_instance.y_column = self.y_coordinates.currentText()
-        columnames_instance.z_column = self.z_coordinates.currentText()
-        columnames_instance.measurement_column_1 = self.measurement.currentText()
-        columnames_instance.measurement_column_2 = self.second_measurement.currentText()
+        columnames_instance.frame_column = self.frame.currentData()
+        columnames_instance.position_id = self.field_of_view_id.currentData()
+        columnames_instance.object_id = self.track_id.currentData()
+        columnames_instance.x_column = self.x_coordinates.currentData()
+        columnames_instance.y_column = self.y_coordinates.currentData()
+        columnames_instance.z_column = self.z_coordinates.currentData()
+        columnames_instance.measurement_column_1 = self.measurement.currentData()
+        columnames_instance.measurement_column_2 = self.second_measurement.currentData()
         columnames_instance.additional_filter_column = (
-            self.additional_filter.currentText()
+            self.additional_filter.currentData()
         )
-        columnames_instance.measurement_math_operatoin = (
-            self.measurement_math.currentText()
+        columnames_instance.measurement_math_operation = (
+            self.measurement_math.currentData()
         )
 
         return columnames_instance
@@ -422,9 +324,7 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
     window = columnpicker()
-    window2 = timestamp_options()
     window.set_column_names(["a", "b", "c", "d", "e", "f", "g", "h", "i"])
     window.show()
-    window2.show()
     print(window.get_column_names)
     sys.exit(app.exec_())

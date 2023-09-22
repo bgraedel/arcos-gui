@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-from arcos_gui.tools import ARCOS_LAYERS, get_layer_list
+from arcos_gui.tools import ARCOS_LAYERS, ThrottledCallback, get_layer_list
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 from qtpy import QtWidgets, uic
 from qtpy.QtCore import Qt
@@ -106,6 +106,7 @@ class LayerpropertiesController:
         self.data_storage_instance = data_storage_instance
 
         self._init_size_contrast_callbacks()
+        self._register_datastorage_update()
 
     def _init_size_contrast_callbacks(self):
         """Connects various callbacks that correspond to size,
@@ -113,17 +114,21 @@ class LayerpropertiesController:
         # execute LUT and point functions
         self.widget.reset_lut.clicked.connect(self._reset_contrast)
         # update size and LUT
-        self.widget.lut_slider.valueChanged.connect(self._change_lut_colors)
-        self.widget.LUT.currentIndexChanged.connect(self._change_lut_colors)
-        self.widget.point_size.valueChanged.connect(self._change_size)
-        self.data_storage_instance.original_data.value_changed_connect(
+        throttled_change_colors = ThrottledCallback(
+            self._change_lut_colors, max_interval=0.1
+        )
+        throttled_change_size = ThrottledCallback(self._change_size, max_interval=0.1)
+        self.widget.lut_slider.valueChanged.connect(throttled_change_colors)
+        self.widget.LUT.currentIndexChanged.connect(throttled_change_colors)
+        self.widget.point_size.valueChanged.connect(throttled_change_size)
+        self.data_storage_instance.original_data.value_changed.connect(
             self._set_default_point_size
         )
 
-        self.data_storage_instance.filtered_data.value_changed_connect(
+        self.data_storage_instance.filtered_data.value_changed.connect(
             self._reset_contrast
         )
-        self.data_storage_instance.original_data.value_changed_connect(
+        self.data_storage_instance.original_data.value_changed.connect(
             self._reset_contrast
         )
         self.viewer.layers.events.emitters["inserted"].connect(
@@ -137,15 +142,20 @@ class LayerpropertiesController:
 
     def _reset_contrast(self):
         """updates values in lut mapping slider."""
-        min_max = self.data_storage_instance.min_max_meas
+        min_max = self.data_storage_instance.min_max_meas.value
         # change slider values
-        self.widget.set_contrast_slider(min_max)
+        self.widget.set_contrast_slider(tuple(min_max))
 
-    def _change_lut_colors(self):
+    def _change_lut_colors(self, min_max=None):
         """Method to update lut and corresponding lut mappings."""
+        min_max = self.widget.lut_slider.value()
         layer_list = get_layer_list(self.viewer)
-        min_value = self.widget.min_lut_spinbox.value()
-        max_value = self.widget.max_lut_spinbox.value()
+        if min_max is None:
+            min_value = self.widget.min_lut_spinbox.value()
+            max_value = self.widget.max_lut_spinbox.value()
+        else:
+            min_value = min_max[0]
+            max_value = min_max[1]
         if ARCOS_LAYERS["all_cells"] in layer_list:
             self.viewer.layers[
                 ARCOS_LAYERS["all_cells"]
@@ -156,7 +166,7 @@ class LayerpropertiesController:
             )
             self.viewer.layers[ARCOS_LAYERS["all_cells"]].refresh_colors()
 
-    def _change_size(self):
+    def _change_size(self, point_size=None):
         """Method to update size of points and shapes layers:
         concernts layers defined in ARCOS_LAYERS
         and if created ARCOS_LAYERS["event_boundingbox"].
@@ -183,9 +193,9 @@ class LayerpropertiesController:
         """
         data = self.data_storage_instance.original_data.value
         data = self.data_storage_instance.filtered_data.value
-        x_coord = self.data_storage_instance.columns.x_column
-        y_coord = self.data_storage_instance.columns.y_column
-        frame_col = self.data_storage_instance.columns.frame_column
+        x_coord = self.data_storage_instance.columns.value.x_column
+        y_coord = self.data_storage_instance.columns.value.y_column
+        frame_col = self.data_storage_instance.columns.value.frame_column
 
         if not data.empty:
             data_po_np = data[data[frame_col] == 0][[x_coord, y_coord]].to_numpy()
@@ -196,7 +206,59 @@ class LayerpropertiesController:
             )
 
             self.widget.point_size.setValue(avg_nn_dist)
-            self.data_storage_instance.point_size = avg_nn_dist
+            self.data_storage_instance.point_size.value = float(avg_nn_dist)
+
+    def _update_lut_value(self):
+        """Updates widget values."""
+        self.data_storage_instance.toggle_callback_block(True)
+        self.widget.LUT.setCurrentText(self.data_storage_instance.lut.value)
+        self.data_storage_instance.toggle_callback_block(False)
+        self._reset_contrast()
+
+    def _update_size_value(self):
+        """Updates widget values."""
+        self.data_storage_instance.toggle_callback_block(True)
+        self.widget.point_size.setValue(self.data_storage_instance.point_size.value)
+        self.data_storage_instance.toggle_callback_block(False)
+
+    def _update_contrast_value(self):
+        """Updates widget values."""
+        self.data_storage_instance.toggle_callback_block(True)
+        self.widget.set_contrast_slider(
+            tuple(self.data_storage_instance.min_max_meas.value)
+        )
+        self.data_storage_instance.toggle_callback_block(False)
+        self._change_lut_colors()
+
+    def _update_ds_with_data(self):
+        """Updates data storage with data."""
+        self.data_storage_instance.toggle_callback_block(True)
+        self.data_storage_instance.point_size.value = self.widget.point_size.value()
+        self.data_storage_instance.lut.value = self.widget.LUT.currentText()
+        self.data_storage_instance.min_max_meas.value = [
+            self.widget.min_lut_spinbox.minimum(),
+            self.widget.max_lut_spinbox.maximum(),
+        ]
+        self.data_storage_instance.toggle_callback_block(False)
+
+    def _register_datastorage_update(self):
+        """Registers data storage update."""
+        self.data_storage_instance.point_size.value_changed.connect(
+            self._update_size_value
+        )
+        self.data_storage_instance.lut.value_changed.connect(self._update_lut_value)
+        self.data_storage_instance.min_max_meas.value_changed.connect(
+            self._update_contrast_value
+        )
+
+        for spinbox in [
+            self.widget.point_size,
+            self.widget.min_lut_spinbox,
+            self.widget.max_lut_spinbox,
+        ]:
+            spinbox.valueChanged.connect(self._update_ds_with_data)
+
+        self.widget.LUT.currentIndexChanged.connect(self._update_ds_with_data)
 
 
 if __name__ == "__main__":

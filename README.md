@@ -24,7 +24,7 @@ provides GUI elements to process this data with ARCOS. Layers containing the det
 Following analysis, the user can export the output as a CSV file with the detected collective events or as a sequence of images to generate a movie.
 
 
-![](https://user-images.githubusercontent.com/100028238/177808096-399abe6c-37a7-473b-96d2-afda5042a51e.gif)
+![](https://github.com/bgraedel/arcos-gui/assets/100028238/66fa2afa-6f24-4cce-b29e-4279066c6c25)
 
 [Watch full demo on youtube](https://www.youtube.com/watch?v=hG_z_BFcAiQ)
 
@@ -67,6 +67,26 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [pip]: https://pypi.org/project/arcos-gui/
 [PyPI]: https://pypi.org/
 
-# Credits
+## Credits
 
 This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
+
+## Citation
+
+If you use this plugin in your research, please cite the following paper:
+
+    @article{10.1083/jcb.202207048,
+        author = {Gagliardi, Paolo Armando and Grädel, Benjamin and Jacques, Marc-Antoine and Hinderling, Lucien and Ender, Pascal and Cohen, Andrew R. and Kastberger, Gerald and Pertz, Olivier and Dobrzyński, Maciej},
+        title = "{Automatic detection of spatio-temporal signaling patterns in cell collectives}",
+        journal = {Journal of Cell Biology},
+        volume = {222},
+        number = {10},
+        pages = {e202207048},
+        year = {2023},
+        month = {07},
+        abstract = "{Increasing experimental evidence points to the physiological importance of space–time correlations in signaling of cell collectives. From wound healing to epithelial homeostasis to morphogenesis, coordinated activation of biomolecules between cells allows the collectives to perform more complex tasks and to better tackle environmental challenges. To capture this information exchange and to advance new theories of emergent phenomena, we created ARCOS, a computational method to detect and quantify collective signaling. We demonstrate ARCOS on cell and organism collectives with space–time correlations on different scales in 2D and 3D. We made a new observation that oncogenic mutations in the MAPK/ERK and PIK3CA/Akt pathways of MCF10A epithelial cells hyperstimulate intercellular ERK activity waves that are largely dependent on matrix metalloproteinase intercellular signaling. ARCOS is open-source and available as R and Python packages. It also includes a plugin for the napari image viewer to interactively quantify collective phenomena without prior programming experience.}",
+        issn = {0021-9525},
+        doi = {10.1083/jcb.202207048},
+        url = {https://doi.org/10.1083/jcb.202207048},
+        eprint = {https://rupress.org/jcb/article-pdf/222/10/e202207048/1915749/jcb/_202207048.pdf},
+    }
