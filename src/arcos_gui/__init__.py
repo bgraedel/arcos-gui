@@ -6,6 +6,7 @@ __version__ = "0.0.7"
 from arcos_gui._helper_functions import (
     filter_data,
     get_arcos_output,
+    get_current_arcos_plugin,
     load_dataframe,
     load_dataframe_with_columnpicker,
     load_sample_data,
@@ -26,4 +27,5 @@ __all__ = [
     "run_binarization_only",
     "run_arcos",
     "get_arcos_output",
+    "get_current_arcos_plugin",
 ]

@@ -52,3 +52,40 @@ AVAILABLE_OPTIONS_FOR_BATCH = [
     "noodleplot",
     "statsplot",
 ]
+
+ALLOWED_SETTINGS = [
+    "file_name",
+    "columns",
+    "arcos_parameters",
+    "min_max_meas",
+    "point_size",
+    "lut",
+    "output_order",
+    "min_max_tracklenght",
+]
+
+
+ARCOSPARAMETERS_DEFAULTS = {
+    "interpolate_meas": False,
+    "clip_meas": False,
+    "clip_low": 0.0,
+    "clip_high": 1.0,
+    "smooth_k": 1,
+    "bias_k": 5,
+    "bias_method": "none",
+    "polyDeg": 1,
+    "bin_threshold": 0.5,
+    "bin_peak_threshold": 0.5,
+    "eps_method": "manual",
+    "neighbourhood_size": 20.0,
+    "epsPrev": 20.0,
+    "min_clustersize": 5,
+    "nprev": 1,
+    "min_dur": 1,
+    "total_event_size": 5,
+    "add_convex_hull": True,
+    "add_all_cells": True,
+    "add_bin_cells": True,
+    "bin_advanded_settings": False,
+    "detect_advanced_options": False,
+}

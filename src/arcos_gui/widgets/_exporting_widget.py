@@ -9,7 +9,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from arcos_gui.processing import BatchProcessor
-from arcos_gui.tools import BatchFileDialog, MovieExporter
+from arcos_gui.tools import (
+    ALLOWED_SETTINGS,
+    AVAILABLE_OPTIONS_FOR_BATCH,
+    BatchFileDialog,
+    MovieExporter,
+    ParameterFileDialog,
+)
 from napari.utils import progress
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
@@ -86,19 +92,37 @@ class _exportwidget(QtWidgets.QWidget):
     def _browse_parmeters_import(self):
         base_path = self._data_storage_instance.file_name.value
         base_path = str(Path(base_path).parent)
-        path = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select Yaml File", base_path, filter="*.yaml"
-        )[0]
-        if path:
-            return path
+
+        dialog = ParameterFileDialog(
+            selection_values=ALLOWED_SETTINGS,
+            directory=base_path,
+            parent=self,
+            caption="Select Parameters to Import",
+        )
+
+        if dialog.exec_():
+            # Get the selected directory
+            path = dialog.selectedFiles()[0]
+
+            # Get the values corresponding to the checkboxes that are checked
+            options_selected = dialog.get_selected_options()
+            dialog.close()
+            dialog.deleteLater()
+            return path, options_selected
         else:
-            return None
+            dialog.close()
+            dialog.deleteLater()
+            return None, None
 
     def _browse_batch_output(self):
         base_path = self._data_storage_instance.file_name.value
         base_path = str(Path(base_path).parent)
 
-        dialog = BatchFileDialog(directory=base_path, parent=self)
+        dialog = BatchFileDialog(
+            selection_values=AVAILABLE_OPTIONS_FOR_BATCH,
+            directory=base_path,
+            parent=self,
+        )
         dialog.setWindowTitle("Select Directory")
 
         if dialog.exec_():
@@ -106,9 +130,7 @@ class _exportwidget(QtWidgets.QWidget):
             path = dialog.selectedFiles()[0]
 
             # Get the values corresponding to the checkboxes that are checked
-            options_selected = [
-                key for key, value in dialog.checkboxes.items() if value.isChecked()
-            ]
+            options_selected = dialog.get_selected_options()
 
             return path, options_selected
         else:
@@ -205,10 +227,13 @@ class ExportController:
         show_info(f"wrote yaml file to {path}")
 
     def _import_arcos_params(self):
-        path = self.widget._browse_parmeters_import()
+        path, what_to_import = self.widget._browse_parmeters_import()
         if path is None:
             return
-        self._data_storage_instance.import_from_yaml(path)
+        if not what_to_import:
+            show_info("No settings selected to import")
+            return
+        self._data_storage_instance.import_from_yaml(path, what_to_import)
         show_info(f"imported yaml file from {path}")
 
     def _export_image_series(self):

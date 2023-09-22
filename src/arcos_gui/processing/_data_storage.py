@@ -7,47 +7,11 @@ which are used to update the widgets when the data changes."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields, is_dataclass
-from typing import Any, Callable, Generic, Literal, TypeVar, Union
+from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, Union, cast
 
 import pandas as pd
 import yaml
-
-allowed_import_values = Literal[
-    "file_name",
-    "columns",
-    "arcos_parameters",
-    "min_max_meas",
-    "point_size",
-    "selected_object_id",
-    "lut",
-    "output_order",
-    "min_max_tracklenght",
-]
-
-ARCOSPARAMETERS_DEFAULTS = {
-    "interpolate_meas": False,
-    "clip_meas": False,
-    "clip_low": 0.0,
-    "clip_high": 1.0,
-    "smooth_k": 1,
-    "bias_k": 5,
-    "bias_method": "none",
-    "polyDeg": 1,
-    "bin_threshold": 0.5,
-    "bin_peak_threshold": 0.5,
-    "eps_method": "manual",
-    "neighbourhood_size": 20.0,
-    "epsPrev": 20.0,
-    "min_clustersize": 5,
-    "nprev": 1,
-    "min_dur": 1,
-    "total_event_size": 5,
-    "add_convex_hull": True,
-    "add_all_cells": True,
-    "add_bin_cells": True,
-    "bin_advanded_settings": False,
-    "detect_advanced_options": False,
-}
+from arcos_gui.tools import ALLOWED_SETTINGS, ARCOSPARAMETERS_DEFAULTS
 
 
 @dataclass
@@ -547,21 +511,65 @@ class DataStorage:
     def import_from_yaml(
         self,
         filepath: str,
+        selected_attributes: Sequence[
+            Literal[
+                "file_name",
+                "columns",
+                "arcos_parameters",
+                "min_max_meas",
+                "point_size",
+                "lut",
+                "output_order",
+                "min_max_tracklenght",
+            ]
+        ]
+        | None = None,
     ):
         """Imports the parameters from a YAML file and updates the attributes of DataStorage class.
 
         Parameters:
         filepath (str): The file path where the YAML file is located.
+        selected_attributes (Sequence[allowed_import_values] | None): A list of attributes to be imported.
+            If None, all attributes will be imported. Defaults to None.
+            Note: importing columns will reset all attributes.
         """
-        self.reset_all_attributes(trigger_callback=False)
+        if selected_attributes is None:
+            _selected_attributes = cast(
+                Sequence[
+                    Literal[
+                        "file_name",
+                        "columns",
+                        "arcos_parameters",
+                        "min_max_meas",
+                        "point_size",
+                        "lut",
+                        "output_order",
+                        "min_max_tracklenght",
+                    ]
+                ],
+                ALLOWED_SETTINGS,
+            )
+        else:
+            _selected_attributes = selected_attributes
 
-        def update_attributes(obj, data_dict):
+        # check if columns or file_name are in _selected_attributes
+        if "columns" in _selected_attributes or "file_name" in _selected_attributes:
+            self.reset_all_attributes()
+            print("resetting all attributes")
+
+        for attr in _selected_attributes:
+            if attr not in ALLOWED_SETTINGS:
+                raise ValueError(f"Cant import {attr} from YAML file.")
+
+        def update_attributes(obj, data_dict, skip_selected_check=True):
             """Recursive function to update attributes from a nested dictionary."""
             for key, value in data_dict.items():
+                if key not in _selected_attributes and skip_selected_check:
+                    continue
                 attr = getattr(obj, key)
                 if isinstance(attr, value_callback):
                     if is_dataclass(attr.value):
-                        update_attributes(attr.value, value)
+                        update_attributes(attr.value, value, skip_selected_check=False)
                     else:
                         attr.value = value
                 else:

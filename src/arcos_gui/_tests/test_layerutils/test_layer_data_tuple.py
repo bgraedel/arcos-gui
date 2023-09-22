@@ -38,7 +38,7 @@ def test_prepare_all_cells_layer(make_napari_viewer: napari.viewer.Viewer):
     assert_array_equal(viewer.layers[0].properties["act"], act_values)
     assert_array_equal(viewer.layers[0].properties["id"], id_values)
     assert_array_equal(viewer.layers[0].data[:, 0], df_test[["t"]].to_numpy().flatten())
-    assert viewer.layers[0].face_contrast_limits == [0.0, 1.0]
+    assert viewer.layers[0].face_contrast_limits == (0.0, 1.0)
     assert viewer.layers[0].face_colormap.name == "inferno"
     assert viewer.layers[0].size.all() == 1
 

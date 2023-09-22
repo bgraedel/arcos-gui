@@ -38,6 +38,9 @@
      <layout class="QVBoxLayout" name="verticalLayout_5">
       <item>
        <widget class="QPushButton" name="batch_processing_button">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Run Batch Processing on an entire folder containing csv files. uses settings set in the widget i.e. columnames have to macht. Can also iterativley process multiple positions and or filters if needed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
         <property name="text">
          <string>Batch Process Folder</string>
         </property>
@@ -61,6 +64,9 @@
      <layout class="QHBoxLayout" name="horizontalLayout_7">
       <item>
        <widget class="QPushButton" name="param_import_button">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Import ARCOS settings from a arcos-parameters yaml file.&lt;/p&gt;&lt;p&gt;Dialog allows for the selective import of values, if columns and or file name is imported the application is reset so as to avoid name confilcts&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
         <property name="text">
          <string>Import Parameters</string>
         </property>
@@ -68,6 +74,9 @@
       </item>
       <item>
        <widget class="QPushButton" name="param_export_button">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Export all settings as a yaml file. Can be later imported again using Import Parameters.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
         <property name="text">
          <string>Export Parameters</string>
         </property>

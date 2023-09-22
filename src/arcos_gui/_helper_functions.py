@@ -412,3 +412,17 @@ def get_arcos_output(plugin: _main_widget.MainWindow | None = None):
         raise RuntimeError(
             "Cannot find the plugin. Either specify a plugin or open one."
         )
+
+
+def get_current_arcos_plugin():
+    """Get the current ARCOS plugin instance.
+
+    Returns
+    -------
+    plugin : _main_widget.MainWindow
+        The plugin instance.
+    """
+    plugin = _main_widget.MainWindow.get_last_instance()
+    if not plugin:
+        plugin = open_plugin(napari.current_viewer())
+    return plugin
