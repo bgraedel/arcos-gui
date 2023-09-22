@@ -2,7 +2,7 @@
 
 __author__ = """Benjamin Graedel"""
 __email__ = "benjamin.graedel@unibe.ch"
-__version__ = "0.0.7"
+__version__ = "0.1.0"
 
 from arcos_gui.layerutils._layer_maker import Layermaker
 
