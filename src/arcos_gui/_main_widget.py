@@ -72,6 +72,7 @@ class MainWindow(QtWidgets.QWidget):
         self.viewer: napari.viewer.Viewer = viewer
         self._widget = _MainUI(self)
         MainWindow._instance = weakref.ref(self)
+
         self.setLayout(self._widget.layout())
 
         self.data = DataStorage()
@@ -113,13 +114,18 @@ class MainWindow(QtWidgets.QWidget):
         )
 
         self._layermaker = Layermaker(self.viewer, self.data)
-
         self._add_widgets()
         self._connect_signals()
 
     @classmethod
     def get_last_instance(cls) -> MainWindow | None:
         """Returns the last instance of this class. Returns None if no instance exists."""
+        # check if instance exists and is still valid, otherwise delete it and return None
+        try:
+            cls._instance._widget.maintabwidget.currentIndex()  # type: ignore
+        except (AttributeError, RuntimeError):
+            del cls._instance
+            cls._instance = None
         return cls._instance() if cls._instance else None
 
     def _connect_signals(self):

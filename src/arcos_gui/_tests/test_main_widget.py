@@ -6,17 +6,19 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-from arcos_gui._main_widget import MainWindow
 from arcos_gui.processing._arcos_wrapper import calculate_arcos_stats
 from arcos_gui.tools._config import ARCOS_LAYERS
 from qtpy.QtCore import QEventLoop
 
 if TYPE_CHECKING:
     import napari.viewer
+    from arcos_gui._main_widget import MainWindow
 
 
 @pytest.fixture()
 def dock_arcos_widget(make_napari_viewer, qtbot):
+    from arcos_gui._main_widget import MainWindow
+
     viewer = make_napari_viewer()
     mywidget = MainWindow(viewer=viewer)
     qtbot.addWidget(mywidget)

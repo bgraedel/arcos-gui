@@ -156,7 +156,7 @@ def load_dataframe_with_columnpicker(df, plugin: _main_widget.MainWindow | None 
         _plugin = plugin
 
     try:
-        _plugin._input_controller.load_from_dataframe_with_columnpicker(df)
+        _plugin._input_controller.load_from_dataframe(df, columns=None)
     except RuntimeError:
         print("Cannot find the plugin. Opening a new one.")
         _plugin = open_plugin(napari.current_viewer())
