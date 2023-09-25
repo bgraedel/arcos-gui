@@ -178,11 +178,9 @@ class _arcosWidget(QtWidgets.QWidget):
             self.bias_met_advanced_state["smoothK"] = self.smooth_k.value()
             self.smooth_k.setValue(3)
             self.bias_method.setCurrentText("none")
+            self.bias_method.currentIndexChanged.emit(0)
 
-        self.smooth_k.setVisible(checked)
-        self.smooth_k_label.setVisible(checked)
-        self.bias_method.setVisible(checked)
-        self.bias_method_label.setVisible(checked)
+        self._toggle_bias_method_parameter_visibility()
 
     def _detect_advanced_options_toggle(self):
         checked = self.detect_advance_options.isChecked()
@@ -252,9 +250,13 @@ class _arcosWidget(QtWidgets.QWidget):
         based on the seleciton of bias method:
         shows or hides the appropriate options in the main window.
         """
+        advanced_checked = self.bin_advanced_options.isChecked()
+        self.smooth_k.setVisible(advanced_checked)
+        self.smooth_k_label.setVisible(advanced_checked)
+        self.bias_method.setVisible(advanced_checked)
+        self.bias_method_label.setVisible(advanced_checked)
+
         if self.bias_method.currentText() == "runmed":
-            self.smooth_k.setVisible(True)
-            self.smooth_k_label.setVisible(True)
             self.polyDeg.setVisible(False)
             self.polyDeg_label.setVisible(False)
             self.bias_k.setVisible(True)
@@ -265,8 +267,6 @@ class _arcosWidget(QtWidgets.QWidget):
             self.bin_threshold_label.setVisible(True)
 
         if self.bias_method.currentText() == "lm":
-            self.smooth_k.setVisible(True)
-            self.smooth_k_label.setVisible(True)
             self.polyDeg.setVisible(True)
             self.polyDeg_label.setVisible(True)
             self.bias_k.setVisible(False)
@@ -277,8 +277,6 @@ class _arcosWidget(QtWidgets.QWidget):
             self.bin_threshold_label.setVisible(True)
 
         if self.bias_method.currentText() == "none":
-            self.smooth_k.setVisible(True)
-            self.smooth_k_label.setVisible(True)
             self.polyDeg.setVisible(False)
             self.polyDeg_label.setVisible(False)
             self.bias_k.setVisible(False)

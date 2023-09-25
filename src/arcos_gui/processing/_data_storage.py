@@ -49,6 +49,7 @@ class value_callback(Generic[T]):
     callbacks_blocked: bool = False
     value_name: str = "value_callback"
     verbose: bool = False
+    missed_callbacks: int = 0
 
     def __post_init__(self):
         self.value_changed = value_changed(self)
@@ -69,7 +70,11 @@ class value_callback(Generic[T]):
 
     def _notify_observers(self):
         if self.callbacks_blocked:
+            self.missed_callbacks += 1
             return
+        self._emit()
+
+    def _emit(self):
         for callback in self._callbacks:
             if self.verbose:
                 print(
@@ -77,11 +82,20 @@ class value_callback(Generic[T]):
                 )
             callback()
 
+    def emit(self, only_missed: bool = False):
+        if only_missed and self.missed_callbacks > 0:
+            self._emit()
+            self.missed_callbacks = 0
+        else:
+            self._notify_observers()
+
     def toggle_callback_block(self, set_explicit: bool | None = None):
         if set_explicit is not None:
             self.callbacks_blocked = set_explicit
-            return
-        self.callbacks_blocked = not self.callbacks_blocked
+        else:
+            self.callbacks_blocked = not self.callbacks_blocked
+        if not self.callbacks_blocked:
+            self.missed_callbacks = 0
 
     def toggle_verbose(self):
         self.verbose = not self.verbose
@@ -380,6 +394,17 @@ class ArcosParameters:
         for _field in fields(self):
             getattr(self, _field.name).toggle_callback_block(block)
 
+    def emit(self, only_missed: bool = False):
+        """emits all callbacks.
+
+        Parameters
+        ----------
+        only_missed : bool, optional
+            if True, only the missed callbacks will be emitted, by default False.
+        """
+        for _field in fields(self):
+            getattr(self, _field.name).emit(only_missed=only_missed)
+
 
 @dataclass(frozen=True)
 class DataStorage:
@@ -561,6 +586,10 @@ class DataStorage:
             if attr not in ALLOWED_SETTINGS:
                 raise ValueError(f"Cant import {attr} from YAML file.")
 
+        self.toggle_callback_block(
+            True
+        )  # black all callbacks while importing to avoid unnecessary updates
+
         def update_attributes(obj, data_dict, skip_selected_check=True):
             """Recursive function to update attributes from a nested dictionary."""
             for key, value in data_dict.items():
@@ -579,6 +608,10 @@ class DataStorage:
             data_dict = yaml.safe_load(file)
 
         update_attributes(self, data_dict)
+
+        # manually trigger callbacks for all attributes that were not updated
+        self.emit_callbacks(only_missed=True)
+        self.toggle_callback_block(False)
 
     def reset_all_attributes(self, trigger_callback=False):
         """resets all attributes to their default values.
@@ -652,6 +685,19 @@ class DataStorage:
                             recursive_set_verbose(nested_value, verbose)
 
         recursive_set_verbose(self, verbose)
+
+    def emit_callbacks(self, only_missed: bool = False):
+        def recursive_emit(obj, only_missed):
+            for _field in fields(obj):
+                value_callback_field = getattr(obj, _field.name)
+                if isinstance(value_callback_field, value_callback):
+                    value_callback_field.emit(only_missed=only_missed)
+                    if hasattr(value_callback_field, "value"):
+                        nested_value = value_callback_field.value
+                        if is_dataclass(nested_value):
+                            recursive_emit(nested_value, only_missed)
+
+        recursive_emit(self, only_missed)
 
     def load_data(self, filename, trigger_callback=True):
         """Loads data from a csv file."""

@@ -159,7 +159,12 @@ def test_set_default_visible(make_arcos_widget):
 def test_toggle_biasmethod_visibility(make_arcos_widget):
     arcos_controller, qtbot = make_arcos_widget
     arcos_controller.widget.bias_method.setCurrentText("runmed")
+    assert (
+        arcos_controller.widget.smooth_k.isVisibleTo(arcos_controller.widget) is False
+    )  # advanced options are not toggled
+    arcos_controller.widget.bin_advanced_options.setChecked(True)
     assert arcos_controller.widget.smooth_k.isVisibleTo(arcos_controller.widget) is True
+    arcos_controller.widget.bias_method.setCurrentText("runmed")
     assert (
         arcos_controller.widget.smooth_k_label.isVisibleTo(arcos_controller.widget)
         is True
