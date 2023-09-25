@@ -792,7 +792,7 @@ class BatchProcessor(WorkerBase):
 
                 file_name = pth.with_suffix("").stem
                 print(f"Processing file {file_name}")
-                df = pd.read_csv(file)
+                df = pd.read_csv(file, engine="pyarrow")
 
                 meas_col, df = calculate_measurement(
                     data=df,
@@ -895,7 +895,6 @@ class BatchProcessor(WorkerBase):
                             data=arcos_df_filtered,
                             frame_column=self.columnames.frame_column,
                             collid_column="collid",
-                            obj_id_column=self.columnames.object_id,
                             pos_columns=self.columnames.posCol,
                         )
                         arcos_stats_per_frame.to_csv(
