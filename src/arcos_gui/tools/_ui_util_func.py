@@ -90,11 +90,10 @@ class SelectionDialog(QFileDialog):
 
         # Create a new grid layout for your widgets
         layout = QGridLayout()
+        self.selection_title = QLabel("Select:")
 
         # Create and add a label to the first row
-        layout.addWidget(
-            QLabel("Select what to export"), 0, 0, 1, 4
-        )  # Spanning across 4 columns
+        layout.addWidget(self.selection_title, 0, 0, 1, 4)
 
         # Create and add "Select All" checkbox above the selection_values checkboxes
         self.selectAllCheckbox = QCheckBox("Select All")
@@ -198,6 +197,7 @@ class BatchFileDialog(SelectionDialog):
         self.setFileMode(QFileDialog.Directory)
         self.setOption(QFileDialog.ShowDirsOnly, True)
         self.setWindowTitle("Select Folder to Batch Process")
+        self.selection_title.setText("Select what to export:")
 
 
 class ParameterFileDialog(SelectionDialog):
@@ -208,6 +208,7 @@ class ParameterFileDialog(SelectionDialog):
         # filter for .yaml files
         self.setNameFilter("*.yaml")
         self.setWindowTitle("Select Parameter File")
+        self.selection_title.setText("Select what to import:")
 
 
 def remove_layers_after_columnpicker(viewer: napari.viewer.Viewer, arcos_layers: list):
