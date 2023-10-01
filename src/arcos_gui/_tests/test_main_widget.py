@@ -16,13 +16,14 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture()
-def dock_arcos_widget(make_napari_viewer, qtbot):
+def dock_arcos_widget(make_napari_viewer, qtbot: QtBot):
     from arcos_gui._main_widget import MainWindow
 
     viewer = make_napari_viewer()
     mywidget = MainWindow(viewer=viewer)
     qtbot.addWidget(mywidget)
     yield viewer, mywidget, qtbot
+    mywidget.close()
     mywidget.deleteLater()
     viewer.close()
     gc.collect()
