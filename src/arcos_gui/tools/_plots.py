@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import napari
 import numpy as np
 import pandas as pd
-from arcos4py.tools import calcCollevStats
+from arcos4py.tools import calculate_statistics
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -155,7 +155,7 @@ class CollevPlotter(QtWidgets.QWidget):
             self.ax.set_xlabel("Total Size")
             self.ax.set_ylabel("Event Duration")
             self.fig.canvas.draw_idle()
-            self.nbr_collev = self.stats.shape[0]
+            self.nbr_collev = self.stats[self.collid_name].nunique()
         # generate empty annotation, set it to invisible
         self.annot = self.ax.annotate(
             "",
@@ -239,7 +239,7 @@ class CollevPlotter(QtWidgets.QWidget):
             event (matplotlib_pick_event): event generated from selecting a datapoint.
         """
         ind = event.ind
-        clid = int(self.stats.iloc[ind[0]].iloc[0])
+        clid = int(self.stats.iloc[ind[0]][self.collid_name])
         current_colev = self.arcos[self.arcos["collid"] == clid]
         edge_size = self.point_size / 5
         frame = self.stats.iloc[ind[0]].iloc[2]
@@ -315,7 +315,7 @@ class NoodlePlot(QtWidgets.QWidget):
         self._init_mpl_widgets()
         self.arcos = pd.DataFrame(data={"t": [], "id": [], "x": [], "y": [], "z": []})
         self.point_size = 10
-        self.frame_col = "time"
+        self.frame_col = "frame"
         self.trackid_col = "id"
         self.posx = "x"
         self.posy = "y"
@@ -430,15 +430,11 @@ class NoodlePlot(QtWidgets.QWidget):
 
     def calc_stats(self, frame_col, trackid_col):
         """Calculates stats for collective events."""
-        collev_stats = calcCollevStats()
         # if no calculation was run so far (i.e. when the widget is initialized)
         # populate it with no data
         if not self.arcos.empty:
-            self.stats = collev_stats.calculate(
-                self.arcos,
-                frame_col,
-                self.collid_name,
-                trackid_col,
+            self.stats = calculate_statistics(
+                self.arcos, frame_col, self.collid_name, trackid_col
             )
 
     def clear_plot(self):
@@ -530,7 +526,7 @@ class NoodlePlot(QtWidgets.QWidget):
                     picker=1,
                 )
 
-            self.nbr_collev = self.stats.shape[0]
+            self.nbr_collev = self.stats[self.collid_name].nunique()
         # generate empty annotation
         self.annot = self.ax.annotate(
             "",
@@ -621,7 +617,9 @@ class NoodlePlot(QtWidgets.QWidget):
         clid = int(self.dat_grpd[clid_index][0, 0])
         current_colev = self.arcos[self.arcos["collid"] == clid]
         edge_size = self.point_size / 5
-        frame = int(self.stats[self.stats.iloc[:, 0] == clid].iloc[:, 2].iloc[0])
+        frame = int(
+            self.stats[self.stats[self.collid_name] == clid]["first_timepoint"].iloc[0]
+        )
         if ARCOS_LAYERS["event_boundingbox"] in self.viewer.layers:
             self.viewer.layers.remove(ARCOS_LAYERS["event_boundingbox"])
         if self.posz is None:

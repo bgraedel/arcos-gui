@@ -14,8 +14,8 @@ A napari plugin to detect and visualize collective signaling events
 - Package specific Documentation: <https://bgraedel.github.io/arcos-gui>
 - ARCOS documentation: <https://arcos.gitbook.io>
 
-**A**utomated **R**ecognition of **C**ollective **S**ignalling (ARCOS) is an algorithm to identify collective spatial events in time series data,
-that was written by Maciej Dobrzynski (https://github.com/dmattek). It is available as an R (ARCOS) and python (arcos4py) package.
+**A**utomated **R**ecognition of **C**ollective **S**ignalling (ARCOS) is an algorithm to identify collective spatial events in time series data.
+It is available as an R (ARCOS) and python (arcos4py) package.
 ARCOS can identify and visualize collective protein activation in 2- and 3D cell cultures over time.
 
 This plugin integrates ARCOS into napari. Users can import tracked time-series data in CSV format. The plugin
@@ -26,7 +26,7 @@ Following analysis, the user can export the output as a CSV file with the detect
 
 ![](https://github.com/bgraedel/arcos-gui/assets/100028238/66fa2afa-6f24-4cce-b29e-4279066c6c25)
 
-[Watch full demo on youtube](https://www.youtube.com/watch?v=hG_z_BFcAiQ)
+[Watch full demo on youtube](https://www.youtube.com/watch?v=hG_z_BFcAiQ) (older plugin version)
 
 
 # Installation
@@ -35,10 +35,20 @@ You can install `arcos-gui` via [pip]:
 
     pip install arcos-gui
 
+Or via [conda-forge]:
+
+    conda install -c conda-forge arcos-gui
+
+## Usage
+
+The plugin can be started from the napari menu `Plugins > ARCOS GUI`.
+For detailed instructions on how to use the plugin, please refer to the [Usage section of the documentation](https://bgraedel.github.io/arcos-gui/Usage).
+
 ## Contributing
 
 Contributions are very welcome. Tests can be run with [tox], please ensure
 the coverage at least stays the same before you submit a pull request.
+See the [Contributing Guide](https://bgraedel.github.io/arcos-gui/Contributing) for more information.
 
 ## License
 
@@ -65,6 +75,7 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [napari]: https://github.com/napari/napari
 [tox]: https://tox.readthedocs.io/en/latest/
 [pip]: https://pypi.org/project/arcos-gui/
+[conda-forge]: https://anaconda.org/conda-forge/arcos-gui
 [PyPI]: https://pypi.org/
 
 ## Credits
@@ -73,7 +84,7 @@ This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookie
 
 ## Citation
 
-If you use this plugin in your research, please cite the following paper:
+If you use this plugin in your research, please cite the following [paper](https://doi.org/10.1083/jcb.202207048):
 
     @article{10.1083/jcb.202207048,
         author = {Gagliardi, Paolo Armando and Grädel, Benjamin and Jacques, Marc-Antoine and Hinderling, Lucien and Ender, Pascal and Cohen, Andrew R. and Kastberger, Gerald and Pertz, Olivier and Dobrzyński, Maciej},

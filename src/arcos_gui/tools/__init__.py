@@ -2,7 +2,7 @@
 
 __author__ = """Benjamin Graedel"""
 __email__ = "benjamin.graedel@unibe.ch"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 from arcos_gui.tools._config import (

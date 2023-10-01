@@ -263,7 +263,6 @@ class ExportController:
 
     def batch_processing(self):
         inpath, what_to_export = self.widget._browse_batch_output()
-        print(what_to_export)
         if inpath is None:
             return
         self.batch_worker = BatchProcessor(

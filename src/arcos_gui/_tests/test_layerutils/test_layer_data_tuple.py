@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 from arcos_gui.layerutils._layer_data_tuple import (
     prepare_active_cells_layer,
@@ -54,16 +55,19 @@ def test_prepare_active_cells_layer(make_napari_viewer):
     viewer.add_layer(Layer.create(*layer))
     assert viewer.layers[0].name == ARCOS_LAYERS["active_cells"]
     assert isinstance(viewer.layers[0], points.points.Points)
-    assert_array_equal(
-        viewer.layers[0].data[:, 0], df_active[["t"]].to_numpy().flatten()
-    )
+    test_array = df_active[["t"]].to_numpy().flatten()
+    test_array = np.insert(test_array, 0, 0)
+
+    assert_array_equal(viewer.layers[0].data[:, 0], test_array)
     assert viewer.layers[0].size.all() == 1
 
 
 def test_prepare_events_layer(make_napari_viewer):
     df_test = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
     viewer = make_napari_viewer()
-    layer = prepare_events_layer(df_coll=df_test, vColsCore=["t", "y", "x"], size=1)
+    layer = prepare_events_layer(
+        df_coll=df_test, vColsCore=["t", "y", "x"], size=1, padd_time=False
+    )
     viewer.add_layer(Layer.create(*layer))
     assert viewer.layers[0].name == ARCOS_LAYERS["collective_events_cells"]
     assert isinstance(viewer.layers[0], points.points.Points)

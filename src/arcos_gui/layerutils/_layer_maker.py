@@ -25,6 +25,7 @@ class Layermaker:
     def __init__(self, viewer: viewer.Viewer, data_storage_instance: DataStorage):
         self.data_storage_instance = data_storage_instance
         self.viewer = viewer
+        self.padd_time = True
 
     def _remove_old_layers(self):
         layers_names = [layer.name for layer in self.viewer.layers]
@@ -141,6 +142,7 @@ class Layermaker:
                     self.data_storage_instance.columns.value.measurement_bin,
                     self.data_storage_instance.point_size.value,
                     self.data_storage_instance.output_order.value,
+                    self.padd_time,
                 )
             )
         return layers
@@ -156,6 +158,7 @@ class Layermaker:
                 VcolsCore,
                 self.data_storage_instance.point_size.value,
                 self.data_storage_instance.output_order.value,
+                self.padd_time,
             )
         )
 

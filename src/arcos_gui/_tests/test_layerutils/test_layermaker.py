@@ -70,6 +70,7 @@ def test_make_layers_all_empty_data(layermaker):
 def test_make_layers_bin(layermaker: Layermaker):
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     df["m.bin"] = df["m"].apply(lambda x: 1 if x > 0 else 0)
+    layermaker.padd_time = False
     layermaker.data_storage_instance.arcos_binarization.value = df
     layermaker.make_layers_bin()
     assert len(layermaker.viewer.layers) == 2
@@ -80,6 +81,7 @@ def test_make_layers_bin(layermaker: Layermaker):
 def test_make_layers_all_no_arcos_data(layermaker: Layermaker):
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     df["m.bin"] = df["m"].apply(lambda x: 1 if x > 0 else 0)
+    layermaker.padd_time = False
     layermaker.data_storage_instance.arcos_binarization.value = df
     layermaker.make_layers_all()
     assert len(layermaker.viewer.layers) == 2
@@ -88,6 +90,7 @@ def test_make_layers_all_no_arcos_data(layermaker: Layermaker):
 
 
 def test_make_layers_events_only(layermaker: Layermaker):
+    layermaker.padd_time = False
     layermaker.data_storage_instance.arcos_output.value = pd.read_csv(
         "src/arcos_gui/_tests/test_data/arcos_output.csv"
     )
@@ -98,6 +101,7 @@ def test_make_layers_events_only(layermaker: Layermaker):
 
 
 def test_make_layers_all(layermaker: Layermaker):
+    layermaker.padd_time = False
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     df["m.bin"] = df["m"].apply(lambda x: 1 if x > 0 else 0)
     layermaker.data_storage_instance.arcos_binarization.value = df
@@ -113,6 +117,7 @@ def test_make_layers_all(layermaker: Layermaker):
 
 
 def test_all_cells_no_convex_hull(layermaker: Layermaker):
+    layermaker.padd_time = False
     layermaker.data_storage_instance.arcos_output.value = pd.read_csv(
         "src/arcos_gui/_tests/test_data/arcos_output.csv"
     )
@@ -123,6 +128,7 @@ def test_all_cells_no_convex_hull(layermaker: Layermaker):
 
 @patch("arcos_gui.layerutils._layer_maker.Layermaker._pick_event", autospec=True)
 def test_all_cells_pick_event(mock_pick, layermaker: Layermaker):
+    layermaker.padd_time = False
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_data.csv")
     df["m.bin"] = df["m"].apply(lambda x: 1 if x > 0 else 0)
     layermaker.data_storage_instance.arcos_binarization.value = df

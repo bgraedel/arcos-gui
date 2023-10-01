@@ -1,6 +1,6 @@
 include LICENSE
 include README.md
-recursive-include src/arcos_gui *.ui *.png *.jpeg *.jpg *.svg
+recursive-include src/arcos_gui *.ui *.png *.jpeg *.jpg *.svg *.gif
 recursive-include src/arcos_gui *.csv
 
 recursive-exclude * __pycache__

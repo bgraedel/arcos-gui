@@ -92,6 +92,7 @@ def prepare_active_cells_layer(
     measbin_col: str | None,
     size: float,
     axis_order: str | None = None,
+    padd_time: bool = True,
 ) -> Union[tuple, None]:
     """Prepare active cells layer.
 
@@ -109,7 +110,9 @@ def prepare_active_cells_layer(
     axis_order : str
         order of axis, e.g. 'tzyx', possible values: ['t', 'z', 'y', 'x'].
         Default: 'tzyx' for 3D data, 'tyx' for 2D data.
-
+    padd_time : bool
+        if True, add a row with timepoint 0 if not present
+        to make sure the timeaxis starts with 0
     Returns
     -------
     active_cells_layer : tuple
@@ -120,6 +123,17 @@ def prepare_active_cells_layer(
     df_bin_filtered = df_bin[df_bin[measbin_col] > 0]
     datAct = df_bin_filtered[vColsCore].to_numpy()
     datAct = reshape_by_input_string(datAct, axis_order, vColsCore)
+
+    # check if datAct starts with timepoint 0 if not add a row with timepoint 0
+    if datAct[0][0] != 0 and padd_time:
+        # take first timepoint and replace it with 0
+        dat_tp0 = datAct[0].copy()
+        dat_tp0[0] = 0
+        datAct = np.insert(datAct, 0, dat_tp0, axis=0)
+        shown_points = np.repeat(True, datAct.shape[0])
+        shown_points[0] = False
+    else:
+        shown_points = np.repeat(True, datAct.shape[0])
 
     if datAct.size == 0:
         return None
@@ -133,6 +147,7 @@ def prepare_active_cells_layer(
             "opacity": 1,
             "symbol": "disc",
             "name": ARCOS_LAYERS["active_cells"],
+            "shown": shown_points,
         },
         "points",
     )
@@ -145,6 +160,7 @@ def prepare_events_layer(
     vColsCore: list,
     size: float,
     axis_order: str | None = None,
+    padd_time: bool = True,
 ) -> Union[tuple, None]:
     """Prepare events layer.
 
@@ -160,7 +176,9 @@ def prepare_events_layer(
     axis_order : str
         order of axis, e.g. 'tzyx', possible values: ['t', 'z', 'y', 'x'].
         Default: 'tzyx' for 3D data, 'tyx' for 2D data.
-
+    padd_time : bool
+        if True, add a row with timepoint 0 if not present
+        to make sure the timeaxis starts with 0
     Returns
     -------
     coll_cells : tuple
@@ -178,6 +196,17 @@ def prepare_events_layer(
     if np_clids.size == 0:
         return None
 
+    # check if datAct starts with timepoint 0 if not add a row with timepoint 0
+    if data_collevent_np[0][0] != 0 and padd_time:
+        dat_collev_0 = data_collevent_np[0].copy()
+        dat_collev_0[0] = 0
+        data_collevent_np = np.insert(data_collevent_np, 0, dat_collev_0, axis=0)
+        np_clids = np.insert(np_clids, 0, 0, axis=0)
+        shown_points = np.repeat(True, data_collevent_np.shape[0])
+        shown_points[0] = False
+    else:
+        shown_points = np.repeat(True, data_collevent_np.shape[0])
+
     color_ids = np.take(np.array(COLOR_CYCLE), list(np_clids), mode="wrap")
     coll_cells = (
         data_collevent_np,
@@ -187,6 +216,7 @@ def prepare_events_layer(
             "edge_width": 0,
             "opacity": 1,
             "name": ARCOS_LAYERS["collective_events_cells"],
+            "shown": shown_points,
         },
         "points",
     )
