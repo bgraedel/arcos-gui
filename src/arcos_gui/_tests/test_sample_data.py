@@ -9,14 +9,13 @@ from arcos_gui.sample_data._sample_data import (
     load_real_dataset,
     load_synthetic_dataset,
 )
-from qtpy.QtCore import QEventLoop
 
 if TYPE_CHECKING:
     from arcos_gui._main_widget import MainWindow
 
 
 @pytest.fixture()
-def dock_arcos_widget(make_napari_viewer, qtbot):
+def dock_arcos_widget(make_napari_viewer):
     viewer = make_napari_viewer()
     mywidget = viewer.window.add_plugin_dock_widget(
         plugin_name="arcos-gui", widget_name="ARCOS Main Widget"
@@ -33,14 +32,12 @@ def test_download(tmpdir):
     assert os.path.exists(file_name)
 
 
-def test_load_sample_data(dock_arcos_widget):
+def test_load_sample_data(dock_arcos_widget, qtbot):
     widget: MainWindow
     _, widget = dock_arcos_widget
-    loop = QEventLoop()
     load_synthetic_dataset()
-    widget._input_controller.loading_worker.finished.connect(loop.quit)
-    widget._input_controller.picker.ok_button.click()
-    loop.exec_()
+    with qtbot.waitSignal(widget._input_controller.loading_worker.finished):
+        widget._input_controller.picker.ok_button.click()
     assert not widget.data.filtered_data.value.empty
     assert widget._input_controller.picker.frame.currentText() == "t"
     assert widget._input_controller.picker.track_id.currentText() == "id"
@@ -49,14 +46,12 @@ def test_load_sample_data(dock_arcos_widget):
     assert widget._input_controller.picker.measurement.currentText() == "m"
 
 
-def test_load_real_data(dock_arcos_widget):
+def test_load_real_data(dock_arcos_widget, qtbot):
     widget: MainWindow
     _, widget = dock_arcos_widget
-    loop = QEventLoop()
     load_real_dataset(load_image=False)
-    widget._input_controller.loading_worker.finished.connect(loop.quit)
-    widget._input_controller.picker.ok_button.click()
-    loop.exec_()
+    with qtbot.waitSignal(widget._input_controller.loading_worker.finished):
+        widget._input_controller.picker.ok_button.click()
     assert not widget.data.filtered_data.value.empty
     assert widget._input_controller.picker.frame.currentText() == "t"
     assert widget._input_controller.picker.track_id.currentText() == "id"

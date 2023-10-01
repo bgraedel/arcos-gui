@@ -14,7 +14,6 @@ from arcos_gui import (
     run_binarization_only,
 )
 from arcos_gui._main_widget import MainWindow
-from qtpy.QtCore import QEventLoop
 
 
 def test_open_plugin(make_napari_viewer):
@@ -112,7 +111,7 @@ def test_filter_data(make_napari_viewer, capsys):
     assert "Filtered" in captured.out
 
 
-def test_run_binarization_only(make_napari_viewer):
+def test_run_binarization_only(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
     plugin.data.columns.value.frame_column = "t"
@@ -124,8 +123,6 @@ def test_run_binarization_only(make_napari_viewer):
     plugin.data.columns.value.position_id = "Position"
     plugin.data.columns.value.additional_filter_column = None
     plugin.data.columns.value.measurement_math_operation = None
-
-    loop = QEventLoop()
 
     plugin.data.load_data("src/arcos_gui/_tests/test_data/arcos_data.csv")
 
@@ -138,13 +135,12 @@ def test_run_binarization_only(make_napari_viewer):
         bin_threshold=0.5,
         plugin=plugin,
     )
-    plugin._arcos_widget.worker.finished.connect(loop.quit)
-    loop.exec_()
+    qtbot.waitUntil(lambda: len(viewer.layers) == 2, timeout=5000)
 
     assert len(viewer.layers) == 2
 
 
-def test_run_arcos(make_napari_viewer):
+def test_run_arcos(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
     plugin.data.columns.value.frame_column = "t"
@@ -156,7 +152,6 @@ def test_run_arcos(make_napari_viewer):
     plugin.data.columns.value.position_id = "Position"
     plugin.data.columns.value.additional_filter_column = None
     plugin.data.columns.value.measurement_math_operation = None
-    loop = QEventLoop()
 
     plugin.data.load_data("src/arcos_gui/_tests/test_data/arcos_data.csv")
 
@@ -172,8 +167,7 @@ def test_run_arcos(make_napari_viewer):
         plugin=plugin,
     )
 
-    plugin._arcos_widget.worker.finished.connect(loop.quit)
-    loop.exec_()
+    qtbot.waitUntil(lambda: len(viewer.layers) == 4, timeout=5000)
 
     assert len(viewer.layers) == 4
 

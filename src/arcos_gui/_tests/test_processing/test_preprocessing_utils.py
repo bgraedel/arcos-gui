@@ -21,7 +21,7 @@ from arcos_gui.processing._preprocessing_utils import (
 )
 from arcos_gui.tools import OPERATOR_DICTIONARY
 from arcos_gui.widgets import columnpicker
-from qtpy.QtCore import QEventLoop, Qt
+from qtpy.QtCore import Qt
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -392,7 +392,6 @@ def test_rescale_measurment(process_input_fixture: process_input):
 
 
 def test_data_loader_thread(qtbot):
-    loop = QEventLoop()
     data_loader = DataLoader(
         "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ","
     )
@@ -400,13 +399,11 @@ def test_data_loader_thread(qtbot):
     def assert_data(df):
         assert isinstance(df, pd.DataFrame)
 
-    data_loader.finished.connect(loop.quit)
-
     # connect the assert function to the data signal
     data_loader.new_data.connect(assert_data)
     # start the thread and the event loop
-    data_loader.start()
-    loop.exec_()
+    with qtbot.waitSignal(data_loader.finished):
+        data_loader.start()
 
 
 def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
@@ -416,9 +413,6 @@ def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
     def set_loading_worker_columns(self):
         data_loader.wait_for_columnpicker = False
 
-    # create event loop so the test function does not end
-    # before the thread can finish
-    loop = QEventLoop()
     # now with option True to make sure that the data loader waits for the colosing of columnpicker
     data_loader = DataLoader(
         "src/arcos_gui/_tests/test_data/comma_separated.csv.gz", ",", True
@@ -433,8 +427,6 @@ def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
     # Quite important otherwise the test will not end
     picker_widget.ok_button.clicked.connect(set_loading_worker_columns)
 
-    data_loader.finished.connect(loop.quit)
-
     data_loader.new_data.connect(assert_data)
 
     # start the thread and the event loop
@@ -444,9 +436,8 @@ def test_data_loader_thread_wait_columpicker(qtbot: QtBot):
     picker_widget.measurement_math.setCurrentText("None")
     picker_widget.measurement.setCurrentText("m")
     picker_widget.second_measurement.setCurrentText("None")
-    qtbot.mouseClick(picker_widget.ok_button, Qt.LeftButton)
-
-    loop.exec_()
+    with qtbot.waitSignals([data_loader.finished, data_loader.new_data]):
+        qtbot.mouseClick(picker_widget.ok_button, Qt.LeftButton)
 
 
 def test_match_dataframes():

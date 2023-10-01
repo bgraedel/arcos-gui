@@ -120,13 +120,17 @@ class MainWindow(QtWidgets.QWidget):
     @classmethod
     def get_last_instance(cls) -> MainWindow | None:
         """Returns the last instance of this class. Returns None if no instance exists."""
-        # check if instance exists and is still valid, otherwise delete it and return None
-        try:
-            cls._instance._widget.maintabwidget.currentIndex()  # type: ignore
-        except (AttributeError, RuntimeError):
-            del cls._instance
-            cls._instance = None
-        return cls._instance() if cls._instance else None
+        instance = cls._instance() if callable(cls._instance) else None
+
+        if instance:
+            try:
+                instance._widget.maintabwidget.currentIndex()
+                return instance
+            except (AttributeError, RuntimeError):
+                # The Qt object is no longer valid
+                del cls._instance
+
+        return None
 
     def _connect_signals(self):
         self.data.arcos_binarization.value_changed.connect(

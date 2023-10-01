@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from arcos_gui.processing import DataStorage
 from arcos_gui.widgets import InputdataController
-from qtpy.QtCore import QEventLoop, Qt, QTimer
+from qtpy.QtCore import QEventLoop, Qt
 
 if TYPE_CHECKING:
     import napari
@@ -210,12 +210,10 @@ def test_data_loading_abort(
     controller.picker.field_of_view_id.setCurrentText("Position")
     controller.picker.additional_filter.setCurrentText("None")
 
-    # need this event loop thingy to wait for the creation of the preprocessing worker
-    loop = QEventLoop()
-    controller.loading_worker.finished.connect(loop.quit)
-    # press abort to close the picker widget
-    controller.picker.abort_button.click()
-    loop.exec_()
+    with qtbot.waitSignal(controller.loading_worker.finished):
+        # press abort to close the picker widget
+        controller.picker.abort_button.click()
+
     catptured = capsys.readouterr()
     assert controller.data_storage_instance.original_data.value.empty
     assert "Loading aborted" in catptured.out
@@ -487,7 +485,7 @@ def test_load_data_from_labels_no_tracks(
 
 
 def test_load_data_from_labels(make_input_widget: tuple[InputdataController, QtBot]):
-    controller, _ = make_input_widget
+    controller, qtbot = make_input_widget
     viewer: napari.viewer.Viewer = controller.viewer
     properties = {
         "labels": [1, 2, 3, 1, 2, 3, 1, 2, 3],
@@ -533,26 +531,17 @@ def test_load_data_from_labels(make_input_widget: tuple[InputdataController, QtB
     controller.picker.additional_filter.setCurrentText("None")
     controller.picker.measurement_math.setCurrentText("None")
     controller.picker.ok_button.click()
-
-    # Set up the worker and the event loop
-    loop = QEventLoop()
-    controller.matching_worker.finished.connect(loop.quit)
-
-    # Set up the timer
-    timeout_duration = 5000  # e.g., 5000 milliseconds = 5 seconds
-    timer = QTimer()
-    timer.setSingleShot(True)  # Ensure the timer only times out once
-    timer.timeout.connect(loop.quit)
-    timer.start(timeout_duration)
-
-    # Execute the event loop
-    loop.exec_()
+    qtbot.waitSignal(controller.matching_worker.finished)
+    # wait until original_data is not empty
+    qtbot.waitUntil(
+        lambda: controller.data_storage_instance.original_data.value.empty is False,
+        timeout=1000,
+    )
 
     assert controller.data_storage_instance.original_data.value.empty is False
     assert controller.data_storage_instance.original_data.value[
         "track_id"
     ].unique().tolist() == [1, 2, 3]
-    timer.stop()
 
 
 def test_load_data_from_multiple_label_properties(
@@ -609,7 +598,7 @@ def test_load_data_from_multiple_label_properties(
 def test_load_data_from_multiple_label_properties_with_tracks_fail(
     make_input_widget: tuple[InputdataController, QtBot], capsys
 ):
-    controller, _ = make_input_widget
+    controller, qtbot = make_input_widget
     viewer: napari.viewer.Viewer = controller.viewer
     properties = {
         "labels": [1, 2, 3, 1, 2, 3, 1, 2, 3],
@@ -640,6 +629,7 @@ def test_load_data_from_multiple_label_properties_with_tracks_fail(
     controller.widget.from_layers_selector.click()
     controller.widget.data_layer_selector.setCurrentRow(0)
     controller.widget.tracks_layer_selector.setCurrentIndex(1)
+    # Initiate the worker
     controller.widget.load_data_button.click()
 
     assert controller.picker.isVisibleTo(controller.widget)
@@ -655,25 +645,9 @@ def test_load_data_from_multiple_label_properties_with_tracks_fail(
     controller.picker.additional_filter.setCurrentText("None")
     controller.picker.measurement_math.setCurrentText("None")
 
-    # Initiate the worker
     controller.picker.ok_button.click()
+    qtbot.waitSignal(controller.matching_worker.finished)
 
-    # Set up the event loop to wait for the worker to finish
-    loop = QEventLoop()
-    controller.matching_worker.finished.connect(loop.quit)
-
-    # Set up the timer to ensure we don't wait indefinitely
-    timeout_duration = 5000  # e.g., 5000 milliseconds = 5 seconds
-    timer = QTimer()
-    timer.setSingleShot(True)  # Ensure the timer only times out once
-    timer.timeout.connect(loop.quit)
-    timer.start(timeout_duration)
-
-    # Execute the event loop
-    loop.exec_()
-
-    # Stop the timer
-    timer.stop()
     capture_output = capsys.readouterr()
     assert (
         "Direct merge of tracking data failed, falling back to nearest neighbor approach"
