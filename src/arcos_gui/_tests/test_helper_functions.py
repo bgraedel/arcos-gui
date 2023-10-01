@@ -138,6 +138,8 @@ def test_run_binarization_only(make_napari_viewer, qtbot):
     qtbot.waitUntil(lambda: len(viewer.layers) == 2, timeout=5000)
 
     assert len(viewer.layers) == 2
+    plugin.close()
+    viewer.close()
 
 
 def test_run_arcos(make_napari_viewer, qtbot):
@@ -170,6 +172,8 @@ def test_run_arcos(make_napari_viewer, qtbot):
     qtbot.waitUntil(lambda: len(viewer.layers) == 4, timeout=5000)
 
     assert len(viewer.layers) == 4
+    plugin.close()
+    viewer.close()
 
 
 def test_get_arcos_output(make_napari_viewer):
