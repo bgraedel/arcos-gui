@@ -2,22 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://bgraedel.github.io/arcos-gui/</loc>
-         <lastmod>2023-09-28</lastmod>
+         <lastmod>2023-10-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://bgraedel.github.io/arcos-gui/Contributing/</loc>
-         <lastmod>2023-09-28</lastmod>
+         <lastmod>2023-10-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://bgraedel.github.io/arcos-gui/Installation/</loc>
-         <lastmod>2023-09-28</lastmod>
+         <lastmod>2023-10-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://bgraedel.github.io/arcos-gui/Usage/</loc>
-         <lastmod>2023-09-28</lastmod>
+         <lastmod>2023-10-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>
