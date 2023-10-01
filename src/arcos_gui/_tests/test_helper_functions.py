@@ -16,10 +16,11 @@ from arcos_gui import (
 from arcos_gui._main_widget import MainWindow
 
 
-def test_open_plugin(make_napari_viewer):
+def test_open_plugin(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
 
     plugin = open_plugin(viewer)
+    qtbot.addWidget(plugin)
 
     assert isinstance(plugin, MainWindow)
 
@@ -64,9 +65,10 @@ sample_df = pd.DataFrame(
 )
 
 
-def test_load_dataframe(make_napari_viewer):
+def test_load_dataframe(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
+    qtbot.addWidget(plugin)
     load_dataframe(
         df=sample_df,
         frame_column="frame",
@@ -84,17 +86,19 @@ def test_load_dataframe(make_napari_viewer):
     assert plugin.data.original_data.value.empty is False
 
 
-def test_load_dataframe_with_columnpicker(make_napari_viewer):
+def test_load_dataframe_with_columnpicker(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
+    qtbot.addWidget(plugin)
     load_dataframe_with_columnpicker(df=sample_df, plugin=plugin)
     assert plugin._input_controller.picker.isVisibleTo(plugin)
     plugin._input_controller.picker.close()
 
 
-def test_filter_data(make_napari_viewer, capsys):
+def test_filter_data(make_napari_viewer, capsys, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
+    qtbot.addWidget(plugin)
     plugin.data.columns.value.frame_column = "t"
     plugin.data.columns.value.x_column = "x"
     plugin.data.columns.value.y_column = "y"
@@ -114,6 +118,7 @@ def test_filter_data(make_napari_viewer, capsys):
 def test_run_binarization_only(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
+    qtbot.addWidget(plugin)
     plugin.data.columns.value.frame_column = "t"
     plugin.data.columns.value.x_column = "x"
     plugin.data.columns.value.y_column = "y"
@@ -138,13 +143,12 @@ def test_run_binarization_only(make_napari_viewer, qtbot):
     qtbot.waitUntil(lambda: len(viewer.layers) == 2, timeout=5000)
 
     assert len(viewer.layers) == 2
-    plugin.close()
-    viewer.close()
 
 
 def test_run_arcos(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
+    qtbot.addWidget(plugin)
     plugin.data.columns.value.frame_column = "t"
     plugin.data.columns.value.x_column = "x"
     plugin.data.columns.value.y_column = "y"
@@ -172,13 +176,12 @@ def test_run_arcos(make_napari_viewer, qtbot):
     qtbot.waitUntil(lambda: len(viewer.layers) == 4, timeout=5000)
 
     assert len(viewer.layers) == 4
-    plugin.close()
-    viewer.close()
 
 
-def test_get_arcos_output(make_napari_viewer):
+def test_get_arcos_output(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
+    qtbot.addWidget(plugin)
     # Mocking output and stats for the plugin. Replace with suitable mock data.
     mock_output = MagicMock(spec=pd.DataFrame)
     mock_stats = MagicMock(spec=pd.DataFrame)
@@ -190,8 +193,9 @@ def test_get_arcos_output(make_napari_viewer):
     assert stats == mock_stats
 
 
-def test_get_current_arcos_plugin(make_napari_viewer):
+def test_get_current_arcos_plugin(make_napari_viewer, qtbot):
     viewer = make_napari_viewer()
     plugin = open_plugin(viewer)
+    qtbot.addWidget(plugin)
     retrieved_plugin = get_current_arcos_plugin()
     assert retrieved_plugin == plugin

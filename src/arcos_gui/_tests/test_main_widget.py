@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import gc
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -9,10 +8,10 @@ import pytest
 from arcos_gui._main_widget import MainWindow
 from arcos_gui.processing._arcos_wrapper import calculate_arcos_stats
 from arcos_gui.tools._config import ARCOS_LAYERS
-from pytestqt.qtbot import QtBot
 
 if TYPE_CHECKING:
     import napari.viewer
+    from pytestqt.qtbot import QtBot
 
 
 @pytest.fixture()
@@ -22,11 +21,7 @@ def dock_arcos_widget(make_napari_viewer, qtbot: QtBot):
     viewer = make_napari_viewer()
     mywidget = MainWindow(viewer=viewer)
     qtbot.addWidget(mywidget)
-    yield viewer, mywidget, qtbot
-    mywidget.close()
-    mywidget.deleteLater()
-    viewer.close()
-    gc.collect()
+    return viewer, mywidget, qtbot
 
 
 @pytest.fixture()
@@ -215,8 +210,9 @@ def test_load_data_with_measurement_math(
     mywidget._input_controller.picker.additional_filter.setCurrentText("None")
     mywidget._input_controller.picker.measurement_math.setCurrentText("Add")
     # user clicks ok
-    with qtbot.waitSignal(mywidget._input_controller.loading_worker.finished):
-        mywidget._input_controller.picker.ok_button.click()
+    mywidget._input_controller.picker.ok_button.click()
+    qtbot.waitSignal(mywidget._input_controller.loading_worker.finished)
+    qtbot.waitUntil(lambda: mywidget.data.original_data.value.empty is False)
 
     columnames_list = mywidget.data.columns.value.pickablepickable_columns_names
     assert columnames_list == [
@@ -286,6 +282,7 @@ def test_add_all_layers_with_data(
     assert viewer.layers[1].name == ARCOS_LAYERS["active_cells"]
     assert viewer.layers[2].name == ARCOS_LAYERS["collective_events_cells"]
     assert viewer.layers[3].name == ARCOS_LAYERS["event_hulls"]
+    qtbot.wait(1000)
 
 
 def test_first_all_then_bin(

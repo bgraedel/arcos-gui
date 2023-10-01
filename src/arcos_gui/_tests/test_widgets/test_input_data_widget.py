@@ -647,6 +647,7 @@ def test_load_data_from_multiple_label_properties_with_tracks_fail(
 
     controller.picker.ok_button.click()
     qtbot.waitSignal(controller.matching_worker.finished)
+    qtbot.wait(500)
 
     capture_output = capsys.readouterr()
     assert (
