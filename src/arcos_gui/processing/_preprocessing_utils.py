@@ -59,12 +59,13 @@ def create_file_names(
 
     # Create a file name for each item in what_to_export
     for file_to_export, ext in zip(what_to_export, file_extension):
+        file_name_current = file_name
         if fov is not None and fov_name is not None:
-            file_name += f"_{fov_name}{fov}"
+            file_name_current += f"_{fov_name}{fov}"
         if additional_filter is not None and additional_filter_name is not None:
-            file_name += f"_{additional_filter_name}{additional_filter}"
+            file_name_current += f"_{additional_filter_name}{additional_filter}"
         file_paths[file_to_export] = os.path.join(
-            base_path, file_to_export, f"{file_name}.{ext}"
+            base_path, file_to_export, f"{file_name_current}.{ext}"
         )
 
     return file_paths
