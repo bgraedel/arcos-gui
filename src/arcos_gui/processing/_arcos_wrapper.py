@@ -33,8 +33,6 @@ from arcos_gui.tools import AVAILABLE_OPTIONS_FOR_BATCH, OPERATOR_DICTIONARY
 from napari.qt.threading import WorkerBase, WorkerBaseSignals
 from qtpy.QtCore import Signal
 
-matplotlib.use("agg")
-
 
 class customARCOS(ARCOS):
     """Custom ARCOS class with replaced trackCollev method.
@@ -645,6 +643,18 @@ class arcos_worker(WorkerBase):
             self.finished.emit()
 
 
+class TemporaryMatplotlibBackend:
+    def __init__(self, backend="Agg"):
+        self.temp_backend = backend
+        self.original_backend = matplotlib.get_backend()
+
+    def __enter__(self):
+        plt.switch_backend(self.temp_backend)
+
+    def __exit__(self, *args):
+        plt.switch_backend(self.original_backend)
+
+
 class BatchProcessorSignals(WorkerBaseSignals):
     finished = Signal()
     progress_update_files = Signal()
@@ -734,6 +744,9 @@ class BatchProcessor(WorkerBase):
             min_dur=self.arcos_parameters.min_dur.value,
             total_event_size=self.arcos_parameters.total_event_size.value,
         )
+        if arcos_df_filtered.empty:
+            return arcos_df_filtered, pd.DataFrame()
+
         arcos_stats = calculate_arcos_stats(
             df_arcos_filtered=arcos_df_filtered,
             frame_col=self.columnames.frame_column,
@@ -751,187 +764,265 @@ class BatchProcessor(WorkerBase):
         Runs only or only from as far as specified in the what_to_run set.
         """
         self.started.emit()
-        # check that what_to_export
-        if not self.what_to_export:
-            self.errored.emit(ValueError("No export selected"))
-            return
-
-        # check that there are only valid export options
-        valid_export_options = AVAILABLE_OPTIONS_FOR_BATCH
-        for option in self.what_to_export:
-            if option not in valid_export_options:
-                self.errored.emit(ValueError(f"Invalid export option {option}"))
-                return
-
-        # remove statsplot and noodleplot from what_to_export if no object id is given
-        if self.columnames.object_id is None and (
-            "statsplot" in self.what_to_export or "noodleplot" in self.what_to_export
-        ):
-            self.what_to_export = [
-                option
-                for option in self.what_to_export
-                if option not in ["statsplot", "noodleplot"]
-            ]
-            print("No object id given. Skipping statsplot and noodleplot.")
-
         try:
-            file_list = [
-                os.path.join(self.input_path, file)
-                for file in os.listdir(self.input_path)
-                if file.endswith(".csv") or file.endswith(".csv.gz")
-            ]
-            self.new_total_files.emit(len(file_list))
+            summary_stats = summary_stats = {
+                key: []
+                for key in [
+                    "file",
+                    "fov",
+                    "additional_filter",
+                    "event_count",
+                    "avg_total_size",
+                    "avg_total_size_std",
+                    "avg_duration",
+                    "avg_duration_std",
+                ]
+            }  # noqa E501
+            with TemporaryMatplotlibBackend("Agg"):
+                # check that what_to_export
+                if not self.what_to_export:
+                    self.errored.emit(ValueError("No export selected"))
+                    return
 
-            base_path, _ = create_output_folders(self.input_path, self.what_to_export)
-            for file in file_list:
-                if self.abort_requested:
-                    self.aborted.emit()
-                    break
+                print(f"Exporting {self.what_to_export}")
 
-                pth = Path(file)
+                # check that there are only valid export options
+                valid_export_options = AVAILABLE_OPTIONS_FOR_BATCH
+                for option in self.what_to_export:
+                    if option not in valid_export_options:
+                        self.errored.emit(ValueError(f"Invalid export option {option}"))
+                        return
 
-                file_name = pth.with_suffix("").stem
-                print(f"Processing file {file_name}")
-                df = pd.read_csv(file, engine="pyarrow")
+                # remove statsplot and noodleplot from what_to_export if no object id is given
+                if self.columnames.object_id is None:
+                    self.what_to_export = [
+                        option
+                        for option in self.what_to_export
+                        if option not in ["statsplot", "noodleplot"]
+                    ]
+                    print("No object id given. Skipping statsplot and noodleplot.")
 
-                meas_col, df = calculate_measurement(
-                    data=df,
-                    operation=self.columnames.measurement_math_operation,
-                    in_meas_1_name=self.columnames.measurement_column_1,
-                    in_meas_2_name=self.columnames.measurement_column_2,
-                    op_dict=OPERATOR_DICTIONARY,
+                file_list = [
+                    os.path.join(self.input_path, file)
+                    for file in os.listdir(self.input_path)
+                    if file.endswith(".csv") or file.endswith(".csv.gz")
+                ]
+                self.new_total_files.emit(len(file_list))
+
+                base_path, _ = create_output_folders(
+                    self.input_path, self.what_to_export
                 )
-                self.columnames.measurement_column = meas_col
-
-                if self.columnames.position_id is not None:
-                    position_ids = df[self.columnames.position_id].unique()
-                else:
-                    position_ids = [None]
-
-                if self.columnames.additional_filter_column is not None:
-                    additional_filters = df[
-                        self.columnames.additional_filter_column
-                    ].unique()
-                else:
-                    additional_filters = [None]
-
-                iterator_fov_filter = list(product(position_ids, additional_filters))
-                self.new_total_filters.emit(len(iterator_fov_filter))
-
-                for fov, additional_filter in iterator_fov_filter:
+                for file in file_list:
                     if self.abort_requested:
                         self.aborted.emit()
                         break
 
-                    df_filtered = filter_data(
-                        df_in=df,
-                        field_of_view_id_name=self.columnames.position_id,
-                        frame_name=self.columnames.frame_column,
-                        track_id_name=self.columnames.object_id,
-                        measurement_name=self.columnames.measurement_column,
-                        additional_filter_column_name=self.columnames.additional_filter_column,
-                        posCols=self.columnames.posCol,
-                        fov_val=fov,
-                        additional_filter_value=additional_filter,
-                        min_tracklength_value=self.min_track_length,
-                        max_tracklength_value=self.max_track_length,
-                        frame_interval=1,
-                        st_out=empty_std_out,
-                    )[0]
-                    if df_filtered.empty:
-                        position_id_str = (
-                            f"{self.columnames.position_id}:{fov}"
-                            if self.columnames.position_id is not None
-                            and fov is not None
-                            else ""
-                        )
-                        additional_filter_str = (
-                            f"{self.columnames.additional_filter_column}:{additional_filter}"
-                            if self.columnames.additional_filter_column is not None
-                            and additional_filter is not None
-                            else ""
-                        )
-                        connector = (
-                            " and " if position_id_str and additional_filter_str else ""
-                        )
-                        for_str = (
-                            "for " if position_id_str or additional_filter_str else ""
-                        )
-                        error_message = f"No data for file {file} {for_str}{position_id_str}{connector}{additional_filter_str}"  # noqa E501
-                        self.progress_update_filters.emit()
-                        print(error_message)
-                        continue
+                    pth = Path(file)
 
-                    posx = self.columnames.posCol[0]
-                    posy = self.columnames.posCol[1]
-                    if len(self.columnames.posCol) == 2:
-                        posz = None
-                    else:
-                        posz = self.columnames.posCol[2]
+                    file_name = pth.with_suffix("").stem
+                    print(f"Processing file {file_name}")
+                    df = pd.read_csv(file, engine="pyarrow")
 
-                    arcos_df_filtered, arcos_stats = self.run_arcos_batch(df_filtered)
-                    out_file_name = create_file_names(
-                        base_path,
-                        file_name,
-                        self.what_to_export,
-                        self._create_fileendings_list(),
-                        fov,
-                        additional_filter,
-                        self.columnames.position_id,
-                        self.columnames.additional_filter_column,
+                    meas_col, df = calculate_measurement(
+                        data=df,
+                        operation=self.columnames.measurement_math_operation,
+                        in_meas_1_name=self.columnames.measurement_column_1,
+                        in_meas_2_name=self.columnames.measurement_column_2,
+                        op_dict=OPERATOR_DICTIONARY,
                     )
-                    if "arcos_output" in self.what_to_export:
-                        arcos_df_filtered.to_csv(
-                            out_file_name["arcos_output"],
-                            index=False,
-                        )
-                    if "arcos_stats" in self.what_to_export:
-                        arcos_stats.to_csv(
-                            out_file_name["arcos_stats"],
-                            index=False,
-                        )
-                    if "per_frame_statistics" in self.what_to_export:
-                        arcos_stats_per_frame = calculate_statistics_per_frame(
-                            data=arcos_df_filtered,
-                            frame_column=self.columnames.frame_column,
-                            collid_column="collid",
-                            pos_columns=self.columnames.posCol,
-                        )
-                        arcos_stats_per_frame.to_csv(
-                            out_file_name["per_frame_statistics"],
-                            index=False,
+                    self.columnames.measurement_column = meas_col
+
+                    if self.columnames.position_id is not None:
+                        position_ids = df[self.columnames.position_id].unique()
+                    else:
+                        position_ids = [None]
+
+                    if self.columnames.additional_filter_column is not None:
+                        additional_filters = df[
+                            self.columnames.additional_filter_column
+                        ].unique()
+                    else:
+                        additional_filters = [None]
+
+                    iterator_fov_filter = list(
+                        product(position_ids, additional_filters)
+                    )
+                    self.new_total_filters.emit(len(iterator_fov_filter))
+
+                    for fov, additional_filter in iterator_fov_filter:
+                        if self.abort_requested:
+                            self.aborted.emit()
+                            break
+
+                        # add new row to summary stats
+                        for key in summary_stats.keys():
+                            summary_stats[key].append(pd.NA)
+
+                        # update general stats that should be present for all iterations
+                        summary_stats["file"][-1] = file_name
+                        summary_stats["fov"][-1] = fov if fov is not None else pd.NA
+                        summary_stats["additional_filter"][-1] = (
+                            additional_filter
+                            if additional_filter is not None
+                            else pd.NA
                         )
 
-                    if "statsplot" in self.what_to_export:
-                        # seaborn future warning is annoying
-                        with warnings.catch_warnings():
-                            warnings.simplefilter(
-                                action="ignore", category=FutureWarning
+                        df_filtered = filter_data(
+                            df_in=df,
+                            field_of_view_id_name=self.columnames.position_id,
+                            frame_name=self.columnames.frame_column,
+                            track_id_name=self.columnames.object_id,
+                            measurement_name=self.columnames.measurement_column,
+                            additional_filter_column_name=self.columnames.additional_filter_column,
+                            posCols=self.columnames.posCol,
+                            fov_val=fov,
+                            additional_filter_value=additional_filter,
+                            min_tracklength_value=self.min_track_length,
+                            max_tracklength_value=self.max_track_length,
+                            frame_interval=1,
+                            st_out=empty_std_out,
+                        )[0]
+                        if df_filtered.empty:
+                            # set event count to 0, rest is already set to nan
+                            summary_stats["event_count"][-1] = 0
+
+                            position_id_str = (
+                                f"{self.columnames.position_id}:{fov}"
+                                if self.columnames.position_id is not None
+                                and fov is not None
+                                else ""
                             )
-                            arcos_stats_plot = statsPlots(arcos_stats)
-                            arcos_stats_plot.plot_events_duration(
-                                "total_size", "duration"
+                            additional_filter_str = (
+                                f"{self.columnames.additional_filter_column}:{additional_filter}"
+                                if self.columnames.additional_filter_column is not None
+                                and additional_filter is not None
+                                else ""
                             )
-                            plt.savefig(out_file_name["statsplot"])
+                            connector = (
+                                " and "
+                                if position_id_str and additional_filter_str
+                                else ""
+                            )
+                            for_str = (
+                                "for "
+                                if position_id_str or additional_filter_str
+                                else ""
+                            )
+                            error_message = f"No data for file {file} {for_str}{position_id_str}{connector}{additional_filter_str}"  # noqa E501
+                            self.progress_update_filters.emit()
+                            print(error_message)
+                            continue
+
+                        posx = self.columnames.posCol[0]
+                        posy = self.columnames.posCol[1]
+                        if len(self.columnames.posCol) == 2:
+                            posz = None
+                        else:
+                            posz = self.columnames.posCol[2]
+
+                        arcos_df_filtered, arcos_stats = self.run_arcos_batch(
+                            df_filtered
+                        )
+
+                        if arcos_df_filtered.empty:
+                            # set event count to 0, rest is already set to nan
+                            summary_stats["event_count"][-1] = 0
+
+                            print(
+                                f"No events detected for file {file} filters fov:{fov} additional:{additional_filter}"
+                            )  # noqa E501
+                            self.progress_update_filters.emit()
+                            continue
+
+                        # update summary stats
+                        summary_stats["event_count"][-1] = arcos_stats[
+                            "collid"
+                        ].nunique()
+                        summary_stats["avg_total_size"][-1] = arcos_stats[
+                            "total_size"
+                        ].mean()
+                        summary_stats["avg_total_size_std"][-1] = arcos_stats[
+                            "total_size"
+                        ].std()
+                        summary_stats["avg_duration"][-1] = arcos_stats[
+                            "duration"
+                        ].mean()
+                        summary_stats["avg_duration_std"][-1] = arcos_stats[
+                            "duration"
+                        ].std()
+
+                        out_file_name = create_file_names(
+                            base_path,
+                            file_name,
+                            self.what_to_export,
+                            self._create_fileendings_list(),
+                            fov,
+                            additional_filter,
+                            self.columnames.position_id,
+                            self.columnames.additional_filter_column,
+                        )
+                        if "arcos_output" in self.what_to_export:
+                            arcos_df_filtered.to_csv(
+                                out_file_name["arcos_output"],
+                                index=False,
+                            )
+                        if "arcos_stats" in self.what_to_export:
+                            arcos_stats.to_csv(
+                                out_file_name["arcos_stats"],
+                                index=False,
+                            )
+                        if "per_frame_statistics" in self.what_to_export:
+                            arcos_stats_per_frame = calculate_statistics_per_frame(
+                                data=arcos_df_filtered,
+                                frame_column=self.columnames.frame_column,
+                                collid_column="collid",
+                                pos_columns=self.columnames.posCol,
+                            )
+                            arcos_stats_per_frame.to_csv(
+                                out_file_name["per_frame_statistics"],
+                                index=False,
+                            )
+
+                        if "statsplot" in self.what_to_export:
+                            # seaborn future warning is annoying
+                            with warnings.catch_warnings():
+                                warnings.simplefilter(
+                                    action="ignore", category=FutureWarning
+                                )
+                                arcos_stats_plot = statsPlots(arcos_stats)
+                                arcos_stats_plot.plot_events_duration(
+                                    "total_size", "duration"
+                                )
+                                plt.savefig(out_file_name["statsplot"])
+                                plt.close()
+
+                        if "noodleplot" in self.what_to_export:
+                            noodle_plot = NoodlePlot(
+                                df=arcos_df_filtered,
+                                colev=self.columnames.collid_name,
+                                trackid=self.columnames.object_id,
+                                frame=self.columnames.frame_column,
+                                posx=posx,
+                                posy=posy,
+                                posz=posz,
+                            )
+
+                            noodle_plot.plot(posx)
+                            plt.savefig(out_file_name["noodleplot"])
                             plt.close()
-                    if "noodleplot" in self.what_to_export:
-                        noodle_plot = NoodlePlot(
-                            df=arcos_df_filtered,
-                            colev=self.columnames.collid_name,
-                            trackid=self.columnames.object_id,
-                            frame=self.columnames.frame_column,
-                            posx=posx,
-                            posy=posy,
-                            posz=posz,
-                        )
 
-                        noodle_plot.plot(posx)
-                        plt.savefig(out_file_name["noodleplot"])
-                        plt.close()
+                        self.progress_update_filters.emit()
 
-                    self.progress_update_filters.emit()
+                    self.progress_update_files.emit()
 
-                self.progress_update_files.emit()
+            summary_stats_df = pd.DataFrame(summary_stats).round(4)
+            # drop rows with all nan
+            summary_stats_df = summary_stats_df.dropna(how="all", axis=1)
+            summary_stats_df.to_csv(
+                os.path.join(base_path, "per_file_summary.csv"),
+                index=False,
+                na_rep="NA",
+            )
 
         except Exception as e:
             self.errored.emit(e)

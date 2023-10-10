@@ -19,7 +19,7 @@ from arcos_gui.tools import (
 from napari.utils import progress
 from napari.utils.notifications import show_info
 from qtpy import QtWidgets, uic
-from qtpy.QtCore import Signal
+from qtpy.QtCore import QTimer, Signal
 from qtpy.QtGui import QIcon
 
 if TYPE_CHECKING:
@@ -58,6 +58,8 @@ class _exportwidget(QtWidgets.QWidget):
     def __init__(self, data_storage: DataStorage, parent=None):
         super().__init__(parent)
         self._data_storage_instance = data_storage
+        self._batch_process_path: str | None = None
+        self._parameters_path: str | None = None
         self.setup_ui()
 
     def _browse_file_data(self):
@@ -77,11 +79,15 @@ class _exportwidget(QtWidgets.QWidget):
         self.file_LineEdit_img.setText(path)
 
     def _browse_parmeters_export(self):
-        base_path = self._data_storage_instance.file_name.value
+        if self._parameters_path is None:
+            base_path = self._data_storage_instance.file_name.value
+        else:
+            base_path = self._parameters_path
         base_path = str(Path(base_path).parent)
         path = QtWidgets.QFileDialog.getSaveFileName(
             self, "Save as Yaml", base_path, filter="*.yaml"
         )[0]
+        self._parameters_path = path
         if path:
             if not path.endswith(".yaml"):
                 path = os.path.join(path, ".yaml")
@@ -90,7 +96,10 @@ class _exportwidget(QtWidgets.QWidget):
             return None
 
     def _browse_parmeters_import(self):
-        base_path = self._data_storage_instance.file_name.value
+        if self._parameters_path is None:
+            base_path = self._data_storage_instance.file_name.value
+        else:
+            base_path = self._parameters_path
         base_path = str(Path(base_path).parent)
 
         dialog = ParameterFileDialog(
@@ -103,6 +112,7 @@ class _exportwidget(QtWidgets.QWidget):
         if dialog.exec_():
             # Get the selected directory
             path = dialog.selectedFiles()[0]
+            self._parameters_path = path
 
             # Get the values corresponding to the checkboxes that are checked
             options_selected = dialog.get_selected_options()
@@ -115,7 +125,10 @@ class _exportwidget(QtWidgets.QWidget):
             return None, None
 
     def _browse_batch_output(self):
-        base_path = self._data_storage_instance.file_name.value
+        if self._batch_process_path is None:
+            base_path = self._data_storage_instance.file_name.value
+        else:
+            base_path = self._batch_process_path
         base_path = str(Path(base_path).parent)
 
         dialog = BatchFileDialog(
@@ -126,14 +139,18 @@ class _exportwidget(QtWidgets.QWidget):
         dialog.setWindowTitle("Select Directory")
 
         if dialog.exec_():
-            # Get the selected directory
-            path = dialog.selectedFiles()[0]
-
             # Get the values corresponding to the checkboxes that are checked
             options_selected = dialog.get_selected_options()
 
+            # Get the selected directory
+            path = dialog.selectedFiles()[0]
+            self._batch_process_path = path
+            dialog.close()
+            dialog.deleteLater()
             return path, options_selected
         else:
+            dialog.close()
+            dialog.deleteLater()
             return None, None
 
     def _update_base_name_data(self):
@@ -187,6 +204,8 @@ class ExportController:
         self.viewer = viewer
         self._data_storage_instance = data_storage_instance
         self.widget = _exportwidget(self._data_storage_instance, parent)
+        self.abort_timer = QTimer(parent)
+        self.abort_timer.timeout.connect(self.abort_timer_timeout)
 
         self.current_date = self._get_current_date()
         self._connect_callbacks()
@@ -281,6 +300,8 @@ class ExportController:
 
         self.batch_worker.new_total_files.connect(self.update_progress_files)
         self.batch_worker.new_total_filters.connect(self.update_progress_filters)
+        self.batch_worker.finished.connect(self.abort_timer_stop)
+        self.batch_worker.aborted.connect(self.abort_timer_stop)
 
         self.batch_worker.start()
         self.widget._show_abort_batch_button()
@@ -305,6 +326,29 @@ class ExportController:
             lambda: self.pbar_filters.update(1)
         )
 
+    def abort_worker(self):
+        self.batch_worker.quit()
+
+    def abort_timer_start(self):
+        self.abort_timer.start(1000)
+
+    def abort_timer_timeout(self):
+        self.update_abort_button()
+
+    def abort_timer_stop(self):
+        self.abort_timer.stop()
+        self._close_progress()
+        self.widget.abort_batch_button.setText("Abort Batch Processing")
+
+    def update_abort_button(self):
+        self.dots = self.widget.abort_batch_button.text().count(".")
+        if self.dots < 3:
+            self.widget.abort_batch_button.setText(
+                self.widget.abort_batch_button.text() + "."
+            )
+        else:
+            self.widget.abort_batch_button.setText("Aborting")
+
     def _on_batch_finish(self):
         show_info("Batch processing finished")
         self.widget._hide_abort_batch_button()
@@ -321,8 +365,8 @@ class ExportController:
             pass
         self.show_activity_dock(False)
 
-    def _batch_error(self, error_message):
-        show_info(error_message)
+    def _batch_error(self, error_message: Exception):
+        show_info(f"{error_message}")
         traceback.print_exception(None, error_message, error_message.__traceback__)
 
     def show_activity_dock(self, state=True):
@@ -339,10 +383,11 @@ class ExportController:
         self._abort_batch()
 
     def _abort_batch(self):
-        self.widget._hide_abort_batch_button()
-        self._close_progress()
         try:
             self.batch_worker.quit()
+            self.widget.abort_batch_button.setEnabled(False)
+            self.widget.abort_batch_button.setText("Aborting")
+            self.abort_timer_start()
         except (AttributeError, RuntimeError):
             pass
         show_info("Aborting Batch Processing")
