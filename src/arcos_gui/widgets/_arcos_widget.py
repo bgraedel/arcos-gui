@@ -480,8 +480,8 @@ class ArcosController:
         self.worker.finished.connect(self.widget.stop_loading)
         self.worker.started.connect(self.widget.start_loading)
         self.worker.finished.connect(self.abort_timer_stop)
-        self.worker.aborted.connect(self.abort_timer_stop)
-        self.worker.aborted.connect(self._show_aborted_message)
+        self.worker.errored.connect(self.abort_timer_stop)
+        self.worker.errored.connect(self._show_errored_message)
 
         self.worker.start()
         return self.worker
@@ -509,7 +509,7 @@ class ArcosController:
         if not self._data_storage_instance.arcos_binarization.value.empty:
             self._update_what_to_run_tracking()
 
-    def _show_aborted_message(self, err):
+    def _show_errored_message(self, err):
         show_info(f"ARCOS calculation aborted due to: {err}")
         traceback.print_exception(None, err, err.__traceback__)
 

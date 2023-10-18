@@ -147,7 +147,7 @@ def get_verticesHull(
         mode="wrap",
     )
     # color_ids = recycle_palette(COLOR_CYCLE, len(convex_hulls))
-    out = [i[:, 1:] for i in convex_hulls]
+    out = [i[:, 1:] for i in convex_hulls if i.size > 0]
     return out, color_ids
 
 
