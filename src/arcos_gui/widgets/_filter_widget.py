@@ -217,8 +217,8 @@ class FilterController:
 
     def _set_tracklengths(self):
         """Method to set the tracklengths."""
-        if self.data_storage_instance.original_data.value is None:
-            min_t, max_t = 0, 1
+        if self.data_storage_instance.original_data.value.empty:
+            min_t, max_t = self.data_storage_instance.min_max_tracklenght.value
         elif self.data_storage_instance.columns.value.object_id is None:
             min_t, max_t = 0, 1
         else:

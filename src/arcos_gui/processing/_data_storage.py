@@ -578,7 +578,10 @@ class DataStorage:
             _selected_attributes = selected_attributes
 
         # check if columns or file_name are in _selected_attributes
-        if "columns" in _selected_attributes or "file_name" in _selected_attributes:
+        if any(
+            attr in _selected_attributes
+            for attr in ["columns", "file_name", "min_max_tracklenght"]
+        ):
             self.reset_all_attributes()
             print("resetting all attributes")
 

@@ -45,7 +45,7 @@ class customARCOS(ARCOS):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.abort_requested = False
+        self._abort_requested = False
         self.progress_update = None
 
     def trackCollev(
@@ -86,7 +86,7 @@ class customARCOS(ARCOS):
 
         for timepoint in tracker.track(self.data):
             if self.abort_requested:
-                self.abort_requested = False
+                self._abort_requested = False
                 return pd.DataFrame()
             df_list.append(timepoint)
 
@@ -99,6 +99,13 @@ class customARCOS(ARCOS):
         df_out = pd.concat(df_list, axis=0)
 
         return df_out.query(f"{self.clid_column} != -1").reset_index(drop=True)
+
+    def quit(self):
+        self._abort_requested = True
+
+    @property
+    def abort_requested(self):
+        return self._abort_requested
 
 
 def empty_std_out(*args, **kwargs):
@@ -491,13 +498,12 @@ class arcos_worker(WorkerBase):
         Reimplemented so that it also sets the arcos_abort_requested flag to True.
         """
         self._abort_requested = True
-        self.arcos_object.abort_requested = True
+        self.arcos_object.quit()
         super().quit()
 
     def run_binarization(self):
         if self.filtered_data.empty:
             self.std_out("No data loaded. Load first using the import data tab.")
-            self.abort_requested = True
             return
         self.started.emit()
 
@@ -549,7 +555,6 @@ class arcos_worker(WorkerBase):
             n_bin = 0
         if n_bin < 2:
             self.std_out("No Binarized Data. Adjust Binazation Parameters.")
-            self.abort_requested = True
             return
 
         if self.abort_requested:
@@ -584,7 +589,6 @@ class arcos_worker(WorkerBase):
             self.std_out(
                 "No Collective Events detected. Adjust Event Detection Parameters."
             )
-            self.abort_requested = True
             return
 
         collid_name = "collid"
@@ -600,7 +604,6 @@ class arcos_worker(WorkerBase):
         )
         if arcos_df_filtered.empty:
             self.std_out("No Collective Events detected.Adjust Filtering parameters.")
-            self.abort_requested = True
             return
         if self.abort_requested:
             return
