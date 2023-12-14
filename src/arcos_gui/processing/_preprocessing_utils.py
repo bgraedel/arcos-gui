@@ -649,7 +649,8 @@ class process_input:
     def frame_interval(self, factor):
         """Rescales the frame column by a factor."""
         if factor > 1:
-            self.df[self.frame_column] = self.df[self.frame_column] / factor
+            self.df[self.frame_column] = self.df[self.frame_column] // factor
+            self.df[self.frame_column] = self.df.frame_column.astype(int)
 
     def return_pd_df(self) -> pd.DataFrame:
         """Returns the dataframe."""
