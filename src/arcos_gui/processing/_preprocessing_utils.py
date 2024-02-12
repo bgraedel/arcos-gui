@@ -403,8 +403,10 @@ def match_dataframes(
         results.append(combined)
     merged_df = pd.concat(results)
 
-    if len(merged_df) != len(df1):
-        raise ValueError("Failed to match all points from tracking data")
+    if len(merged_df) < 0.9 * len(df1):
+        raise ValueError(
+            "Failed to match a significant number of points from tracking data"
+        )
     return merged_df
 
 
