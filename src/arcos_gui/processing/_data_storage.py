@@ -65,7 +65,7 @@ class value_callback(Generic[T]):
                 f"Value for {self.value_name} must be of type {type(self._value)}"
             )
 
-        self._value = value
+        self._value = cast(T, value)
         self._notify_observers()
 
     def _notify_observers(self):
@@ -536,19 +536,21 @@ class DataStorage:
     def import_from_yaml(
         self,
         filepath: str,
-        selected_attributes: Sequence[
-            Literal[
-                "file_name",
-                "columns",
-                "arcos_parameters",
-                "min_max_meas",
-                "point_size",
-                "lut",
-                "output_order",
-                "min_max_tracklenght",
+        selected_attributes: (
+            Sequence[
+                Literal[
+                    "file_name",
+                    "columns",
+                    "arcos_parameters",
+                    "min_max_meas",
+                    "point_size",
+                    "lut",
+                    "output_order",
+                    "min_max_tracklenght",
+                ]
             ]
-        ]
-        | None = None,
+            | None
+        ) = None,
     ):
         """Imports the parameters from a YAML file and updates the attributes of DataStorage class.
 
