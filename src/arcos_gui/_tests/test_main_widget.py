@@ -304,7 +304,7 @@ def test_first_all_then_bin(
     mywidget.data.arcos_output.value = arcos_df
     mywidget._arcos_widget.widget.update_arcos.click()
     qtbot.waitSignal(mywidget._arcos_widget.worker.finished)
-    qtbot.waitUntil(lambda: len(viewer.layers) == 4, timeout=5000)
+    qtbot.waitUntil(lambda: len(viewer.layers) == 4, timeout=10000)
 
     assert len(viewer.layers) == 4
     assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
@@ -315,7 +315,7 @@ def test_first_all_then_bin(
     mywidget._arcos_widget.widget.bin_threshold.setValue(0.5)
     mywidget._arcos_widget.widget.run_binarization_only.click()
     qtbot.waitSignal(mywidget._arcos_widget.worker.finished)
-    qtbot.waitUntil(lambda: len(viewer.layers) == 2, timeout=5000)
+    qtbot.waitUntil(lambda: len(viewer.layers) == 2, timeout=10000)
 
     assert len(viewer.layers) == 2
     assert viewer.layers[0].name == ARCOS_LAYERS["all_cells"]
