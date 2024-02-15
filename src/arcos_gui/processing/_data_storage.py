@@ -488,7 +488,7 @@ class DataStorage:
     )
     selected_object_id: value_callback[int | None] = field(
         default_factory=lambda: value_callback(
-            None, (int, type(None)), value_name="selected_object_id"
+            None, (list, int, type(None)), value_name="selected_object_id"
         )
     )
     lut: value_callback[str] = field(
