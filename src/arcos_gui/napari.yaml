@@ -1,23 +1,23 @@
-name: arcos-gui
+name: arcos_gui
 display_name: napari ARCOS
 contributions:
   commands:
-    - id: arcos-gui.MainWindow
+    - id: arcos_gui.MainWindow
       python_name: arcos_gui._main_widget:MainWindow
       title: Opens filedialog to import csv
-    - id: arcos-gui.data.arcos_sample_data_1
+    - id: arcos_gui.data.arcos_sample_data_1
       title: Import sample data 1
       python_name: arcos_gui.sample_data._sample_data:load_synthetic_dataset
-    - id: arcos-gui.data.arcos_sample_data_2
+    - id: arcos_gui.data.arcos_sample_data_2
       title: Import sample data 2
       python_name: arcos_gui.sample_data._sample_data:load_real_dataset
   sample_data:
     - key: arcos_sample_data_1
       display_name: ARCOS Sample Data Synthetic Datase
-      command: arcos-gui.data.arcos_sample_data_1
+      command: arcos_gui.data.arcos_sample_data_1
     - key: arcos_sample_data_2
       display_name: ARCOS Sample Data Real Dataset
-      command: arcos-gui.data.arcos_sample_data_2
+      command: arcos_gui.data.arcos_sample_data_2
   widgets:
-    - command: arcos-gui.MainWindow
+    - command: arcos_gui.MainWindow
       display_name: ARCOS Main Widget
