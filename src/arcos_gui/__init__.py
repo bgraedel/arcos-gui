@@ -1,6 +1,6 @@
 """Arcos GUI Plugin for Napari."""
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 
 from arcos_gui._helper_functions import (
