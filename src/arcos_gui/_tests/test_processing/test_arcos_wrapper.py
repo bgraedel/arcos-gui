@@ -54,7 +54,7 @@ def test_detect_events():
     arcos_events = detect_events(
         arcos=arcos_object,
         neighbourhood_size=20,
-        epsPrev=20,
+        eps_prev=20,
         min_clustersize=4,
         nPrev_value=1,
     )
@@ -71,7 +71,7 @@ def test_filtering_arcos_events_high_values():
     arcos_events = detect_events(
         arcos=arcos_object,
         neighbourhood_size=20,
-        epsPrev=20,
+        eps_prev=20,
         min_clustersize=4,
         nPrev_value=1,
     )
@@ -97,7 +97,7 @@ def test_filtering_arcos_events_low_values():
     arcos_events = detect_events(
         arcos=arcos_object,
         neighbourhood_size=20,
-        epsPrev=20,
+        eps_prev=20,
         min_clustersize=4,
         nPrev_value=1,
     )
@@ -122,7 +122,7 @@ def test_calculate_arcos_stats():
     arcos_events = detect_events(
         arcos=arcos_object,
         neighbourhood_size=20,
-        epsPrev=20,
+        eps_prev=20,
         min_clustersize=4,
         nPrev_value=1,
     )
@@ -136,10 +136,10 @@ def test_calculate_arcos_stats():
     )
     arcos_stats = calculate_arcos_stats(
         df_arcos_filtered=arcos_filtered,
-        frame_col="t",
+        frame_column="t",
         collid_name="collid",
         object_id_name="id",
-        posCols=["x", "y"],
+        position_columns=["x", "y"],
     )
     assert isinstance(arcos_stats, pd.DataFrame)
     assert not arcos_stats.empty
@@ -183,18 +183,18 @@ def test_arcos_wrapper_run_all():
     worker.filtered_data = filtered_data
     worker.columns = ds.columns.value
     worker.arcos_parameters.interpolate_meas.value = True
-    worker.arcos_parameters.clip_meas.value = True
+    worker.arcos_parameters.clip_measurements.value = True
     worker.arcos_parameters.clip_low.value = 0.01
     worker.arcos_parameters.clip_high.value = 0.99
     worker.arcos_parameters.bias_method.value = "none"
     worker.arcos_parameters.smooth_k.value = 1
     worker.arcos_parameters.bias_k.value = 3
-    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.polynomial_degree.value = 1
     worker.arcos_parameters.bin_threshold.value = 0.5
     worker.arcos_parameters.bin_peak_threshold.value = 0.5
     worker.arcos_parameters.neighbourhood_size.value = 20
     worker.arcos_parameters.eps_method.value = "manual"
-    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.eps_prev.value = 20
     worker.arcos_parameters.min_clustersize.value = 4
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
@@ -222,18 +222,18 @@ def test_arcos_wrapper_run_no_data(capsys):
     worker = arcos_worker(what_to_run, print)
     worker.columns = ds.columns.value
     worker.arcos_parameters.interpolate_meas.value = True
-    worker.arcos_parameters.clip_meas.value = True
+    worker.arcos_parameters.clip_measurements.value = True
     worker.arcos_parameters.clip_low.value = 0.01
     worker.arcos_parameters.clip_high.value = 0.99
     worker.arcos_parameters.bias_method.value = "none"
     worker.arcos_parameters.smooth_k.value = 1
     worker.arcos_parameters.bias_k.value = 3
-    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.polynomial_degree.value = 1
     worker.arcos_parameters.bin_threshold.value = 10
     worker.arcos_parameters.bin_peak_threshold.value = 10
     worker.arcos_parameters.neighbourhood_size.value = 20
     worker.arcos_parameters.eps_method.value = "manual"
-    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.eps_prev.value = 20
     worker.arcos_parameters.min_clustersize.value = 4
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
@@ -268,18 +268,18 @@ def test_arcos_wrapper_run_no_bin_data(capsys):
     worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
-    worker.arcos_parameters.clip_meas.value = True
+    worker.arcos_parameters.clip_measurements.value = True
     worker.arcos_parameters.clip_low.value = 0.01
     worker.arcos_parameters.clip_high.value = 0.99
     worker.arcos_parameters.bias_method.value = "none"
     worker.arcos_parameters.smooth_k.value = 1
     worker.arcos_parameters.bias_k.value = 3
-    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.polynomial_degree.value = 1
     worker.arcos_parameters.bin_threshold.value = 10
     worker.arcos_parameters.bin_peak_threshold.value = 10
     worker.arcos_parameters.neighbourhood_size.value = 20
     worker.arcos_parameters.eps_method.value = "manual"
-    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.eps_prev.value = 20
     worker.arcos_parameters.min_clustersize.value = 4
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
@@ -314,18 +314,18 @@ def test_arcos_wrapper_run_no_detected_events_data(capsys):
     worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
-    worker.arcos_parameters.clip_meas.value = False
+    worker.arcos_parameters.clip_measurements.value = False
     worker.arcos_parameters.clip_low.value = 0.01
     worker.arcos_parameters.clip_high.value = 0.99
     worker.arcos_parameters.bias_method.value = "none"
     worker.arcos_parameters.smooth_k.value = 1
     worker.arcos_parameters.bias_k.value = 3
-    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.polynomial_degree.value = 1
     worker.arcos_parameters.bin_threshold.value = 0.5
     worker.arcos_parameters.bin_peak_threshold.value = 0.5
     worker.arcos_parameters.neighbourhood_size.value = 0.01
     worker.arcos_parameters.eps_method.value = "manual"
-    worker.arcos_parameters.epsPrev.value = 1
+    worker.arcos_parameters.eps_prev.value = 1
     worker.arcos_parameters.min_clustersize.value = 4
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 50
@@ -363,18 +363,18 @@ def test_arcos_wrapper_run_no_filtered_data(capsys):
     worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
-    worker.arcos_parameters.clip_meas.value = False
+    worker.arcos_parameters.clip_measurements.value = False
     worker.arcos_parameters.clip_low.value = 0.01
     worker.arcos_parameters.clip_high.value = 0.99
     worker.arcos_parameters.bias_method.value = "none"
     worker.arcos_parameters.smooth_k.value = 1
     worker.arcos_parameters.bias_k.value = 3
-    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.polynomial_degree.value = 1
     worker.arcos_parameters.bin_threshold.value = 0.5
     worker.arcos_parameters.bin_peak_threshold.value = 0.5
     worker.arcos_parameters.neighbourhood_size.value = 20
     worker.arcos_parameters.eps_method.value = "manual"
-    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.eps_prev.value = 20
     worker.arcos_parameters.min_clustersize.value = 4
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 50
@@ -424,18 +424,18 @@ def test_arcos_wrapper_run_specific_parts():
     worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
-    worker.arcos_parameters.clip_meas.value = False
+    worker.arcos_parameters.clip_measurements.value = False
     worker.arcos_parameters.clip_low.value = 0.01
     worker.arcos_parameters.clip_high.value = 0.99
     worker.arcos_parameters.bias_method.value = "none"
     worker.arcos_parameters.smooth_k.value = 1
     worker.arcos_parameters.bias_k.value = 3
-    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.polynomial_degree.value = 1
     worker.arcos_parameters.bin_threshold.value = 0.5
     worker.arcos_parameters.bin_peak_threshold.value = 0.5
     worker.arcos_parameters.neighbourhood_size.value = 20
     worker.arcos_parameters.eps_method.value = "manual"
-    worker.arcos_parameters.epsPrev.value = 20
+    worker.arcos_parameters.eps_prev.value = 20
     worker.arcos_parameters.min_clustersize.value = 4
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1
@@ -496,18 +496,18 @@ def test_arcos_wrapper_epsMethod():
     worker.columns = ds.columns.value
     worker.filtered_data = ds.filtered_data.value
     worker.arcos_parameters.interpolate_meas.value = True
-    worker.arcos_parameters.clip_meas.value = False
+    worker.arcos_parameters.clip_measurements.value = False
     worker.arcos_parameters.clip_low.value = 0.01
     worker.arcos_parameters.clip_high.value = 0.99
     worker.arcos_parameters.bias_method.value = "none"
     worker.arcos_parameters.smooth_k.value = 1
     worker.arcos_parameters.bias_k.value = 3
-    worker.arcos_parameters.polyDeg.value = 1
+    worker.arcos_parameters.polynomial_degree.value = 1
     worker.arcos_parameters.bin_threshold.value = 0.5
     worker.arcos_parameters.bin_peak_threshold.value = 0.5
     worker.arcos_parameters.neighbourhood_size.value = 0
     worker.arcos_parameters.eps_method.value = "mean"
-    worker.arcos_parameters.epsPrev.value = 0
+    worker.arcos_parameters.eps_prev.value = 0
     worker.arcos_parameters.min_clustersize.value = 4
     worker.arcos_parameters.nprev.value = 1
     worker.arcos_parameters.min_dur.value = 1

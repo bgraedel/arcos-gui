@@ -1,4 +1,5 @@
 """Exporting widget for arcos-gui."""
+
 from __future__ import annotations
 
 import os
@@ -49,9 +50,9 @@ class _exportwidget(QtWidgets.QWidget):
     file_LineEdit_img: QtWidgets.QLineEdit
     base_name_LineEdit_img: QtWidgets.QLineEdit
     img_seq_export_button: QtWidgets.QPushButton
-    automatic_size_img: QtWidgets.QCheckBox
-    spinBox_height_img: QtWidgets.QSpinBox
-    spinBox_width_img: QtWidgets.QSpinBox
+    format_combobox: QtWidgets.QComboBox
+    upsample_spinbox: QtWidgets.QSpinBox
+    fps_spinbox: QtWidgets.QSpinBox
 
     closing = Signal()
 
@@ -175,6 +176,7 @@ class _exportwidget(QtWidgets.QWidget):
         self.abort_batch_button.setStyleSheet(
             "background-color : #7C0A02; color : white"
         )
+        self.format_combobox.addItems(["png", "mp4", "gif", "jpeg", "tif"])
         self._hide_abort_batch_button()
 
     def _hide_abort_batch_button(self):
@@ -261,14 +263,15 @@ class ExportController:
         else:
             path = Path(self.widget.file_LineEdit_img.text())
             output_name = f"{self.current_date}_{self.widget.base_name_LineEdit_img.text()}_arcos_output"
-            outpath = os.path.join(path, output_name)
             MovieExporter(
                 self.viewer,
-                self.widget.automatic_size_img.isChecked(),
-                outpath,
-                self.widget.spinBox_width_img.value(),
-                self.widget.spinBox_height_img.value(),
-            ).run()
+                path,
+            ).run(
+                output_format=self.widget.format_combobox.currentText(),
+                output_name=output_name,
+                fps=self.widget.fps_spinbox.value(),
+                scale_factor=self.widget.upsample_spinbox.value(),
+            )
 
     def _connect_callbacks(self):
         self.widget.closing.connect(self.closeEvent)

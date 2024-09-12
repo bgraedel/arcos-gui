@@ -1,4 +1,5 @@
 """Various utility functions for generating shapes and text."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -332,17 +333,10 @@ def get_bbox(
     text_size = edge_size * 2.5
     if text_size < 1:
         text_size = 1
-    text_parameters = {
-        "string": "Event Nbr: {label}",
-        "size": text_size,
-        "color": "white",
-        "anchor": "upper_left",
-        "translation": [-3, 0],
-    }
+
     bbox_layer: dict = {}
-    bbox_layer["properties"] = {}
-    bbox_layer["properties"]["label"] = clid
-    bbox_layer["text"] = text_parameters
+    bbox_layer["features"] = {}
+    bbox_layer["features"]["label"] = clid
     bbox_layer["face_color"] = "transparent"
     bbox_layer["edge_color"] = "red"
     bbox_layer["edge_width"] = edge_size

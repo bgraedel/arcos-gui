@@ -1,4 +1,5 @@
 """Widget to handle filtering of input data."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -172,7 +173,7 @@ class FilterController:
             track_id_name=selected_object_id_column,
             measurement_name=measurement_name_column,
             additional_filter_column_name=selected_additional_filter_column,
-            posCols=coordinate_column,
+            position_columns=coordinate_column,
             fov_val=selected_position_value,
             additional_filter_value=selected_additional_filter_value,
             min_tracklength_value=min_tracklength,

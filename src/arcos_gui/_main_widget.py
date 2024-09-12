@@ -4,6 +4,7 @@ Each widget is a tab in the main widget. Creates instances of all other widgets
 as well as the data storage and layermaker.
 The MainWidget is the entry point for the napari plugin.
 """
+
 from __future__ import annotations
 
 import weakref

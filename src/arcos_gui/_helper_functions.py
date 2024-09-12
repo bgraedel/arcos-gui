@@ -220,7 +220,7 @@ def run_binarization_only(
     bias_method: Literal["none", "runmed", "lm"],
     smooth_k: int,
     bias_k: int,
-    polyDeg: int,
+    polynomial_degree: int,
     bin_peak_threshold: float,
     bin_threshold: float,
     interpolate: bool = True,
@@ -238,7 +238,7 @@ def run_binarization_only(
         Size of the local short-range smoothing kernel.
     bias_k : int
         Size of the global long-range smoothing kernel.
-    polyDeg : int
+    polynomial_degree : int
         Degree of the polynomial to use for bias correction. Used only when bias_method is 'lm'.
     bin_peak_threshold : float
         Threshold above which trajectories are rescaled.
@@ -266,11 +266,11 @@ def run_binarization_only(
         _plugin._arcos_widget.widget.bias_method.setCurrentText(bias_method)
         _plugin._arcos_widget.widget.smooth_k.setValue(smooth_k)
         _plugin._arcos_widget.widget.bias_k.setValue(bias_k)
-        _plugin._arcos_widget.widget.polyDeg.setValue(polyDeg)
+        _plugin._arcos_widget.widget.polynomial_degree.setValue(polynomial_degree)
         _plugin._arcos_widget.widget.bin_peak_threshold.setValue(bin_peak_threshold)
         _plugin._arcos_widget.widget.bin_threshold.setValue(bin_threshold)
         _plugin._arcos_widget.widget.interpolate_meas.setChecked(interpolate)
-        _plugin._arcos_widget.widget.clip_meas.setChecked(clip)
+        _plugin._arcos_widget.widget.clip_measurements.setChecked(clip)
         _plugin._arcos_widget.widget.clip_low.setValue(clip_range[0])
         _plugin._arcos_widget.widget.clip_high.setValue(clip_range[1])
 
@@ -285,7 +285,7 @@ def run_arcos(
     bias_method: Literal["none", "runmed", "lm"],
     smooth_k: int,
     bias_k: int,
-    polyDeg: int,
+    polynomial_degree: int,
     bin_peak_threshold: float,
     bin_threshold: float,
     interpolate: bool = True,
@@ -310,7 +310,7 @@ def run_arcos(
         Size of the local short-range smoothing kernel.
     bias_k : int
         Size of the global long-range smoothing kernel.
-    polyDeg : int
+    polynomial_degree : int
         Degree of the polynomial to use for bias correction. Used only when bias_method is 'lm'.
     bin_peak_threshold : float
         Threshold above which trajectories are rescaled.
@@ -359,11 +359,11 @@ def run_arcos(
     _plugin._arcos_widget.widget.bias_method.setCurrentText(bias_method)
     _plugin._arcos_widget.widget.smooth_k.setValue(smooth_k)
     _plugin._arcos_widget.widget.bias_k.setValue(bias_k)
-    _plugin._arcos_widget.widget.polyDeg.setValue(polyDeg)
+    _plugin._arcos_widget.widget.polynomial_degree.setValue(polynomial_degree)
     _plugin._arcos_widget.widget.bin_peak_threshold.setValue(bin_peak_threshold)
     _plugin._arcos_widget.widget.bin_threshold.setValue(bin_threshold)
     _plugin._arcos_widget.widget.interpolate_meas.setChecked(interpolate)
-    _plugin._arcos_widget.widget.clip_meas.setChecked(clip)
+    _plugin._arcos_widget.widget.clip_measurements.setChecked(clip)
     _plugin._arcos_widget.widget.clip_low.setValue(clip_range[0])
     _plugin._arcos_widget.widget.clip_high.setValue(clip_range[1])
     _plugin._arcos_widget.widget.eps_estimation_combobox.setCurrentText(eps_estimation)

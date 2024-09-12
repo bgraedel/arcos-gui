@@ -45,7 +45,7 @@ class _arcosWidget(QtWidgets.QWidget):
     tot_size_label: QtWidgets.QLabel
 
     interpolate_meas: QtWidgets.QCheckBox
-    clip_meas: QtWidgets.QCheckBox
+    clip_measurements: QtWidgets.QCheckBox
     clip_low: QtWidgets.QDoubleSpinBox
     clip_high: QtWidgets.QDoubleSpinBox
 
@@ -53,7 +53,7 @@ class _arcosWidget(QtWidgets.QWidget):
     bias_method: QtWidgets.QComboBox
     smooth_k: QtWidgets.QSpinBox
     bias_k: QtWidgets.QSpinBox
-    polyDeg: QtWidgets.QSpinBox
+    polynomial_degree: QtWidgets.QSpinBox
     bin_peak_threshold: QtWidgets.QDoubleSpinBox
     bin_threshold: QtWidgets.QDoubleSpinBox
 
@@ -108,7 +108,7 @@ class _arcosWidget(QtWidgets.QWidget):
     def set_default_bin_state_dict(self):
         self.bias_met_advanced_state = {
             "bias_method": self.bias_method.currentText(),
-            "smoothK": self.smooth_k.value(),
+            "smooth_k": self.smooth_k.value(),
         }
 
     def _set_detect_advanced_state_dict(self):
@@ -116,8 +116,8 @@ class _arcosWidget(QtWidgets.QWidget):
             "eps": self.neighbourhood_size.value(),
             "auto_eps": self.eps_estimation_combobox.currentText(),
             "cluter_linking_dist_check": self.Cluster_linking_dist_checkbox.isChecked(),
-            "epsPrev": self.epsPrev_spinbox.value(),
-            "nPrev": self.nprev_spinbox.value(),
+            "eps_prev": self.epsPrev_spinbox.value(),
+            "n_prev": self.nprev_spinbox.value(),
         }
 
     def _connect_ui_callbacks(self):
@@ -161,7 +161,7 @@ class _arcosWidget(QtWidgets.QWidget):
 
     def _set_default_visible(self):
         """Method that sets the default visible widgets in the main window."""
-        self.clip_meas.setChecked(False)
+        self.clip_measurements.setChecked(False)
         self._toggle_bias_method_parameter_visibility()
         self._bin_advanced_options_toggle()
         self._detect_advanced_options_toggle()
@@ -172,10 +172,10 @@ class _arcosWidget(QtWidgets.QWidget):
         checked = self.bin_advanced_options.isChecked()
         if checked:
             self.bias_method.setCurrentText(self.bias_met_advanced_state["bias_method"])
-            self.smooth_k.setValue(self.bias_met_advanced_state["smoothK"])
+            self.smooth_k.setValue(self.bias_met_advanced_state["smooth_k"])
         else:
             self.bias_met_advanced_state["bias_method"] = self.bias_method.currentText()
-            self.bias_met_advanced_state["smoothK"] = self.smooth_k.value()
+            self.bias_met_advanced_state["smooth_k"] = self.smooth_k.value()
             self.smooth_k.setValue(3)
             self.bias_method.setCurrentText("none")
             self.bias_method.currentIndexChanged.emit(0)
@@ -200,15 +200,15 @@ class _arcosWidget(QtWidgets.QWidget):
             self.Cluster_linking_dist_checkbox.setChecked(
                 self.detect_advanced_state["cluter_linking_dist_check"]
             )
-            self.epsPrev_spinbox.setValue(self.detect_advanced_state["epsPrev"])
-            self.nprev_spinbox.setValue(self.detect_advanced_state["nPrev"])
+            self.epsPrev_spinbox.setValue(self.detect_advanced_state["eps_prev"])
+            self.nprev_spinbox.setValue(self.detect_advanced_state["n_prev"])
         else:
             self.detect_advanced_state = {
                 "eps": self.neighbourhood_size.value(),
                 "auto_eps": self.eps_estimation_combobox.currentText(),
                 "cluter_linking_dist_check": self.Cluster_linking_dist_checkbox.isChecked(),
-                "epsPrev": self.epsPrev_spinbox.value(),
-                "nPrev": self.nprev_spinbox.value(),
+                "eps_prev": self.epsPrev_spinbox.value(),
+                "n_prev": self.nprev_spinbox.value(),
             }
             self.eps_estimation_combobox.setCurrentText("mean")
             self.Cluster_linking_dist_checkbox.setChecked(False)
@@ -257,7 +257,7 @@ class _arcosWidget(QtWidgets.QWidget):
         self.bias_method_label.setVisible(advanced_checked)
 
         if self.bias_method.currentText() == "runmed":
-            self.polyDeg.setVisible(False)
+            self.polynomial_degree.setVisible(False)
             self.polyDeg_label.setVisible(False)
             self.bias_k.setVisible(True)
             self.bias_k_label.setVisible(True)
@@ -267,7 +267,7 @@ class _arcosWidget(QtWidgets.QWidget):
             self.bin_threshold_label.setVisible(True)
 
         if self.bias_method.currentText() == "lm":
-            self.polyDeg.setVisible(True)
+            self.polynomial_degree.setVisible(True)
             self.polyDeg_label.setVisible(True)
             self.bias_k.setVisible(False)
             self.bias_k_label.setVisible(False)
@@ -277,7 +277,7 @@ class _arcosWidget(QtWidgets.QWidget):
             self.bin_threshold_label.setVisible(True)
 
         if self.bias_method.currentText() == "none":
-            self.polyDeg.setVisible(False)
+            self.polynomial_degree.setVisible(False)
             self.polyDeg_label.setVisible(False)
             self.bias_k.setVisible(False)
             self.bias_k_label.setVisible(False)
@@ -292,7 +292,7 @@ class _arcosWidget(QtWidgets.QWidget):
         self.bias_method_label.setEnabled(enabled)
         self.smooth_k.setEnabled(enabled)
         self.smooth_k_label.setEnabled(enabled)
-        self.polyDeg.setEnabled(enabled)
+        self.polynomial_degree.setEnabled(enabled)
         self.polyDeg_label.setEnabled(enabled)
         self.bias_k.setEnabled(enabled)
         self.bias_k_label.setEnabled(enabled)
@@ -305,7 +305,7 @@ class _arcosWidget(QtWidgets.QWidget):
 
     def _toggle_clip_visible(self):
         """Toggle the visibility of the clipping options."""
-        if self.clip_meas.isChecked():
+        if self.clip_measurements.isChecked():
             self.clip_high.setVisible(True)
             self.clip_low.setVisible(True)
             self.clip_high_label.setVisible(True)
@@ -321,7 +321,7 @@ class _arcosWidget(QtWidgets.QWidget):
         self.bias_method.currentIndexChanged.connect(
             self._toggle_bias_method_parameter_visibility
         )
-        self.clip_meas.stateChanged.connect(self._toggle_clip_visible)
+        self.clip_measurements.stateChanged.connect(self._toggle_clip_visible)
 
     def _set_loading_icon(self, frame=None):
         self.update_arcos.setIcon(QIcon(self.loading_icon.currentPixmap()))
@@ -574,12 +574,12 @@ class ArcosController:
             self.widget.clip_high,
             self.widget.smooth_k,
             self.widget.bias_k,
-            self.widget.polyDeg,
+            self.widget.polynomial_degree,
             self.widget.bin_threshold,
             self.widget.bin_peak_threshold,
         ]:
             i.valueChanged.connect(self._update_what_to_run_all)
-        for i in [self.widget.interpolate_meas, self.widget.clip_meas]:
+        for i in [self.widget.interpolate_meas, self.widget.clip_measurements]:
             i.stateChanged.connect(self._update_what_to_run_all)
         for i in [
             self.widget.neighbourhood_size,
@@ -633,14 +633,14 @@ class ArcosController:
         try:
             self._data_storage_instance.toggle_callback_block(True)
             if not self.widget.Cluster_linking_dist_checkbox.isChecked():
-                epsPrev = None
+                eps_prev = None
             else:
-                epsPrev = self.widget.epsPrev_spinbox.value()
+                eps_prev = self.widget.epsPrev_spinbox.value()
             self._data_storage_instance.arcos_parameters.value.interpolate_meas.value = (
                 self.widget.interpolate_meas.isChecked()
             )
-            self._data_storage_instance.arcos_parameters.value.clip_meas.value = (
-                self.widget.clip_meas.isChecked()
+            self._data_storage_instance.arcos_parameters.value.clip_measurements.value = (
+                self.widget.clip_measurements.isChecked()
             )
             self._data_storage_instance.arcos_parameters.value.clip_low.value = (
                 self.widget.clip_low.value()
@@ -660,8 +660,8 @@ class ArcosController:
             self._data_storage_instance.arcos_parameters.value.bias_method.value = (
                 self.widget.bias_method.currentText()
             )
-            self._data_storage_instance.arcos_parameters.value.polyDeg.value = (
-                self.widget.polyDeg.value()
+            self._data_storage_instance.arcos_parameters.value.polynomial_degree.value = (
+                self.widget.polynomial_degree.value()
             )
             self._data_storage_instance.arcos_parameters.value.bin_threshold.value = (
                 self.widget.bin_threshold.value()
@@ -696,7 +696,7 @@ class ArcosController:
             self._data_storage_instance.arcos_parameters.value.add_bin_cells.value = (
                 self.widget.add_bin_cells_checkbox.isChecked()
             )
-            self._data_storage_instance.arcos_parameters.value.epsPrev.value = epsPrev
+            self._data_storage_instance.arcos_parameters.value.eps_prev.value = eps_prev
             self._data_storage_instance.arcos_parameters.value.eps_method.value = (
                 self.widget.eps_estimation_combobox.currentText()
             )
@@ -714,8 +714,8 @@ class ArcosController:
             self.widget.interpolate_meas.setChecked(
                 self._data_storage_instance.arcos_parameters.value.interpolate_meas.value
             )
-            self.widget.clip_meas.setChecked(
-                self._data_storage_instance.arcos_parameters.value.clip_meas.value
+            self.widget.clip_measurements.setChecked(
+                self._data_storage_instance.arcos_parameters.value.clip_measurements.value
             )
             self.widget.clip_low.setValue(
                 self._data_storage_instance.arcos_parameters.value.clip_low.value
@@ -732,8 +732,8 @@ class ArcosController:
             self.widget.bias_method.setCurrentText(
                 self._data_storage_instance.arcos_parameters.value.bias_method.value
             )
-            self.widget.polyDeg.setValue(
-                self._data_storage_instance.arcos_parameters.value.polyDeg.value
+            self.widget.polynomial_degree.setValue(
+                self._data_storage_instance.arcos_parameters.value.polynomial_degree.value
             )
             self.widget.bin_threshold.setValue(
                 self._data_storage_instance.arcos_parameters.value.bin_threshold.value
@@ -769,12 +769,12 @@ class ArcosController:
                 self._data_storage_instance.arcos_parameters.value.eps_method.value
             )
             if (
-                self._data_storage_instance.arcos_parameters.value.epsPrev.value
+                self._data_storage_instance.arcos_parameters.value.eps_prev.value
                 is not None
             ):
                 self.widget.Cluster_linking_dist_checkbox.setChecked(True)
                 self.widget.epsPrev_spinbox.setValue(
-                    self._data_storage_instance.arcos_parameters.value.epsPrev.value
+                    self._data_storage_instance.arcos_parameters.value.eps_prev.value
                 )
             else:
                 self.widget.Cluster_linking_dist_checkbox.setChecked(False)
@@ -816,14 +816,14 @@ class ArcosController:
             self.widget.clip_high,
             self.widget.smooth_k,
             self.widget.bias_k,
-            self.widget.polyDeg,
+            self.widget.polynomial_degree,
             self.widget.bin_threshold,
             self.widget.bin_peak_threshold,
         ]:
             i.valueChanged.connect(self._update_arcos_parameters_object)
         for i in [
             self.widget.interpolate_meas,
-            self.widget.clip_meas,
+            self.widget.clip_measurements,
             self.widget.bin_advanced_options,
             self.widget.detect_advance_options,
         ]:

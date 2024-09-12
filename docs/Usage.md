@@ -87,7 +87,7 @@ Once data is loaded you can select the "ARCOS Parameters" Tab.
 
 **Min Cluster Size**: Minimum number of binarized objects required around an object for it to be considered as a core of a cluster. See [DBSCAN](https://en.wikipedia.org/wiki/DBSCAN) for more details.
 
-**nPrev Frames**: This parameter denotes of many previous frames are considered when linking clusters across the time series. In most cases, 1 should be good enough.
+**n_prev Frames**: This parameter denotes of many previous frames are considered when linking clusters across the time series. In most cases, 1 should be good enough.
 
 
 
@@ -208,11 +208,11 @@ Batch processing allows to run ARCOS on multiple files. Batch processing will ru
 | Bias Method               | Choose de-trending method, <br>can be runmed, lm or none                                     |
 | Smooth K                  | Size of the short-term median smoothing filter.                                                         |
 | Bias K                    | Available if Bias Method is set to 'runmed', <br>size of long-term median smoothing filter          |
-| polyDeg                   | Available if Bias Method is set to 'lm',<br>sets the degree of the polynomial for regression detrending |
+| polynomial_degree                   | Available if Bias Method is set to 'lm',<br>sets the degree of the polynomial for regression detrending |
 | Bin Peak Threshold        | Threshold for rescaling of the de-trended signal.                                                   |
 
-First, a short-term median filter with size smoothK is applied to remove fast noise from the time series. If the Bias Method is set to "none", smoothing is applied to globally rescaled time series. The subsequent de-trending can be performed with a long-term median filter with the size biasK {biasMet = "runmed"} or by fitting a polynomial of degree polyDeg {biasMet = "lm"}.
-After de-trending, if the global difference between min/max is greater than the threshold the signal is rescaled to the (0,1) range. The final signal is binarised using the binThr threshold parameter.
+First, a short-term median filter with size smooth_k is applied to remove fast noise from the time series. If the Bias Method is set to "none", smoothing is applied to globally rescaled time series. The subsequent de-trending can be performed with a long-term median filter with the size bias_k {bias_method = "runmed"} or by fitting a polynomial of degree polynomial_degree {bias_method = "lm"}.
+After de-trending, if the global difference between min/max is greater than the threshold the signal is rescaled to the (0,1) range. The final signal is binarised using the binarization_threshold threshold parameter.
 
 ### Collective Event Detection
 
@@ -220,7 +220,7 @@ After de-trending, if the global difference between min/max is greater than the 
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Neighbourhood Size | The maximum distance between two samples for one to be considered<br>as in the neighbourhood of the other. This is not a maximum bound <br>on the distances of points within a cluster. <br>Value is also used to connect collective events across multiple frames. |
 | Min Clustersize    | Minimum size for a cluster to be identified as a collective |
-| nPrev frames       | Number of previous frames to consider when tracking collective_events |
+| n_prev frames       | Number of previous frames to consider when tracking collective_events |
 
 ### Filter Collective Events
 

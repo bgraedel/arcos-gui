@@ -56,14 +56,14 @@ class CollevPlotter(QtWidgets.QWidget):
         self.fig.canvas.mpl_connect("pick_event", self.on_pick)
         self.arcos = pd.DataFrame(data={"t": [], "id": [], "x": [], "y": [], "z": []})
         self.point_size = 10
-        self.frame_col = "time"
+        self.frame_column = "time"
         self.trackid_col = "id"
         self.posx = "x"
         self.posy = "y"
         self.posz = "z"
         self.output_order = "tzyx"
         self.update_plot(
-            self.frame_col,
+            self.frame_column,
             self.trackid_col,
             self.posx,
             self.posy,
@@ -108,7 +108,7 @@ class CollevPlotter(QtWidgets.QWidget):
 
     def update_plot(
         self,
-        frame_col,
+        frame_column,
         trackid_col,
         posx,
         posy,
@@ -125,7 +125,7 @@ class CollevPlotter(QtWidgets.QWidget):
         collev_stats = arcos_stats
         self.arcos = arcos_data
         self.point_size = point_size
-        self.frame_col = frame_col
+        self.frame_column = frame_column
         self.trackid_col = trackid_col
         self.posx = posx
         self.posy = posy
@@ -249,7 +249,7 @@ class CollevPlotter(QtWidgets.QWidget):
             bbox, bbox_param = get_bbox(
                 current_colev,
                 clid,
-                self.frame_col,
+                self.frame_column,
                 self.posx,
                 self.posy,
                 edge_size,
@@ -258,17 +258,17 @@ class CollevPlotter(QtWidgets.QWidget):
             self.viewer.add_shapes(bbox, **bbox_param)
         else:
             timepoints = list(range(0, int(self.viewer.dims.range[0][1])))
-            df_tp = pd.DataFrame(timepoints, columns=[self.frame_col])
+            df_tp = pd.DataFrame(timepoints, columns=[self.frame_column])
             bbox_tuple = get_bbox_3d(
                 current_colev,
-                self.frame_col,
+                self.frame_column,
                 self.posx,
                 self.posy,
                 self.posz,
                 self.output_order,
             )
             bbox_tuple = fix_3d_convex_hull(
-                df_tp, bbox_tuple[0], bbox_tuple[1], bbox_tuple[2], self.frame_col
+                df_tp, bbox_tuple[0], bbox_tuple[1], bbox_tuple[2], self.frame_column
             )
             self.viewer.add_surface(
                 bbox_tuple,
@@ -315,7 +315,7 @@ class NoodlePlot(QtWidgets.QWidget):
         self._init_mpl_widgets()
         self.arcos = pd.DataFrame(data={"t": [], "id": [], "x": [], "y": [], "z": []})
         self.point_size = 10
-        self.frame_col = "frame"
+        self.frame_column = "frame"
         self.trackid_col = "id"
         self.posx = "x"
         self.posy = "y"
@@ -323,7 +323,7 @@ class NoodlePlot(QtWidgets.QWidget):
         self.projection_index = 3
         self.output_order = "tzyx"
         self.update_plot(
-            self.frame_col,
+            self.frame_column,
             self.trackid_col,
             self.posx,
             self.posy,
@@ -428,13 +428,13 @@ class NoodlePlot(QtWidgets.QWidget):
         )
         return grouped_array, colors
 
-    def calc_stats(self, frame_col, trackid_col):
+    def calc_stats(self, frame_column, trackid_col):
         """Calculates stats for collective events."""
         # if no calculation was run so far (i.e. when the widget is initialized)
         # populate it with no data
         if not self.arcos.empty:
             self.stats = calculate_statistics(
-                self.arcos, frame_col, self.collid_name, trackid_col
+                self.arcos, frame_column, self.collid_name, trackid_col
             )
 
     def clear_plot(self):
@@ -446,7 +446,7 @@ class NoodlePlot(QtWidgets.QWidget):
 
     def update_plot(
         self,
-        frame_col,
+        frame_column,
         trackid_col,
         posx,
         posy,
@@ -460,7 +460,7 @@ class NoodlePlot(QtWidgets.QWidget):
         the stored_variables object and update the projection choices.
 
         Parameters:
-            frame_col (str): The name of the frame column.
+            frame_column (str): The name of the frame column.
             trackid_col (str): The name of the trackid column.
             posx (str): The name of the x coordinate column.
             posy (str): The name of the y coordinate column.
@@ -470,7 +470,7 @@ class NoodlePlot(QtWidgets.QWidget):
         """
         self.arcos = arcos_data
         self.point_size = point_size
-        self.frame_col = frame_col
+        self.frame_column = frame_column
         self.trackid_col = trackid_col
         self.posx = posx
         self.posy = posy
@@ -500,12 +500,12 @@ class NoodlePlot(QtWidgets.QWidget):
                 self.arcos,
                 "collid",
                 self.trackid_col,
-                self.frame_col,
+                self.frame_column,
                 self.posx,
                 self.posy,
                 self.posz,
             )
-            self.calc_stats(self.frame_col, self.trackid_col)
+            self.calc_stats(self.frame_column, self.trackid_col)
             self.ax.cla()
             self.ax.spines["bottom"].set_color("white")
             self.ax.spines["top"].set_color("white")
@@ -626,7 +626,7 @@ class NoodlePlot(QtWidgets.QWidget):
             bbox, bbox_param = get_bbox(
                 current_colev,
                 clid,
-                self.frame_col,
+                self.frame_column,
                 self.posx,
                 self.posy,
                 edge_size,
@@ -635,17 +635,17 @@ class NoodlePlot(QtWidgets.QWidget):
             self.viewer.add_shapes(bbox, **bbox_param)
         else:
             timepoints = list(range(0, int(self.viewer.dims.range[0][1])))
-            df_tp = pd.DataFrame(timepoints, columns=[self.frame_col])
+            df_tp = pd.DataFrame(timepoints, columns=[self.frame_column])
             bbox_tuple = get_bbox_3d(
                 current_colev,
-                self.frame_col,
+                self.frame_column,
                 self.posx,
                 self.posy,
                 self.posz,
                 self.output_order,
             )
             bbox_tuple = fix_3d_convex_hull(
-                df_tp, bbox_tuple[0], bbox_tuple[1], bbox_tuple[2], self.frame_col
+                df_tp, bbox_tuple[0], bbox_tuple[1], bbox_tuple[2], self.frame_column
             )
             self.viewer.add_surface(
                 bbox_tuple,
@@ -862,7 +862,7 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         self,
         dataframe: pd.DataFrame,
         dataframe_resc: pd.DataFrame,
-        frame_col,
+        frame_column,
         track_id_col,
         x_coord_col,
         y_coord_col,
@@ -877,7 +877,7 @@ class TimeSeriesPlots(QtWidgets.QWidget):
         """
         self._dataframe = dataframe
         self._dataframe_resc = dataframe_resc
-        self._frame_col = frame_col
+        self._frame_col = frame_column
         self._track_id_col = track_id_col
         self._x_coord_col = x_coord_col
         self._y_coord_col = y_coord_col

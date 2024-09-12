@@ -51,31 +51,31 @@ class customARCOS(ARCOS):
     def trackCollev(
         self,
         eps: float = 1,
-        epsPrev: float | None = None,
+        eps_prev: float | None = None,
         minClsz: int = 1,
-        nPrev: int = 1,
-        clusteringMethod: str = "dbscan",
-        linkingMethod: str = "nearest",
-        minSamples: int | None = None,
+        n_prev: int = 1,
+        clustering_method: str = "dbscan",
+        linking_method: str = "nearest",
+        min_samples: int | None = None,
     ) -> pd.DataFrame:
         linker = Linker(
             eps=eps,
-            epsPrev=epsPrev,
-            minClSz=minClsz,
-            minSamples=minSamples,
-            clusteringMethod=clusteringMethod,
-            linkingMethod=linkingMethod,
-            nPrev=nPrev,
+            eps_prev=eps_prev,
+            min_clustersize=minClsz,
+            min_samples=min_samples,
+            clustering_method=clustering_method,
+            linking_method=linking_method,
+            n_prev=n_prev,
             predictor=False,
-            nJobs=1,
+            n_jobs=1,
         )
         tracker = DataFrameTracker(
             linker=linker,
-            coordinates_column=self.posCols,
+            position_columns=self.position_columns,
             frame_column=self.frame_column,
-            id_column=self.id_column,
-            bin_meas_column=self.bin_col,
-            collid_column=self.clid_column,
+            obj_id_column=self.obj_id_column,
+            binarized_measurement_column=self.binarized_measurement_column,
+            clid_column=self.clid_column,
         )
         df_list = []
 
@@ -114,7 +114,7 @@ def empty_std_out(*args, **kwargs):
 
 def init_arcos_object(
     df_in: pd.DataFrame,
-    posCols: list,
+    position_columns: list,
     measurement_name: str,
     frame_col_name: str,
     track_id_col_name: str,
@@ -127,7 +127,7 @@ def init_arcos_object(
     ----------
     df_in : pd.DataFrame
         input dataframe
-    posCols : list
+    position_columns : list
         list of position columns
     measurement_name : str
         name of measurement column
@@ -149,9 +149,9 @@ def init_arcos_object(
     # create arcos object, run arcos
     arcos = customARCOS(
         data=df_in,
-        posCols=posCols,
+        position_columns=position_columns,
         frame_column=frame_col_name,
-        id_column=track_id_col_name,
+        obj_id_column=track_id_col_name,
         measurement_column=measurement_name,
         clid_column=collid_name,
     )
@@ -162,14 +162,14 @@ def init_arcos_object(
 def binarization(
     arcos: customARCOS,
     interpolate_meas: bool,
-    clip_meas: bool,
+    clip_measurements: bool,
     clip_low: float,
     clip_high: float,
     smooth_k: int,
     bias_k: int,
     bin_peak_threshold: float,
     bin_threshold: float,
-    polyDeg: int,
+    polynomial_degree: int,
     bias_method: str,
 ) -> customARCOS:
     """
@@ -181,7 +181,7 @@ def binarization(
         arcos object
     interpolate_meas : bool
         interpolate measurement data
-    clip_meas : bool
+    clip_measurements : bool
         clip measurement data
     clip_low : float
         lower clip value
@@ -195,7 +195,7 @@ def binarization(
         peak threshold
     bin_threshold : float
         binarization threshold
-    polyDeg : int
+    polynomial_degree : int
         polynomial degree
     bias_method : str
         bias method
@@ -210,8 +210,8 @@ def binarization(
         arcos.interpolate_measurements()
 
     # if corresponding checkbock was selected run clip_measuremnts
-    if clip_meas:
-        arcos.clip_meas(
+    if clip_measurements:
+        arcos.clip_measurements(
             clip_low=clip_low,
             clip_high=clip_high,
         )
@@ -219,12 +219,12 @@ def binarization(
     # binarize data and update ts variable
     # update from where to run
     arcos.bin_measurements(
-        smoothK=smooth_k,
-        biasK=bias_k,
-        peakThr=bin_peak_threshold,
-        binThr=bin_threshold,
-        polyDeg=polyDeg,
-        biasMet=bias_method,
+        smooth_k=smooth_k,
+        bias_k=bias_k,
+        peak_threshold=bin_peak_threshold,
+        binarization_threshold=bin_threshold,
+        polynomial_degree=polynomial_degree,
+        bias_method=bias_method,
     )
 
     return arcos
@@ -233,7 +233,7 @@ def binarization(
 def detect_events(
     arcos: customARCOS,
     neighbourhood_size: float,
-    epsPrev: float | None,
+    eps_prev: float | None,
     min_clustersize: int,
     nPrev_value: int,
 ):
@@ -258,15 +258,15 @@ def detect_events(
     arcos_events : pd.DataFrame
         dataframe with detected events
     """
-    _bin_col = arcos.bin_col
+    _bin_col = arcos.binarized_measurement_column
     if 1 not in arcos.data[_bin_col].values:
         return None
 
     arcos_events = arcos.trackCollev(
         eps=neighbourhood_size,
-        epsPrev=epsPrev,
+        eps_prev=eps_prev,
         minClsz=min_clustersize,
-        nPrev=nPrev_value,
+        n_prev=nPrev_value,
     )
     return arcos_events
 
@@ -297,10 +297,10 @@ def get_eps(arcos: customARCOS, method: str, minClustersize: int, current_eps: f
 
     if method == "kneepoint":
         eps = estimate_eps(
-            data=arcos.data[arcos.data[arcos.bin_col] == 1],
+            data=arcos.data[arcos.data[arcos.binarized_measurement_column] == 1],
             method="kneepoint",
-            pos_cols=arcos.posCols,
-            frame_col=arcos.frame_column,
+            position_columns=arcos.position_columns,
+            frame_column=arcos.frame_column,
             n_neighbors=minClustersize,
             plot=False,
         )
@@ -310,8 +310,8 @@ def get_eps(arcos: customARCOS, method: str, minClustersize: int, current_eps: f
         eps = estimate_eps(
             arcos.data,
             method="mean",
-            pos_cols=arcos.posCols,
-            frame_col=arcos.frame_column,
+            position_columns=arcos.position_columns,
+            frame_column=arcos.frame_column,
             n_neighbors=minClustersize,
             plot=False,
         )
@@ -354,12 +354,12 @@ def filtering_arcos_events(
         filterer = filterCollev(
             data=detected_events_df,
             frame_column=frame_col_name,
-            collid_column=collid_name,
+            clid_column=collid_name,
             obj_id_column=track_id_col_name,
         )
         arcos_filtered = filterer.filter(
-            coll_duration=min_dur,
-            coll_total_size=total_event_size,
+            min_duration=min_dur,
+            min_total_size=total_event_size,
         )
     else:
         # filter dataframe by duraiton of events
@@ -392,10 +392,10 @@ def filtering_arcos_events(
 
 def calculate_arcos_stats(
     df_arcos_filtered: pd.DataFrame,
-    frame_col: str,
+    frame_column: str,
     collid_name: str,
     object_id_name: str,
-    posCols: list,
+    position_columns: list,
 ):
     """Wrapper for calcCollevStats().
 
@@ -403,13 +403,13 @@ def calculate_arcos_stats(
     ----------
     df_arcos_filtered : pd.DataFrame
         dataframe with filtered events
-    frame_col : str
+    frame_column : str
         name of frame column
     collid_name : str
         name of collid column
     object_id_col_name : str
         name of object id column
-    posCols : list
+    position_columns : list
         list of position columns
 
     Returns
@@ -418,7 +418,7 @@ def calculate_arcos_stats(
         dataframe with statistics for each event
     """
     df_arcos_stats = calculate_statistics(
-        df_arcos_filtered, frame_col, collid_name, object_id_name, posCols
+        df_arcos_filtered, frame_column, collid_name, object_id_name, position_columns
     )
     return df_arcos_stats
 
@@ -475,7 +475,7 @@ class arcos_worker(WorkerBase):
         if arcos_object is None:
             arcos_object = init_arcos_object(
                 df_in=pd.DataFrame(columns=["x", "t", "m", "id"]),
-                posCols=["x"],
+                position_columns=["x"],
                 frame_col_name="t",
                 track_id_col_name="id",
                 measurement_name="m",
@@ -511,7 +511,7 @@ class arcos_worker(WorkerBase):
             return
         self.arcos_object = init_arcos_object(
             df_in=self.filtered_data,
-            posCols=self.columns.posCol,
+            position_columns=self.columns.posCol,
             measurement_name=self.columns.measurement_column,
             frame_col_name=self.columns.frame_column,
             track_id_col_name=self.columns.object_id,
@@ -523,12 +523,12 @@ class arcos_worker(WorkerBase):
         self.arcos_object = binarization(
             arcos=self.arcos_object,
             interpolate_meas=self.arcos_parameters.interpolate_meas.value,
-            clip_meas=self.arcos_parameters.clip_meas.value,
+            clip_measurements=self.arcos_parameters.clip_measurements.value,
             clip_low=self.arcos_parameters.clip_low.value,
             clip_high=self.arcos_parameters.clip_high.value,
             smooth_k=self.arcos_parameters.smooth_k.value,
             bias_k=self.arcos_parameters.bias_k.value,
-            polyDeg=self.arcos_parameters.polyDeg.value,
+            polynomial_degree=self.arcos_parameters.polynomial_degree.value,
             bin_threshold=self.arcos_parameters.bin_threshold.value,
             bin_peak_threshold=self.arcos_parameters.bin_peak_threshold.value,
             bias_method=self.arcos_parameters.bias_method.value,
@@ -537,19 +537,19 @@ class arcos_worker(WorkerBase):
             return
         self.binarization_finished.emit(
             (
-                self.arcos_object.bin_col,
+                self.arcos_object.binarized_measurement_column,
                 self.arcos_object.resc_col,
                 self.arcos_object.data,
             )
         )
-        self.columns.measurement_bin = self.arcos_object.bin_col
+        self.columns.measurement_bin = self.arcos_object.binarized_measurement_column
         self.columns.measurement_resc = self.arcos_object.resc_col
         self.what_to_run.remove("binarization")
 
     def run_tracking(self):
         try:
-            bin_col = self.columns.measurement_bin
-            n_bin = self.arcos_object.data[bin_col].nunique()
+            binarized_measurement_column = self.columns.measurement_bin
+            n_bin = self.arcos_object.data[binarized_measurement_column].nunique()
 
         except KeyError:
             n_bin = 0
@@ -575,7 +575,7 @@ class arcos_worker(WorkerBase):
         self.arcos_raw_output = detect_events(
             arcos=self.arcos_object,
             neighbourhood_size=eps,
-            epsPrev=self.arcos_parameters.epsPrev.value,
+            eps_prev=self.arcos_parameters.eps_prev.value,
             min_clustersize=self.arcos_parameters.min_clustersize.value,
             nPrev_value=self.arcos_parameters.nprev.value,
         )
@@ -609,10 +609,10 @@ class arcos_worker(WorkerBase):
             return
         arcos_stats = calculate_arcos_stats(
             df_arcos_filtered=arcos_df_filtered,
-            frame_col=self.columns.frame_column,
+            frame_column=self.columns.frame_column,
             collid_name=collid_name,
             object_id_name=self.columns.object_id,
-            posCols=self.columns.posCol,
+            position_columns=self.columns.posCol,
         )
         arcos_stats = arcos_stats.dropna()
         if self.abort_requested:
@@ -716,12 +716,12 @@ class BatchProcessor(WorkerBase):
         arcos = binarization(
             arcos=arcos,
             interpolate_meas=self.arcos_parameters.interpolate_meas.value,
-            clip_meas=self.arcos_parameters.clip_meas.value,
+            clip_measurements=self.arcos_parameters.clip_measurements.value,
             clip_low=self.arcos_parameters.clip_low.value,
             clip_high=self.arcos_parameters.clip_high.value,
             smooth_k=self.arcos_parameters.smooth_k.value,
             bias_k=self.arcos_parameters.bias_k.value,
-            polyDeg=self.arcos_parameters.polyDeg.value,
+            polynomial_degree=self.arcos_parameters.polynomial_degree.value,
             bin_threshold=self.arcos_parameters.bin_threshold.value,
             bin_peak_threshold=self.arcos_parameters.bin_peak_threshold.value,
             bias_method=self.arcos_parameters.bias_method.value,
@@ -735,7 +735,7 @@ class BatchProcessor(WorkerBase):
         arcos_raw_output = detect_events(
             arcos=arcos,
             neighbourhood_size=eps,
-            epsPrev=self.arcos_parameters.epsPrev.value,
+            eps_prev=self.arcos_parameters.eps_prev.value,
             min_clustersize=self.arcos_parameters.min_clustersize.value,
             nPrev_value=self.arcos_parameters.nprev.value,
         )
@@ -752,10 +752,10 @@ class BatchProcessor(WorkerBase):
 
         arcos_stats = calculate_arcos_stats(
             df_arcos_filtered=arcos_df_filtered,
-            frame_col=self.columnames.frame_column,
+            frame_column=self.columnames.frame_column,
             collid_name="collid",
             object_id_name=self.columnames.object_id,
-            posCols=self.columnames.posCol,
+            position_columns=self.columnames.posCol,
         )
         arcos_stats = arcos_stats.dropna()
 
@@ -877,7 +877,7 @@ class BatchProcessor(WorkerBase):
                             track_id_name=self.columnames.object_id,
                             measurement_name=self.columnames.measurement_column,
                             additional_filter_column_name=self.columnames.additional_filter_column,
-                            posCols=self.columnames.posCol,
+                            position_columns=self.columnames.posCol,
                             fov_val=fov,
                             additional_filter_value=additional_filter,
                             min_tracklength_value=self.min_track_length,
@@ -978,7 +978,7 @@ class BatchProcessor(WorkerBase):
                             arcos_stats_per_frame = calculate_statistics_per_frame(
                                 data=arcos_df_filtered,
                                 frame_column=self.columnames.frame_column,
-                                collid_column="collid",
+                                clid_column="collid",
                                 pos_columns=self.columnames.posCol,
                             )
                             arcos_stats_per_frame.to_csv(

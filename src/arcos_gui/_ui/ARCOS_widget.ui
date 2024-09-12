@@ -141,7 +141,7 @@
    <item row="1" column="0">
     <widget class="QGroupBox" name="groupBox_3">
      <property name="toolTip">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;First a short-term median filter with size smoothK is applied to remove fast noise from the time series. If the de-trending method is set to &amp;quot;none&amp;quot;, smoothing is applied on globally rescaled time series. The subsequent de-trending can be performed with a long-term median filter with the size biasK {biasMet = &amp;quot;runmed&amp;quot;} or by fitting a polynomial of degree polyDeg {biasMet = &amp;quot;lm&amp;quot;}.&lt;/p&gt;&lt;p&gt;After de-trending, if the global difference between min/max is greater than the threshold the signal is rescaled to the (0,1) range. The final signal is binarised using the binThr threshold&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;First a short-term median filter with size smooth_k is applied to remove fast noise from the time series. If the de-trending method is set to &amp;quot;none&amp;quot;, smoothing is applied on globally rescaled time series. The subsequent de-trending can be performed with a long-term median filter with the size bias_k {bias_method = &amp;quot;runmed&amp;quot;} or by fitting a polynomial of degree polynomial_degree {bias_method = &amp;quot;lm&amp;quot;}.&lt;/p&gt;&lt;p&gt;After de-trending, if the global difference between min/max is greater than the threshold the signal is rescaled to the (0,1) range. The final signal is binarised using the binarization_threshold threshold&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
      <property name="layoutDirection">
       <enum>Qt::LeftToRight</enum>
@@ -193,7 +193,7 @@
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sets the degree of the polynomial for lm fitting&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="text">
-         <string>polyDeg</string>
+         <string>polynomial_degree</string>
         </property>
        </widget>
       </item>
@@ -360,7 +360,7 @@
        </widget>
       </item>
       <item row="4" column="1">
-       <widget class="QSpinBox" name="polyDeg">
+       <widget class="QSpinBox" name="polynomial_degree">
         <property name="minimumSize">
          <size>
           <width>80</width>
@@ -564,7 +564,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="clip_meas">
+       <widget class="QCheckBox" name="clip_measurements">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -729,7 +729,7 @@
       <item row="0" column="1" colspan="2">
        <widget class="QCheckBox" name="detect_advance_options">
         <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Advanced event detection parameters.&lt;/p&gt;&lt;p&gt;If unchecked, uses neighbourhood size estimation=mean, cluster linking distance = neighbourhood size and nPrev frames=1&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Advanced event detection parameters.&lt;/p&gt;&lt;p&gt;If unchecked, uses neighbourhood size estimation=mean, cluster linking distance = neighbourhood size and n_prev frames=1&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="text">
          <string>Advanced Options</string>
@@ -759,7 +759,7 @@
       <item row="5" column="1">
        <widget class="QLabel" name="nprev_label">
         <property name="text">
-         <string>nPrev Frames</string>
+         <string>n_prev Frames</string>
         </property>
        </widget>
       </item>
