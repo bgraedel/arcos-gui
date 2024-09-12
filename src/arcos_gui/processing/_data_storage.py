@@ -219,7 +219,7 @@ class ArcosParameters:
     ----------
     interpolate_meas: bool
         wether to interpolate the measurements or not.
-    clip_meas: bool
+    clip_measurements: bool
         wether to clip the measurements or not.
     clip_low: float
         the lower bound for the clipping.
@@ -231,7 +231,7 @@ class ArcosParameters:
         the bias kernel size, for long term detrending.
     bias_method: str,
         the bias method.
-    polyDeg: int,
+    polynomial_degree: int,
         the polynomial degree, used for lm detrending.
     bin_threshold: float,
         the bin threshold, used for binarization.
@@ -241,7 +241,7 @@ class ArcosParameters:
         the eps method, used for estimating the eps parameter.
     neighbourhood_size: float,
         the eps parameter, used for the clustering within arcos.
-    epsPrev: float,
+    eps_prev: float,
         epsilon used for linking.
     min_cluster_size: int,
         the minimum cluster size, used for the clustering within arcos.
@@ -274,8 +274,10 @@ class ArcosParameters:
             False, (bool,), value_name="interpolate_meas"
         )
     )
-    clip_meas: value_callback[bool] = field(
-        default_factory=lambda: value_callback(False, (bool,), value_name="clip_meas")
+    clip_measurements: value_callback[bool] = field(
+        default_factory=lambda: value_callback(
+            False, (bool,), value_name="clip_measurements"
+        )
     )
     clip_low: value_callback[float] = field(
         default_factory=lambda: value_callback(0.0, (float,), value_name="clip_low")
@@ -292,8 +294,10 @@ class ArcosParameters:
     bias_method: value_callback[str] = field(
         default_factory=lambda: value_callback("none", (str,), value_name="bias_method")
     )
-    polyDeg: value_callback[int] = field(
-        default_factory=lambda: value_callback(1, (int,), value_name="polyDeg")
+    polynomial_degree: value_callback[int] = field(
+        default_factory=lambda: value_callback(
+            1, (int,), value_name="polynomial_degree"
+        )
     )
     bin_threshold: value_callback[float] = field(
         default_factory=lambda: value_callback(
@@ -315,9 +319,9 @@ class ArcosParameters:
             20.0, (float, int), value_name="neighbourhood_size"
         )
     )
-    epsPrev: value_callback[float] = field(
+    eps_prev: value_callback[float] = field(
         default_factory=lambda: value_callback(
-            20.0, (float, int, type(None)), value_name="epsPrev"
+            20.0, (float, int, type(None)), value_name="eps_prev"
         )
     )
     min_clustersize: value_callback[int] = field(

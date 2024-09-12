@@ -366,9 +366,9 @@ class InputdataController:
                 # Rename coordinate columns with appended label name
                 label_name = label.name
                 df.rename(
-                    columns=lambda col: f"{col}_{label_name}"
-                    if col not in ["label", "frame"]
-                    else col,
+                    columns=lambda col: (
+                        f"{col}_{label_name}" if col not in ["label", "frame"] else col
+                    ),
                     inplace=True,
                 )
 
@@ -478,10 +478,10 @@ class InputdataController:
         self.data_storage_instance.columns.value.measurement_column = out_meas_name
         self.data_storage_instance.original_data.value = dataframe_processed
 
-    def _run_dataframe_matching(self, df1, df2, frame_col, coord_cols1):
+    def _run_dataframe_matching(self, df1, df2, frame_column, coord_cols1):
         """Start the DataFrameMatcher in a separate thread."""
         self.matching_worker = DataFrameMatcher(
-            df1, df2, frame_col=frame_col, coord_cols1=coord_cols1
+            df1, df2, frame_column=frame_column, coord_cols1=coord_cols1
         )
 
         # Connect signals and slots

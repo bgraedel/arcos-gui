@@ -45,14 +45,14 @@ def test_open_widget(make_arcos_widget):
 def test_arcos_widget_defaults(make_arcos_widget):
     arcos_controller, qtbot = make_arcos_widget
     # Test the initial values of the widget's attributes
-    assert arcos_controller.widget.clip_meas.isChecked() is False
+    assert arcos_controller.widget.clip_measurements.isChecked() is False
     assert arcos_controller.widget.clip_low.value() == 0.001
     assert arcos_controller.widget.clip_high.value() == 0.999
     assert arcos_controller.widget.bin_advanced_options.isChecked() is False
     assert arcos_controller.widget.bias_method.currentText() == "none"
     assert arcos_controller.widget.smooth_k.value() == 3
     assert arcos_controller.widget.bias_k.value() == 25
-    assert arcos_controller.widget.polyDeg.value() == 1
+    assert arcos_controller.widget.polynomial_degree.value() == 1
     assert arcos_controller.widget.bin_peak_threshold.value() == 0.2
     assert arcos_controller.widget.bin_threshold.value() == 0.5
     assert arcos_controller.widget.detect_advance_options.isChecked() is False
@@ -78,7 +78,7 @@ def test_the_what_to_run_changes(make_arcos_widget):
     }  # no data so should not change
     qtbot.mouseClick(arcos_controller.widget.update_arcos, Qt.LeftButton)
     assert arcos_controller._what_to_run == {"binarization", "tracking", "filtering"}
-    qtbot.mouseClick(arcos_controller.widget.clip_meas, Qt.LeftButton)
+    qtbot.mouseClick(arcos_controller.widget.clip_measurements, Qt.LeftButton)
     assert arcos_controller._what_to_run == {"tracking", "filtering", "binarization"}
     arcos_controller._what_to_run.clear()
     qtbot.mouseClick(arcos_controller.widget.interpolate_meas, Qt.LeftButton)
@@ -102,7 +102,7 @@ def test_the_what_to_run_changes(make_arcos_widget):
     arcos_controller.widget.bias_k.setValue(30)
     assert arcos_controller._what_to_run == {"tracking", "filtering", "binarization"}
     arcos_controller._what_to_run.clear()
-    arcos_controller.widget.polyDeg.setValue(2)
+    arcos_controller.widget.polynomial_degree.setValue(2)
     assert arcos_controller._what_to_run == {"tracking", "filtering", "binarization"}
     arcos_controller._what_to_run.clear()
     arcos_controller.widget.bin_peak_threshold.setValue(0.3)
@@ -134,19 +134,19 @@ def test_the_what_to_run_changes(make_arcos_widget):
 
 def test_set_default_visible(make_arcos_widget):
     arcos_controller, qtbot = make_arcos_widget
-    assert arcos_controller.widget.clip_meas.isChecked() is False
+    assert arcos_controller.widget.clip_measurements.isChecked() is False
     assert (
         arcos_controller.widget.clip_low.isVisibleTo(arcos_controller.widget) is False
     )
     assert (
         arcos_controller.widget.clip_high.isVisibleTo(arcos_controller.widget) is False
     )
-    qtbot.mouseClick(arcos_controller.widget.clip_meas, Qt.LeftButton)
+    qtbot.mouseClick(arcos_controller.widget.clip_measurements, Qt.LeftButton)
     assert arcos_controller.widget.clip_low.isVisibleTo(arcos_controller.widget) is True
     assert (
         arcos_controller.widget.clip_high.isVisibleTo(arcos_controller.widget) is True
     )
-    qtbot.mouseClick(arcos_controller.widget.clip_meas, Qt.LeftButton)
+    qtbot.mouseClick(arcos_controller.widget.clip_measurements, Qt.LeftButton)
     assert (
         arcos_controller.widget.clip_low.isVisibleTo(arcos_controller.widget) is False
     )
@@ -174,7 +174,10 @@ def test_toggle_biasmethod_visibility(make_arcos_widget):
         arcos_controller.widget.bias_k_label.isVisibleTo(arcos_controller.widget)
         is True
     )
-    assert arcos_controller.widget.polyDeg.isVisibleTo(arcos_controller.widget) is False
+    assert (
+        arcos_controller.widget.polynomial_degree.isVisibleTo(arcos_controller.widget)
+        is False
+    )
     assert (
         arcos_controller.widget.polyDeg_label.isVisibleTo(arcos_controller.widget)
         is False
@@ -208,7 +211,10 @@ def test_toggle_biasmethod_visibility(make_arcos_widget):
         arcos_controller.widget.bias_k_label.isVisibleTo(arcos_controller.widget)
         is False
     )
-    assert arcos_controller.widget.polyDeg.isVisibleTo(arcos_controller.widget) is True
+    assert (
+        arcos_controller.widget.polynomial_degree.isVisibleTo(arcos_controller.widget)
+        is True
+    )
     assert (
         arcos_controller.widget.polyDeg_label.isVisibleTo(arcos_controller.widget)
         is True
@@ -242,7 +248,10 @@ def test_toggle_biasmethod_visibility(make_arcos_widget):
         arcos_controller.widget.bias_k_label.isVisibleTo(arcos_controller.widget)
         is False
     )
-    assert arcos_controller.widget.polyDeg.isVisibleTo(arcos_controller.widget) is False
+    assert (
+        arcos_controller.widget.polynomial_degree.isVisibleTo(arcos_controller.widget)
+        is False
+    )
     assert (
         arcos_controller.widget.polyDeg_label.isVisibleTo(arcos_controller.widget)
         is False
@@ -272,18 +281,18 @@ def test_update_arcos_parameters(make_arcos_widget):
     # makes a DataStorage object and fills it with the default parameters
     ds_test = DataStorage()
     ds_test.arcos_parameters.value.interpolate_meas.value = True
-    ds_test.arcos_parameters.value.clip_meas.value = False
+    ds_test.arcos_parameters.value.clip_measurements.value = False
     ds_test.arcos_parameters.value.clip_low.value = 0.001
     ds_test.arcos_parameters.value.clip_high.value = 0.999
     ds_test.arcos_parameters.value.bias_method.value = "none"
     ds_test.arcos_parameters.value.smooth_k.value = 3
     ds_test.arcos_parameters.value.bias_k.value = 25
-    ds_test.arcos_parameters.value.polyDeg.value = 1
+    ds_test.arcos_parameters.value.polynomial_degree.value = 1
     ds_test.arcos_parameters.value.bin_threshold.value = 0.5
     ds_test.arcos_parameters.value.bin_peak_threshold.value = 0.2
     ds_test.arcos_parameters.value.eps_method.value = "mean"
     ds_test.arcos_parameters.value.neighbourhood_size.value = 40
-    ds_test.arcos_parameters.value.epsPrev.value = None
+    ds_test.arcos_parameters.value.eps_prev.value = None
     ds_test.arcos_parameters.value.min_clustersize.value = 5
     ds_test.arcos_parameters.value.nprev.value = 1
     ds_test.arcos_parameters.value.min_dur.value = 3

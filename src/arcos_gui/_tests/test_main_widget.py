@@ -266,10 +266,10 @@ def test_add_all_layers_with_data(
     mywidget.data.arcos_binarization.value = test_df[test_df["Position"] == 1]
     mywidget.data.arcos_stats.value = calculate_arcos_stats(
         arcos_df,
-        frame_col="t",
+        frame_column="t",
         collid_name="collid",
         object_id_name="id",
-        posCols=["x", "y"],
+        position_columns=["x", "y"],
     )
     mywidget.data.arcos_output.value = arcos_df
 
@@ -296,10 +296,10 @@ def test_first_all_then_bin(
     mywidget.data.arcos_binarization.value = test_df[test_df["Position"] == 1]
     mywidget.data.arcos_stats.value = calculate_arcos_stats(
         arcos_df,
-        frame_col="t",
+        frame_column="t",
         collid_name="collid",
         object_id_name="id",
-        posCols=["x", "y"],
+        position_columns=["x", "y"],
     )
     mywidget.data.arcos_output.value = arcos_df
     mywidget._arcos_widget.widget.update_arcos.click()
@@ -341,4 +341,6 @@ def test_increase_points_size(
     assert viewer.layers[0].size.flatten()[0] == starting_pointsize
     mywidget._layer_prop_controller.widget.point_size.setValue(20)
     new_pointsize = mywidget._layer_prop_controller.widget.point_size.value()
+
+    qtbot.wait(1000)
     assert viewer.layers[0].size.flatten()[0] == new_pointsize

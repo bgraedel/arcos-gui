@@ -38,6 +38,7 @@ class ThrottledCallback:
         self.last_call_time = 0
         self.timer = QTimer()
         self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self._timeout_callback)
         self.args, self.kwargs = None, None
 
     def __call__(self, *args, **kwargs):
@@ -45,17 +46,20 @@ class ThrottledCallback:
         self.args, self.kwargs = args, kwargs  # store the latest args and kwargs
 
         if current_time - self.last_call_time > self.max_interval:
-            self.last_call_time = current_time
-            self.callback(*self.args, **self.kwargs)
+            self._execute_callback()
         else:
-            self.timer.stop()
-            self.timer.timeout.connect(self._timeout_callback)
-            self.timer.start(int(self.max_interval * 1000))
+            if not self.timer.isActive():
+                remaining_time = self.max_interval - (
+                    current_time - self.last_call_time
+                )
+                self.timer.start(int(remaining_time * 1000))
 
     def _timeout_callback(self):
+        self._execute_callback()
+
+    def _execute_callback(self):
         self.last_call_time = time.time()
         self.callback(*self.args, **self.kwargs)
-        self.timer.timeout.disconnect(self._timeout_callback)
 
 
 class OutputOrderValidator(QValidator):

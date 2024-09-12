@@ -16,6 +16,15 @@ from arcos_gui.tools import (
     reshape_by_input_string,
 )
 
+# napari changes the name of the border width parameter in version 0.5.0
+# use this to ensure compatibility with both versions
+from napari import __version__
+
+if __version__ < "0.5.0":
+    border_name_str = "edge"
+else:
+    border_name_str = "border"
+
 
 def prepare_all_cells_layer(
     df_all: pd.DataFrame,
@@ -71,8 +80,8 @@ def prepare_all_cells_layer(
         data_all_np,
         {
             "properties": data_all_prop,
-            "edge_width": 0,
-            "edge_color": "act",
+            f"{border_name_str}_width": 0,
+            f"{border_name_str}_color": "act",
             "face_color": "act",
             "face_colormap": lut,
             "face_contrast_limits": tuple(min_max),
@@ -142,7 +151,7 @@ def prepare_active_cells_layer(
         datAct,
         {
             "size": round(size / 2.5, 2),
-            "edge_width": 0,
+            f"{border_name_str}_width": 0,
             "face_color": "black",
             "opacity": 1,
             "symbol": "disc",
@@ -213,7 +222,7 @@ def prepare_events_layer(
         {
             "face_color": color_ids,
             "size": round(size / 1.2, 2),
-            "edge_width": 0,
+            f"{border_name_str}_width": 0,
             "opacity": 1,
             "name": ARCOS_LAYERS["collective_events_cells"],
             "shown": shown_points,

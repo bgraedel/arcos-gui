@@ -143,13 +143,13 @@ def test_arcos_parameters_default_values():
     params = ArcosParameters()
 
     assert params.interpolate_meas == False  # noqa E712
-    assert params.clip_meas == False  # noqa E712
+    assert params.clip_measurements == False  # noqa E712
     assert params.clip_low == 0.0
     assert params.clip_high == 1
     assert params.smooth_k == 1
     assert params.bias_k == 5
     assert params.bias_method == "none"
-    assert params.polyDeg == 1
+    assert params.polynomial_degree == 1
     assert params.bin_threshold == 0.5
     assert params.bin_peak_threshold == 0.5
     assert params.neighbourhood_size == 20
@@ -165,18 +165,18 @@ def test_arcos_parameters_callback(mocker, capsys):
     test_func = mocker.Mock()
     params_stuff = [
         params.interpolate_meas,
-        params.clip_meas,
+        params.clip_measurements,
         params.clip_low,
         params.clip_high,
         params.smooth_k,
         params.bias_k,
         params.bias_method,
-        params.polyDeg,
+        params.polynomial_degree,
         params.bin_threshold,
         params.bin_peak_threshold,
         params.eps_method,
         params.neighbourhood_size,
-        params.epsPrev,
+        params.eps_prev,
         params.min_clustersize,
         params.nprev,
         params.min_dur,
@@ -187,18 +187,18 @@ def test_arcos_parameters_callback(mocker, capsys):
         i.value_changed.connect(test_func)
 
     params.interpolate_meas.value = True
-    params.clip_meas.value = True
+    params.clip_measurements.value = True
     params.clip_low.value = 1.0
     params.clip_high.value = 1.0
     params.smooth_k.value = 1
     params.bias_k.value = 1
     params.bias_method.value = "none"
-    params.polyDeg.value = 1
+    params.polynomial_degree.value = 1
     params.bin_threshold.value = 1.0
     params.bin_peak_threshold.value = 1.0
     params.eps_method.value = "none"
     params.neighbourhood_size.value = 1.0
-    params.epsPrev.value = 1.0
+    params.eps_prev.value = 1.0
     params.min_clustersize.value = 1
     params.nprev.value = 1
     params.min_dur.value = 1
@@ -211,18 +211,18 @@ def test_arcos_parameters_callback(mocker, capsys):
         i.value_changed.disconnect(test_func)
 
     params.interpolate_meas.value = True
-    params.clip_meas.value = True
+    params.clip_measurements.value = True
     params.clip_low.value = 1.0
     params.clip_high.value = 1.0
     params.smooth_k.value = 1
     params.bias_k.value = 1
     params.bias_method.value = "none"
-    params.polyDeg.value = 1
+    params.polynomial_degree.value = 1
     params.bin_threshold.value = 1.0
     params.bin_peak_threshold.value = 1.0
     params.eps_method.value = "none"
     params.neighbourhood_size.value = 1.0
-    params.epsPrev.value = 1.0
+    params.eps_prev.value = 1.0
     params.min_clustersize.value = 1
     params.nprev.value = 1
     params.min_dur.value = 1
@@ -244,13 +244,13 @@ def test_arcos_parameters_as_dataframe():
 def test_arcos_parameters_with_custom_values():
     params = ArcosParameters()
     params.interpolate_meas.value = True
-    params.clip_meas.value = True
+    params.clip_measurements.value = True
     params.clip_low.value = 1.0
     params.clip_high.value = 2.0
     params.smooth_k.value = 3
     params.bias_k.value = 4
     params.bias_method.value = "Method"
-    params.polyDeg.value = 5
+    params.polynomial_degree.value = 5
     params.bin_threshold.value = 6.0
     params.bin_peak_threshold.value = 7.0
     params.neighbourhood_size.value = 8.0
@@ -260,13 +260,13 @@ def test_arcos_parameters_with_custom_values():
     params.total_event_size.value = 12
 
     assert params.interpolate_meas == True  # noqa E712
-    assert params.clip_meas == True  # noqa E712
+    assert params.clip_measurements == True  # noqa E712
     assert params.clip_low == 1.0
     assert params.clip_high == 2.0
     assert params.smooth_k == 3
     assert params.bias_k == 4
     assert params.bias_method == "Method"
-    assert params.polyDeg == 5
+    assert params.polynomial_degree == 5
     assert params.bin_threshold == 6.0
     assert params.bin_peak_threshold == 7.0
     assert params.neighbourhood_size == 8.0

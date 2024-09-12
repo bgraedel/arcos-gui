@@ -71,11 +71,11 @@ def create_file_names(
     return file_paths
 
 
-def subtract_timeoffset(data, frame_col):
+def subtract_timeoffset(data, frame_column):
     """Method to subtract the timeoffset in the frame column of data"""
     if data.empty:
         return data
-    data[frame_col] -= min(data[frame_col])
+    data[frame_column] -= min(data[frame_column])
     return data
 
 
@@ -168,7 +168,7 @@ def filter_data(
     track_id_name: str | None,
     measurement_name: str,
     additional_filter_column_name: str,
-    posCols: list,
+    position_columns: list,
     fov_val: Union[int, float, str],
     additional_filter_value: Union[int, float, str],
     min_tracklength_value: int,
@@ -205,7 +205,7 @@ def filter_data(
         Name of the additional filter column
     st_out : Callable
         Output functoin i.e. print() or show_info from Napari
-    posCols : list
+    position_columns : list
         List containing all position names
     frame_interval : float
         Frame interval
@@ -216,7 +216,7 @@ def filter_data(
         df=df_in,
         field_of_view_column=field_of_view_id_name,
         frame_column=frame_name,
-        pos_columns=posCols,
+        pos_columns=position_columns,
         track_id_column=track_id_name,
         measurement_column=measurement_name,
     )
@@ -268,11 +268,11 @@ def filter_data(
     return filtered_data, max_meas, min_meas
 
 
-def check_for_collid_column(data: pd.DataFrame, collid_column="collid", suffix="old"):
-    """If collid_column is present in input data,
+def check_for_collid_column(data: pd.DataFrame, clid_column="collid", suffix="old"):
+    """If clid_column is present in input data,
     add suffix to prevent dataframe merge conflic."""
-    if collid_column in data.columns:
-        data.rename(columns={collid_column: f"{collid_column}_{suffix}"}, inplace=True)
+    if clid_column in data.columns:
+        data.rename(columns={clid_column: f"{clid_column}_{suffix}"}, inplace=True)
     return data
 
 
@@ -313,7 +313,7 @@ def match_dataframes(
     df1,
     df2,
     threshold_percentage=0.5,
-    frame_col="frame",
+    frame_column="frame",
     coord_cols1=["centroid-0", "centroid-1"],
     coord_cols2=None,
     std_out: Callable = print,
@@ -325,7 +325,7 @@ def match_dataframes(
     Parameters:
     - df1, df2: Input dataframes with coordinate and frame columns.
     - threshold_percentage: Percentage of the data range to be used as the threshold.
-    - frame_col: Column name for frame identifier.
+    - frame_column: Column name for frame identifier.
     - coord_cols1: List of column names for coordinates in df1.
     - coord_cols2: List of column names for coordinates in df2.
     If None, it will be assumed to be the same as coord_cols1.
@@ -342,13 +342,13 @@ def match_dataframes(
     ), "Number of coordinate columns must be the same for both dataframes"
 
     # Try a direct merge first
-    merge_cols = [frame_col] + coord_cols1
+    merge_cols = [frame_column] + coord_cols1
     try:
         merged_df = pd.merge(
             df1,
             df2,
             left_on=merge_cols,
-            right_on=[frame_col] + coord_cols2,
+            right_on=[frame_column] + coord_cols2,
             how="inner",
         )
         # If the merged dataframe has the same length as df1, return it
@@ -371,10 +371,10 @@ def match_dataframes(
     results = []
 
     # Iterate through unique frames
-    for frame in df1[frame_col].unique():
+    for frame in df1[frame_column].unique():
         # Filter dataframes for the current frame
-        df1_frame = df1[df1[frame_col] == frame].copy()
-        df2_frame = df2[df2[frame_col] == frame].copy()
+        df1_frame = df1[df1[frame_column] == frame].copy()
+        df2_frame = df2[df2[frame_column] == frame].copy()
 
         # If either dataframe segment is empty, skip to the next frame
         if df1_frame.empty or df2_frame.empty:
@@ -425,7 +425,7 @@ class DataFrameMatcher(WorkerBase):
         Dataframes to match
     threshold_percentage : float, optional
         Percentage of the data range to be used as the threshold
-    frame_col : str, optional
+    frame_column : str, optional
         Column name for frame identifier
     coord_cols1 : list of str, optional
         List of column names for coordinates in df1
@@ -449,7 +449,7 @@ class DataFrameMatcher(WorkerBase):
         df1,
         df2,
         threshold_percentage=0.5,
-        frame_col="frame",
+        frame_column="frame",
         coord_cols1=["centroid-0", "centroid-1"],
         coord_cols2=None,
     ):
@@ -457,7 +457,7 @@ class DataFrameMatcher(WorkerBase):
         self.df1 = df1
         self.df2 = df2
         self.threshold_percentage = threshold_percentage
-        self.frame_col = frame_col
+        self.frame_column = frame_column
         self.coord_cols1 = coord_cols1
         self.coord_cols2 = coord_cols2
 
@@ -468,7 +468,7 @@ class DataFrameMatcher(WorkerBase):
                 self.df1,
                 self.df2,
                 self.threshold_percentage,
-                self.frame_col,
+                self.frame_column,
                 self.coord_cols1,
                 self.coord_cols2,
             )

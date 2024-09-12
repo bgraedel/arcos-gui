@@ -375,14 +375,14 @@ def test_run_dataframe_matching(
     controller, qtbot = make_input_widget
 
     # Mock the necessary methods and data
-    df1, df2, frame_col, coord_cols1 = Mock(), Mock(), Mock(), Mock()
+    df1, df2, frame_column, coord_cols1 = Mock(), Mock(), Mock(), Mock()
 
     # Call the method
-    controller._run_dataframe_matching(df1, df2, frame_col, coord_cols1)
+    controller._run_dataframe_matching(df1, df2, frame_column, coord_cols1)
 
     # Check that the methods were called with the expected arguments and the thread was started
     mock_DataFrameMatcher.assert_called_once_with(
-        df1, df2, frame_col=frame_col, coord_cols1=coord_cols1
+        df1, df2, frame_column=frame_column, coord_cols1=coord_cols1
     )
     controller.matching_worker.start.assert_called_once()
 

@@ -242,12 +242,13 @@ def test_export_image_series(
         # make a test dataframe with 3 columns
         file_path = tmpdir
         base_name = "test"
+        folder_name = f"{datetime.now().strftime('%Y%m%d')}_{base_name}_arcos_output"
 
         controller.widget.file_LineEdit_img.setText(file_path)
         controller.widget.base_name_LineEdit_img.setText(base_name)
 
         controller._export_image_series()
-        filelist = os.listdir(file_path)
+        filelist = os.listdir(os.path.join(file_path, folder_name))
         for f in filelist[:]:
             if not (f.endswith(".png")):
                 filelist.remove(f)
@@ -263,12 +264,13 @@ def test_export_image_series_button(
         # make a test dataframe with 3 columns
         file_path = tmpdir
         base_name = "test"
+        folder_name = f"{datetime.now().strftime('%Y%m%d')}_{base_name}_arcos_output"
 
         controller.widget.file_LineEdit_img.setText(file_path)
         controller.widget.base_name_LineEdit_img.setText(base_name)
 
         qtbot.mouseClick(controller.widget.img_seq_export_button, Qt.LeftButton)
-        filelist = os.listdir(file_path)
+        filelist = os.listdir(os.path.join(file_path, folder_name))
         for f in filelist[:]:
             if not (f.endswith(".png")):
                 filelist.remove(f)

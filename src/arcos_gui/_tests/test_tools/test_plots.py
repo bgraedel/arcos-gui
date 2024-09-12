@@ -21,7 +21,7 @@ def test_collev_plotter_with_data(make_napari_viewer):
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
     arcos_stats = calculate_arcos_stats(df, "t", "collid", "id", ["x", "y"])
     widget.update_plot(
-        frame_col="t",
+        frame_column="t",
         trackid_col="id",
         posx="x",
         posy="y",
@@ -39,7 +39,7 @@ def test_pick_event(make_napari_viewer):
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
     arcos_stats = calculate_arcos_stats(df, "t", "collid", "id", ["x", "y"])
     widget.update_plot(
-        frame_col="t",
+        frame_column="t",
         trackid_col="id",
         posx="x",
         posy="y",
@@ -76,7 +76,7 @@ def test_noodles_with_data(make_napari_viewer):
     widget = NoodlePlot(viewer=viewer)
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
     widget.update_plot(
-        frame_col="t",
+        frame_column="t",
         trackid_col="id",
         posx="x",
         posy="y",
@@ -92,7 +92,7 @@ def test_pick_event_noodles(make_napari_viewer):
     widget = NoodlePlot(viewer=viewer)
     df = pd.read_csv("src/arcos_gui/_tests/test_data/arcos_output.csv")
     widget.update_plot(
-        frame_col="t",
+        frame_column="t",
         trackid_col="id",
         posx="x",
         posy="y",
@@ -128,7 +128,7 @@ def test_time_series_plots_with_data(qtbot: QtBot):
     widget.update_plot(
         dataframe=df_input,
         dataframe_resc=df_arcos,
-        frame_col="t",
+        frame_column="t",
         track_id_col="id",
         x_coord_col="x",
         y_coord_col="y",
@@ -147,7 +147,7 @@ def test_all_plottypes_ts_plot(qtbot: QtBot):
     widget.update_plot(
         dataframe=df_input,
         dataframe_resc=df_arcos,
-        frame_col="t",
+        frame_column="t",
         track_id_col="id",
         x_coord_col="x",
         y_coord_col="y",

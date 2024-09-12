@@ -59,7 +59,7 @@ class tsPlotWidget(QtWidgets.QWidget):
         self._on_data_clear()
         df_orig = self._data_storage_instance.original_data.value
         df_bin = self._data_storage_instance.arcos_binarization.value
-        frame_col = self._data_storage_instance.columns.value.frame_column
+        frame_column = self._data_storage_instance.columns.value.frame_column
         object_id_col = self._data_storage_instance.columns.value.object_id
         measurement_col = self._data_storage_instance.columns.value.measurement_column
         x_coord_col = self._data_storage_instance.columns.value.x_column
@@ -71,7 +71,7 @@ class tsPlotWidget(QtWidgets.QWidget):
         self.timeseriesplot.update_plot(
             df_orig,
             df_bin,
-            frame_col,
+            frame_column,
             object_id_col,
             x_coord_col,
             y_coord_col,
@@ -150,7 +150,7 @@ class collevPlotWidget(QtWidgets.QWidget):
         self.tab_widget.setCurrentIndex(1)
 
     def _on_data_update(self):
-        frame_col = self._data_storage_instance.columns.value.frame_column
+        frame_column = self._data_storage_instance.columns.value.frame_column
         oid_col = self._data_storage_instance.columns.value.object_id
         x_coord = self._data_storage_instance.columns.value.x_column
         y_coord = self._data_storage_instance.columns.value.y_column
@@ -161,7 +161,7 @@ class collevPlotWidget(QtWidgets.QWidget):
         arcos_stats = self._data_storage_instance.arcos_stats.value
 
         self.collevplot.update_plot(
-            frame_col,
+            frame_column,
             oid_col,
             x_coord,
             y_coord,
@@ -173,7 +173,7 @@ class collevPlotWidget(QtWidgets.QWidget):
         )
 
         self.noodle_plot.update_plot(
-            frame_col,
+            frame_column,
             oid_col,
             x_coord,
             y_coord,

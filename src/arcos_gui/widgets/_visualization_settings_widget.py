@@ -1,4 +1,5 @@
 """Visualization settings widget. Contains the layer properties widget and the loader for the UI file."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -115,9 +116,9 @@ class LayerpropertiesController:
         self.widget.reset_lut.clicked.connect(self._reset_contrast)
         # update size and LUT
         throttled_change_colors = ThrottledCallback(
-            self._change_lut_colors, max_interval=0.1
+            self._change_lut_colors, max_interval=0.5
         )
-        throttled_change_size = ThrottledCallback(self._change_size, max_interval=0.1)
+        throttled_change_size = ThrottledCallback(self._change_size, max_interval=0.5)
         self.widget.lut_slider.valueChanged.connect(throttled_change_colors)
         self.widget.LUT.currentIndexChanged.connect(throttled_change_colors)
         self.widget.point_size.valueChanged.connect(throttled_change_size)
@@ -157,9 +158,9 @@ class LayerpropertiesController:
             min_value = min_max[0]
             max_value = min_max[1]
         if ARCOS_LAYERS["all_cells"] in layer_list:
-            self.viewer.layers[
-                ARCOS_LAYERS["all_cells"]
-            ].face_colormap = self.widget.LUT.currentText()
+            self.viewer.layers[ARCOS_LAYERS["all_cells"]].face_colormap = (
+                self.widget.LUT.currentText()
+            )
             self.viewer.layers[ARCOS_LAYERS["all_cells"]].face_contrast_limits = (
                 min_value,
                 max_value,
@@ -195,10 +196,10 @@ class LayerpropertiesController:
         data = self.data_storage_instance.filtered_data.value
         x_coord = self.data_storage_instance.columns.value.x_column
         y_coord = self.data_storage_instance.columns.value.y_column
-        frame_col = self.data_storage_instance.columns.value.frame_column
+        frame_column = self.data_storage_instance.columns.value.frame_column
 
         if not data.empty:
-            data_po_np = data[data[frame_col] == 0][[x_coord, y_coord]].to_numpy()
+            data_po_np = data[data[frame_column] == 0][[x_coord, y_coord]].to_numpy()
             # drop nan values
             data_po_np = data_po_np[~np.isnan(data_po_np).any(axis=1)]
             avg_nn_dist = (

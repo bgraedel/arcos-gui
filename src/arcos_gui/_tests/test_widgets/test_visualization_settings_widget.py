@@ -40,8 +40,8 @@ def make_points_layer_data_tuple():
         datAll,
         {
             "properties": datAllProp,
-            "edge_width": 0,
-            "edge_color": "act",
+            "border_width": 0,
+            "border_color": "act",
             "face_color": "act",
             "face_colormap": "inferno",
             "face_contrast_limits": None,
